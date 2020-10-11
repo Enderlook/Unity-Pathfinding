@@ -34,30 +34,64 @@ namespace Enderlook.Unity.Pathfinding
 <#
     foreach (bool hasTNodes in new bool[] { false, true })
     {
+        foreach (bool hasWatchdog in new bool[] { false, true })
+        {
 #>
         /// <summary>
-        /// Calculates a path from <paramref name="from"/> node to some node which satisfy <paramref name="finder"/>.
+        /// Calculates a path from <paramref name="from"/> node to some node which satisfy <paramref name="finder"/>.<#= hasWatchdog ? "<br/>" : "" #>
+<#
+            if (hasWatchdog)
+            {
+#>
+        /// This methods accepts a <paramref name="watchDog"/> to prematurely stop the calculation.
+<#
+            }
+#>
         /// </summary>
         /// <typeparam name="TFinder">Type of finder.</typeparam>
 <#
-        if (hasTNodes)
-        {
+            if (hasWatchdog)
+            {
+#>
+        /// <typeparam name="TWatchdog">Type of watchdog.</typeparam>
+<#
+            }
+#>
+<#
+            if (hasTNodes)
+            {
 #>
         /// <typeparam name="TNodes">Type of node enumeration.</typeparam>
 <#
-        }
+            }
 #>
         /// <param name="from">Node where path start.</param>
         /// <param name="finder">Path builder.</param>
-        public void CalculatePath<TFinder<#= hasTNodes ? ", TNodes" : "" #>>(TNode from, TFinder finder)
+<#
+            if (hasWatchdog)
+            {
+#>
+        /// <param name="watchDog">Watchdog which determines if prematurely stop the calculation.</param>
+<#
+            }
+#>
+        public void CalculatePath<TFinder<#= hasWatchdog ? ", TWatchdog" : "" #><#= hasTNodes ? ", TNodes" : "" #>>(TNode from, TFinder finder<#= hasWatchdog ? ", TWatchdog watchdog" : "" #>)
             where TFinder : IGraphIntrinsic<TNode<#= hasTNodes ? ", TNodes" : "" #>>, IPathTargetFinder<TNode>, IPathBuilder<TNode>
 <#
-        if (hasTNodes)
-        {
+            if (hasWatchdog)
+            {
+#>
+            where TWatchdog : IWatchdog
+<#
+            }
+#>
+<#
+            if (hasTNodes)
+            {
 #>
             where TNodes : IEnumerable<TNode>
 <#
-        }
+            }
 #>
         {
 #if UNITY_EDITOR || DEBUG
@@ -82,6 +116,19 @@ namespace Enderlook.Unity.Pathfinding
 
             while (toVisit.TryDequeue(out TNode node, out _))
             {
+<#
+            if (hasWatchdog)
+            {
+#>
+                if (!watchdog.CanContinue())
+                {
+                    finder.SetState(PathState.PathNotFoundDueToWatchDog);
+                    return;
+                }
+<#
+            }
+#>
+
                 if (visited.Contains(node))
                     continue;
                 visited.Add(node);
@@ -118,6 +165,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
 <#
+        }
     }
 #>
     }

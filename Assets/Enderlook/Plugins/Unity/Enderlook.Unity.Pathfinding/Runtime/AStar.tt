@@ -32,17 +32,28 @@ namespace Enderlook.Unity.Pathfinding
 <#
     foreach (bool hasTNodes in new bool[] { false, true })
     {
+    
+        foreach (bool hasWatchdog in new bool[] { false, true })
+        {
 #>
-        /// <inheritdoc cref="Dijkstra{TNode}.CalculatePath{TFinder<#= hasTNodes ? ", TNodes" : "" #>}(TNode, TFinder)"/>
-        public void CalculatePath<TFinder<#= hasTNodes ? ", TNodes" : "" #>>(TNode from, TFinder finder)
+        /// <inheritdoc cref="Dijkstra{TNode}.CalculatePath{TFinder<#= hasWatchdog ? ", TWatchdog" : "" #><#= hasTNodes ? ", TNodes" : "" #>}(TNode, TFinder<#= hasWatchdog ? ", TWatchdog" : "" #>)"/>
+        public void CalculatePath<TFinder<#= hasWatchdog ? ", TWatchdog" : "" #><#= hasTNodes ? ", TNodes" : "" #>>(TNode from, TFinder finder<#= hasWatchdog ? ", TWatchdog watchdog" : "" #>)
             where TFinder : IGraphIntrinsic<TNode>, IPathTargetFinderHeuristic<TNode>, IPathBuilder<TNode>
 <#
-        if (hasTNodes)
-        {
+            if (hasWatchdog)
+            {
+#>
+            where TWatchdog : IWatchdog
+<#
+            }
+#>
+<#
+            if (hasTNodes)
+            {
 #>
             where TNodes : IEnumerable<TNode>
 <#
-        }
+            }
 #>
         {
 #if UNITY_EDITOR || DEBUG
@@ -69,6 +80,19 @@ namespace Enderlook.Unity.Pathfinding
 
             while (toVisit.TryDequeue(out TNode node, out _))
             {
+<#
+            if (hasWatchdog)
+            {
+#>
+                if (!watchdog.CanContinue())
+                {
+                    finder.SetState(PathState.PathNotFoundDueToWatchDog);
+                    return;
+                }
+<#
+            }
+#>
+
                 if (visited.Contains(node))
                     continue;
                 visited.Add(node);
@@ -105,6 +129,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
 <#
+        }
     }
 #>
     }

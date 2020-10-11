@@ -24,5 +24,10 @@
         /// The path was not found.
         /// </summary>
         PathNotFound,
+
+        /// <summary>
+        /// The path was not found because a watch dog finalized the calculation prematurely.
+        /// </summary>
+        PathNotFoundDueToWatchDog,
     }
 }
