@@ -40,7 +40,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="builder">Manages the building of the path by storing intermediate results.</param>
         <#= IfHasWatchdog("/// <param name=\"watchdog\">Watchdog which determines if prematurely stop the calculation.</param>") #>
         public static void CalculatePath<TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(TNode from, TFinder finder, TBuilder builder <#= IfHasWatchdog(", TWatchdog watchdog") #>)
-            where TFinder : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinder<TNode>
+            where TFinder : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinderSatisfy<TNode>
             where TBuilder : IPathBuilder<TNode>
             <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
             <#= IfHasTNodes("where TNodes : IEnumerable<TNode>") #>

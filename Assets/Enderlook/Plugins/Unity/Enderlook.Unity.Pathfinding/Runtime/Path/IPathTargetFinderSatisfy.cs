@@ -4,7 +4,7 @@
     /// Determines the looked up node.
     /// </summary>
     /// <typeparam name="TNode">Type of node.</typeparam>
-    public interface IPathTargetFinder<TNode>
+    public interface IPathTargetFinderSatisfy<TNode>
     {
         /// <summary>
         /// Check is the node <paramref name="node"/> satisfy this query.

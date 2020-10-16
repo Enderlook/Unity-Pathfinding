@@ -30,7 +30,7 @@ namespace Enderlook.Unity.Pathfinding
 #>
         /// <inheritdoc cref="DijkstraStatic{TNode}.CalculatePath{TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>}(TNode, TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #>)"/>
         public static void CalculatePath<TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(TNode from, TFinder finder, TBuilder builder <#= IfHasWatchdog(", TWatchdog watchdog") #>)
-            where TFinder : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinderHeuristic<TNode>
+            where TFinder : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinderSatisfy<TNode>, IPathTargetFinderHeuristic<TNode>
             where TBuilder : IPathBuilder<TNode>
             <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
             <#= IfHasTNodes("where TNodes : IEnumerable<TNode>") #>
