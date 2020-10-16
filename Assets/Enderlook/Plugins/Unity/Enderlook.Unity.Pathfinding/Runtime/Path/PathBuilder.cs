@@ -1,5 +1,6 @@
 ﻿using Enderlook.Collections;
 
+using System;
 using System.Collections.Generic;
 
 namespace Enderlook.Unity.Pathfinding
@@ -7,12 +8,14 @@ namespace Enderlook.Unity.Pathfinding
     /// <summary>
     /// Represents the internal builder of a path.
     /// </summary>
-    public sealed class PathBuilder<TNode> : IPathBuilder<TNode>
+    /// <typeparam name="TNode">Node type.</typeparam>
+    public sealed class PathBuilder<TNode> : IPathBuilder<TNode>, IPathFeeder<IReadOnlyList<TNode>>, IPathFeeder<IEnumerable<TNode>>
     {
         private readonly HashSet<TNode> visited = new HashSet<TNode>();
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
         private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
+        private readonly List<TNode> path = new List<TNode>();
         private TNode initialNode;
         private TNode targetNode;
 
@@ -38,6 +41,62 @@ namespace Enderlook.Unity.Pathfinding
         {
             Status = result.ToPathState();
             this.targetNode = targetNode;
+
+            if (Status == PathState.PathFound)
+            {
+                path.Clear();
+
+                if (edges.Count == 0)
+                    path.Add(targetNode);
+                else
+                {
+                    TNode to = targetNode;
+                    path.Add(to);
+                    while (edges.TryGetValue(to, out TNode from))
+                    {
+                        to = from;
+                        path.Add(from);
+                    }
+                    path.Reverse();
+                }
+            }
+        }
+
+        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
+        public void FeedPathTo(IPathFeedable<IReadOnlyList<TNode>> path)
+        {
+            FeedToPathGuard();
+            path.Feed(this.path);
+        }
+
+        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
+        public void FeedPathTo(IPathFeedable<IEnumerable<TNode>> path)
+        {
+            FeedToPathGuard();
+            path.Feed(this.path);
+        }
+
+        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
+        public void FeedPathTo<T>(T path)
+            where T : IPathFeedable<IEnumerable<TNode>>
+        {
+            FeedToPathGuard();
+            path.Feed(this.path);
+        }
+
+        private void FeedToPathGuard()
+        {
+            switch (Status)
+            {
+                case PathState.Empty:
+                    throw new InvalidOperationException("Can't create path if path builder is empty.");
+                case PathState.InProgress:
+                    throw new InvalidOperationException("Can't create path while path builder is in progress.");
+                case PathState.PathNotFound:
+                    throw new InvalidOperationException("Can't create path because no path was found.");
+                case PathState.Timedout:
+                    throw new InvalidOperationException("Can't create path because path building was aborted prematurely.");
+            }
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode}.SetCost(TNode, float)"/>
