@@ -9,29 +9,15 @@ namespace Enderlook.Unity.Pathfinding
     /// </summary>
     public sealed class PathBuilder<TNode> : IPathBuilder<TNode>
     {
-        private readonly HashSet<TNode> visited;
-        private readonly BinaryHeapMin<TNode, float> toVisit;
-        private readonly Dictionary<TNode, float> costs;
-        private readonly Dictionary<TNode, TNode> edges;
+        private readonly HashSet<TNode> visited = new HashSet<TNode>();
+        private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
+        private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
+        private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
         private TNode initialNode;
         private TNode targetNode;
 
         /// <inheritdoc cref="IPathBuilder{TNode}.Status"/>
         public PathState Status { get; private set; }
-
-        private PathBuilder(bool _)
-        {
-            visited = new HashSet<TNode>();
-            toVisit = new BinaryHeapMin<TNode, float>();
-            costs = new Dictionary<TNode, float>();
-            edges = new Dictionary<TNode, TNode>();
-        }
-
-        /// <summary>
-        /// Creates a new instance of this builder.
-        /// </summary>
-        /// <returns>New instance.</returns>
-        public static PathBuilder<TNode> Create() => new PathBuilder<TNode>(false);
 
         /// <inheritdoc cref="IPathBuilder{TNode}.InitializeBuilderSession(TNode)"/>
         void IPathBuilder<TNode>.InitializeBuilderSession(TNode initialNode)
