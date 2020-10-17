@@ -1,6 +1,4 @@
-﻿using Enderlook.Collections;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -8,31 +6,27 @@ using UnityEngine;
 namespace Enderlook.Unity.Pathfinding
 {
     [Serializable]
-    public abstract class Graph<TCoord, TSpatialIndex> : IGraphIntrinsic<NodeId, IReadOnlyList<NodeId>>, ISerializationCallbackReceiver
-        where TSpatialIndex : ISpatialIndex<TCoord, int>, new()
+    public class Graph : IGraphIntrinsic<NodeId, IReadOnlyList<NodeId>>, ISerializationCallbackReceiver
     {
 #pragma warning disable CS0649
         [SerializeField]
         private NodeInner[] nodes = Array.Empty<NodeInner>();
 #pragma warning restore CS0649
 
-        private TSpatialIndex tree;
+        private Vector3Tree<int> tree = new Vector3Tree<int>();
 
         /// <inheritdoc cref="IGraphIntrinsic{TNode}.GetCost(TNode, TNode)"/>
-        public abstract float GetCost(NodeId from, NodeId to);
+        public float GetCost(NodeId from, NodeId to) => Vector3.Distance(GetNode(from).Position, GetNode(to).Position);
 
         /// <inheritdoc cref="IGraphIntrinsic{TNode, TNodes}.GetNeighbours(TNode)"/>
         public IReadOnlyList<NodeId> GetNeighbours(NodeId node) => nodes[node.id].edges;
 
-        protected Node GetNode(NodeId node) => nodes[node.id].ToNode();
+        private Node GetNode(NodeId node) => nodes[node.id].ToNode();
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
-            tree = new TSpatialIndex();
             for (int i = 0; i < nodes.Length; i++)
-            {
                 tree.Insert(nodes[i].position, i);
-            }
         }
 
         void ISerializationCallbackReceiver.OnBeforeSerialize() =>
@@ -40,7 +34,6 @@ namespace Enderlook.Unity.Pathfinding
             // If we are in the editor, we can try and optimize nodes by sorting them.
             Optimize();
 #endif
-
 
         private void Optimize()
         {
@@ -94,8 +87,10 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         private struct NodeInner
         {
-            public TCoord position;
+            [SerializeField]
+            public Vector3 position;
 
+            [SerializeField]
             public NodeId[] edges;
 
             public Node ToNode() =>
@@ -106,19 +101,19 @@ namespace Enderlook.Unity.Pathfinding
         /// <summary>
         /// Represent an ephemereal node.
         /// </summary>
-        protected readonly struct Node
+        private readonly struct Node
         {
             /// <summary>
             /// Position of the node.
             /// </summary>
-            public readonly TCoord Position;
+            public readonly Vector3 Position;
 
             /// <summary>
             /// Don't store this content outside of the node.
             /// </summary>
             public readonly IReadOnlyList<NodeId> Edges;
 
-            public Node(TCoord position, NodeId[] edges)
+            public Node(Vector3 position, NodeId[] edges)
             {
                 Position = position;
                 Edges = edges;
@@ -129,7 +124,7 @@ namespace Enderlook.Unity.Pathfinding
         [Serializable]
         private class NodeClass
         {
-            public TCoord position;
+            public Vector3 position;
             public NodeClass[] edges;
         }
 #endif
