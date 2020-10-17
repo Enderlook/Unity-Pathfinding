@@ -12,7 +12,9 @@ namespace Enderlook.Unity.Pathfinding
     {
         // TODO: use MemoryMarshal to transmutate tuples
 
+#pragma warning disable CS0649
         private readonly D3TreeFloat<TValue> tree;
+#pragma warning restore CS0649
 
         /// <inheritdoc cref="ISpatialIndexBasic{TKey, TValue}.Contains(TKey)"/>
         public bool Contains(Vector3 key) => tree.Contains(ToTuple(key));
