@@ -110,6 +110,26 @@
             <param name="bindingFlags"><see cref="T:System.Reflection.BindingFlags"/> used to get the property.</param>
             <returns>The first property which match the name <paramref name="name"/>.</returns>
         </member>
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetInheritedMember(System.Type,System.String,System.Reflection.BindingFlags)">
+            <summary>
+            Get the property <paramref name="name"/> recursively through the inheritance hierarchy of <paramref name="source"/>.<br/>
+            Returns the first match.
+            </summary>
+            <param name="source">Initial <see cref="T:System.Type"/> used to get the property.</param>
+            <param name="name">Name of the property to get.</param>
+            <param name="bindingFlags"><see cref="T:System.Reflection.BindingFlags"/> used to get the property.</param>
+            <returns>The first property which match the name <paramref name="name"/>.</returns>
+        </member>
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetInheritedMembers(System.Type,System.String,System.Reflection.BindingFlags)">
+            <summary>
+            Get the methods <paramref name="name"/> recursively through the inheritance hierarchy of <paramref name="source"/>.<br/>
+            Return all the times it's declared.
+            </summary>
+            <param name="source">Initial <see cref="T:System.Type"/> used to get the method.</param>
+            <param name="name">Name of the field to get.</param>
+            <param name="bindingFlags"><see cref="T:System.Reflection.BindingFlags"/> used to get the method.</param>
+            <returns>All the methods which match the name <paramref name="name"/>.</returns>
+        </member>
         <member name="M:Enderlook.Reflection.ReflectionExtensions.GetInheritedProperties(System.Type,System.String,System.Reflection.BindingFlags)">
             <summary>
             Get the properties <paramref name="name"/> recursively through the inheritance hierarchy of <paramref name="source"/>.<br/>
@@ -140,6 +160,14 @@
             <param name="bindingFlags"><see cref="T:System.Reflection.BindingFlags"/> used to get the method.</param>
             <returns>All the methods which match the name <paramref name="name"/>.</returns>
         </member>
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetInheritedMembers(System.Type,System.Reflection.BindingFlags)">
+            <summary>
+            Get all the members recursively through the inheritance hierarchy of <paramref name="source"/>.
+            </summary>
+            <param name="source">Initial <see cref="T:System.Type"/> used to get the field.</param>
+            <param name="bindingFlags"><see cref="T:System.Reflection.BindingFlags"/> used to get the field.</param>
+            <returns>The all the fields recursively through the inheritance hierarchy.</returns>
+        </member>
         <member name="M:Enderlook.Reflection.ReflectionExtensions.GetInheritedFields(System.Type,System.Reflection.BindingFlags)">
             <summary>
             Get all the fields recursively through the inheritance hierarchy of <paramref name="source"/>.
@@ -164,7 +192,11 @@
             <param name="bindingFlags"><see cref="T:System.Reflection.BindingFlags"/> used to get the methods.</param>
             <returns>The all the methods recursively through the inheritance hierarchy.</returns>
         </member>
-        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetValueFromFirstMember``1(System.Object,System.String)">
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetValueFromFirstMember``1(System.Object,System.String,System.Boolean)">
+            <inheritdoc cref="M:Enderlook.Reflection.ReflectionExtensions.GetValueFromFirstMember(System.Object,System.String,System.Type,System.Boolean)"/>
+            <typeparam name="T">Result type.</typeparam>
+        </member>
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetValueFromFirstMember(System.Object,System.String,System.Type,System.Boolean)">
             <summary>
             Returns the value of the first member of <paramref name="obj"/> which:
             <list type="bullet">
@@ -173,16 +205,21 @@
                 <item><description>If <see cref="T:System.Reflection.FieldInfo"/>, its <see cref="P:System.Reflection.FieldInfo.FieldType"/> must be <typeparamref name="T"/>.</description></item>
             </list>
             </summary>
-            <typeparam name="T">Result type.</typeparam>
             <param name="obj">Object to look for <see cref="T:System.Reflection.MemberInfo"/> and results.</param>
             <param name="memberName">Name of the <see cref="T:System.Reflection.MemberInfo"/> looked for.</param>
+            <param name="memberType">Result type.</param>
+            <param name="includeInheritedPrivates">Whenever it should also include private inherited members.</param>
             <returns>Result of the first <see cref="T:System.Reflection.MemberInfo"/> of <paramref name="obj"/> in match the criteria.</returns>
             <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="obj"/> or <paramref name="memberName"/> are <see langword="null"/>.</exception>
             <exception cref="T:System.ArgumentException">Thrown when <paramref name="memberName"/> is empty.</exception>
             <exception cref="T:Enderlook.Reflection.MemberNotFoundException">Thrown no <see cref="T:System.Reflection.MemberInfo"/> with name <paramref name="memberName"/> could be found in <paramref name="obj"/>.</exception>
             <exception cref="T:Enderlook.Reflection.MatchingMemberNotFoundException">Thrown no <see cref="T:System.Reflection.MemberInfo"/> with name <paramref name="memberName"/> in <paramref name="obj"/> matched the necessary requirements.</exception>
         </member>
-        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetFirstMemberInfoInMatchReturn``1(System.Type,System.String)">
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetFirstMemberInfoInMatchReturn``1(System.Type,System.String,System.Boolean)">
+            <inheritdoc cref="M:Enderlook.Reflection.ReflectionExtensions.GetFirstMemberInfoInMatchReturn(System.Type,System.String,System.Type,System.Boolean)"/>
+            <typeparam name="T">Result type.</typeparam>
+        </member>
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetFirstMemberInfoInMatchReturn(System.Type,System.String,System.Type,System.Boolean)">
             <summary>
             Returns the first member of <paramref name="type"/> which:
             <list type="bullet">
@@ -192,16 +229,17 @@
             </list>
             <see cref="T:System.Reflection.PropertyInfo"/> are always returned as <see cref="T:System.Reflection.MethodInfo"/> because it returns their getter.
             </summary>
-            <typeparam name="T">Result type.</typeparam>
             <param name="type">Type to look for <see cref="T:System.Reflection.MemberInfo"/> and results.</param>
             <param name="memberName">Name of the <see cref="T:System.Reflection.MemberInfo"/> looked for.</param>
+            <param name="memberType">Result type.</param>
+            <param name="includeInheritedPrivates">Whenever it should also include private inherited members.</param>
             <returns>Result of the first <see cref="T:System.Reflection.MemberInfo"/> of <paramref name="type"/> in match the criteria.</returns>
             <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="type"/> or <paramref name="memberName"/> are <see langword="null"/>.</exception>
             <exception cref="T:System.ArgumentException">Thrown when <paramref name="memberName"/> is empty.</exception>
             <exception cref="T:Enderlook.Reflection.MemberNotFoundException">Thrown no <see cref="T:System.Reflection.MemberInfo"/> with name <paramref name="memberName"/> could be found in <paramref name="type"/>.</exception>
             <exception cref="T:Enderlook.Reflection.MatchingMemberNotFoundException">Thrown no <see cref="T:System.Reflection.MemberInfo"/> with name <paramref name="memberName"/> in <paramref name="type"/> matched the necessary requirements.</exception>
         </member>
-        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetFirstMemberInfoInMatchReturn``2(System.String)">
+        <member name="M:Enderlook.Reflection.ReflectionExtensions.GetFirstMemberInfoInMatchReturn``2(System.String,System.Boolean)">
             <summary>
             Returns the first member of <paramref name="memberName"/> which:
             <list type="bullet">
@@ -214,6 +252,7 @@
             <typeparam name="T">Type to look for <see cref="T:System.Reflection.MemberInfo"/> and results.</typeparam>
             <typeparam name="U">Result type.</typeparam>
             <param name="memberName">Name of the <see cref="T:System.Reflection.MemberInfo"/> looked for.</param>
+            <param name="includeInheritedPrivates">Whenever it should also include private inherited members.</param>
             <returns>Result of the first <see cref="T:System.Reflection.MemberInfo"/> of <paramref name="memberName"/> in match the criteria.</returns>
             <exception cref="T:System.ArgumentNullException">Thrown when <paramref name="memberName"/> or <paramref name="memberName"/> are <see langword="null"/>.</exception>
             <exception cref="T:System.ArgumentException">Thrown when <paramref name="memberName"/> is empty.</exception>
