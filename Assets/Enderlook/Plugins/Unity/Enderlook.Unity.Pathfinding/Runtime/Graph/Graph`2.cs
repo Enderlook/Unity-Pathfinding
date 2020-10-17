@@ -11,8 +11,10 @@ namespace Enderlook.Unity.Pathfinding
     public abstract class Graph<TCoord, TSpatialIndex> : IGraphIntrinsic<NodeId, IReadOnlyList<NodeId>>, ISerializationCallbackReceiver
         where TSpatialIndex : ISpatialIndex<TCoord, int>, new()
     {
+#pragma warning disable CS0649
         [SerializeField]
-        private NodeInner[] nodes;
+        private NodeInner[] nodes = Array.Empty<NodeInner>();
+#pragma warning restore CS0649
 
         private TSpatialIndex tree;
 
@@ -33,11 +35,15 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
-        {
+        void ISerializationCallbackReceiver.OnBeforeSerialize() =>
 #if UNITY_EDITOR
             // If we are in the editor, we can try and optimize nodes by sorting them.
+            Optimize();
+#endif
 
+
+        private void Optimize()
+        {
             int nodesLength = nodes.Length;
             NodeClass[] nodesClass = new NodeClass[nodesLength];
             for (int i = 0; i < 0; i++)
@@ -77,7 +83,6 @@ namespace Enderlook.Unity.Pathfinding
                 nodes[i].edges = edges;
                 Array.Sort(edges); // Not necessary
             }
-#endif
         }
 
         /// <inheritdoc cref="IGraphIntrinsic{TNodeId}.GetNeighbours(TNodeId)"/>
@@ -93,11 +98,9 @@ namespace Enderlook.Unity.Pathfinding
 
             public NodeId[] edges;
 
-            public Node ToNode()
-            {
+            public Node ToNode() =>
                 // TODO: Use MemoryMarshal
-                return new Node(position, edges);
-            }
+                new Node(position, edges);
         }
 
         /// <summary>
