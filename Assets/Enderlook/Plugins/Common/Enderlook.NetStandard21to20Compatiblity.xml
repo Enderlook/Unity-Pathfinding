@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Enderlook.NetStandard21to20Compatiblity</name>
+    </assembly>
+    <members>
+        <member name="M:KeyValuePairExtension.Deconstruct``2(System.Collections.Generic.KeyValuePair{``0,``1},``0@,``1@)">
+            <summary>
+            Deconstruction of <seealso cref="T:System.Collections.Generic.KeyValuePair`2"/>.
+            </summary>
+        </member>
+    </members>
+</doc>

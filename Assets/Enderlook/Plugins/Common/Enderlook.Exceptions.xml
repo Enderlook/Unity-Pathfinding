@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Enderlook.Exceptions</name>
+    </assembly>
+    <members>
+        <member name="T:Enderlook.Exceptions.ImpossibleStateException">
+            <summary>
+            Represents a code state that in theory it should never happen.<br/>
+            Used when the compiler produces error because it can't infer that all code path returns a value.
+            </summary>
+        </member>
+        <member name="M:Enderlook.Exceptions.ImpossibleStateException.#ctor">
+            <summary>
+            Creates an instance of error that represents a code state that in theory it should never happen.
+            </summary>
+        </member>
+        <member name="M:Enderlook.Exceptions.ImpossibleStateException.#ctor(System.String)">
+            <summary>
+            Creates an instance of error that represents a code state that in theory it should never happen.
+            </summary>
+            <param name="message">Specified error mensage.</param>
+        </member>
+        <member name="M:Enderlook.Exceptions.ImpossibleStateException.#ctor(System.String,System.Exception)">
+            <summary>
+            Creates an instance of error that represents a code state that in theory it should never happen.
+            </summary>
+            <param name="message">Specified error mensage.</param>
+            <param name="innerException">Reference to a inner exception that is the cause of this exception.</param>
+        </member>
+    </members>
+</doc>
