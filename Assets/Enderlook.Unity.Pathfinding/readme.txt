@@ -1,0 +1,1 @@
+TODO: On Unity 2020.1, rework code to use generics.
