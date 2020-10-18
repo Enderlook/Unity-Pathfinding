@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Enderlook.Unity.Pathfinding
 {
     [Serializable]
-    public class Graph : IGraphIntrinsic<NodeId, IReadOnlyList<NodeId>>, ISerializationCallbackReceiver
+    internal sealed class Graph : IGraphIntrinsic<NodeId, IReadOnlyList<NodeId>>, ISerializationCallbackReceiver
     {
 #pragma warning disable CS0649
         [SerializeField]
