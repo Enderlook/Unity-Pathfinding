@@ -48,36 +48,60 @@ namespace Enderlook.Unity.Pathfinding
             else
                 Array.Resize(ref serializedOctans, octantsCount);
 
-            int top = 0;
-            if (octantsCount > 0)
-                Serialize(0, 0, ref top);
-
-            void Serialize(int oldIndex, int newIndex, ref int fronteer)
+            int fronteer = 0;
+            unsafe
             {
-                InnerOctant octant = octants[oldIndex];
-                Debug.Assert(octant.ChildrenStartAtIndex != 3);
-                if (octant.IsLeaf || octant.IsIntransitable)
-                    serializedOctans[newIndex].ChildrenStartAtIndex = octant.ChildrenStartAtIndex;
-                else
+                int stackLenght = (subdivisions * 8) + 2;
+                IndexTransfer* stack = stackalloc IndexTransfer[stackLenght];
+                stack[0] = new IndexTransfer(0, 0);
+                int stackPointer = 0;
+
+                while (stackPointer >= 0)
                 {
-                    int newChildrenStartAtIndex = ++fronteer;
-                    serializedOctans[newIndex].ChildrenStartAtIndex = newChildrenStartAtIndex;
-                    fronteer += 7;
+                    IndexTransfer item = stack[stackPointer];
+                    int oldIndex = item.OldIndex;
+                    int newIndex = item.NewIndex;
+                    InnerOctant octant = octants[oldIndex];
+                    Debug.Assert(octant.ChildrenStartAtIndex != 3);
+                    if (octant.IsLeaf || octant.IsIntransitable)
+                    {
+                        stackPointer--;
+                        serializedOctans[newIndex].ChildrenStartAtIndex = octant.ChildrenStartAtIndex;
+                    }
+                    else
+                    {
+                        int newChildrenStartAtIndex = ++fronteer;
+                        serializedOctans[newIndex].ChildrenStartAtIndex = newChildrenStartAtIndex;
+                        fronteer += 7;
 
-                    int oldChildrenStartAtIndex = octant.ChildrenStartAtIndex;
+                        int oldChildrenStartAtIndex = octant.ChildrenStartAtIndex;
 
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
-                    Serialize(oldChildrenStartAtIndex, newChildrenStartAtIndex, ref fronteer);
+                        Debug.Assert(stackPointer + 7 < stackLenght);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stack[stackPointer] = new IndexTransfer(oldChildrenStartAtIndex, newChildrenStartAtIndex);
+                    }
                 }
             }
 
-            Debug.Assert(octantsCount == (top + 1));
+            Debug.Assert(octantsCount == (fronteer + 1));
+        }
+
+        private readonly struct IndexTransfer
+        {
+            public readonly int OldIndex;
+            public readonly int NewIndex;
+
+            public IndexTransfer(int oldIndex, int newIndex)
+            {
+                OldIndex = oldIndex;
+                NewIndex = newIndex;
+            }
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
