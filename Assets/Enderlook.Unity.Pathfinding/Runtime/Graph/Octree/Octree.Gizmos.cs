@@ -26,14 +26,14 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void DrawGizmos()
         {
-            if (nodes is null || nodesCount == 0 || nodes.Length == 0)
+            if (octants is null || octantsCount == 0 || octants.Length == 0)
                 return;
 
             DrawGizmosChild(0, center, size);
 
             void DrawGizmosChild(int index, Vector3 center, float size)
             {
-                InnerNode node = nodes[index];
+                InnerOctant node = octants[index];
 
                 bool draw = false;
 

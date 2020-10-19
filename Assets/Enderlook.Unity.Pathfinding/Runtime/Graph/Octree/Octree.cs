@@ -19,19 +19,22 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField]
         private int subdivisions;
 
-        private InnerNode[] nodes;
-        private int nodesCount;
-        private List<int> free;
+        private InnerOctant[] octants;
+        private int octantsCount;
+        /// <summary>
+        /// Each index in this list represent 8 contiguos free octans in the <see cref="octants"/> array.
+        /// </summary>
+        private Stack<int> freeOctanRegions;
 
         public Octree(Vector3 center, float size, int subdivisions)
         {
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
-            serializedNodes = Array.Empty<SerializableNode>();
+            serializedOctans = Array.Empty<SerializableOctant>();
         }
 
-        private struct InnerNode
+        private struct InnerOctant
         {
             //  0 -> Completely transitable but has no children
             // -1 -> Intransitable Leaf
@@ -45,7 +48,7 @@ namespace Enderlook.Unity.Pathfinding
 
             public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
 
-            public InnerNode(int childrenStartAtIndex) => ChildrenStartAtIndex = childrenStartAtIndex;
+            public InnerOctant(int childrenStartAtIndex) => ChildrenStartAtIndex = childrenStartAtIndex;
 
             public void SetTraversableLeaf() => ChildrenStartAtIndex = 0;
 
@@ -62,36 +65,36 @@ namespace Enderlook.Unity.Pathfinding
             else
                 Array.Clear(serializedNodes, 0, serializedNodes.Length);
 #else
-            serializedNodes = Array.Empty<SerializableNode>();
+            serializedOctans = Array.Empty<SerializableOctant>();
 #endif
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
 
-            if (nodes is null)
-                nodes = Array.Empty<InnerNode>();
+            if (octants is null)
+                octants = Array.Empty<InnerOctant>();
             else
-                Array.Clear(nodes, 0, nodes.Length);
-            nodesCount = 0;
+                Array.Clear(octants, 0, octants.Length);
+            octantsCount = 0;
         }
 
         internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
         {
-            if (free is null)
-                free = new List<int>();
+            if (freeOctanRegions is null)
+                freeOctanRegions = new Stack<int>();
 
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
-            if (nodesCount == 0)
+            if (octantsCount == 0)
             {
                 EnsureAdditionalCapacity(1);
-                nodesCount++;
+                octantsCount++;
             }
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(0, center, size, 0, ref tuple))
-                nodes[0] = new InnerNode(-2);
+                octants[0] = new InnerOctant(-2);
         }
 
         private bool CheckChild(int index, Vector3 center, float size, int depth, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
@@ -102,10 +105,10 @@ namespace Enderlook.Unity.Pathfinding
             if (count == 0)
             {
                 // If the node isn't a leaf we make it a leaf because there are no obstacles
-                if (!nodes[index].IsLeaf)
+                if (!octants[index].IsLeaf)
                 {
-                    Reclaim(nodes[index].ChildrenStartAtIndex);
-                    nodes[index].SetTraversableLeaf();
+                    Reclaim(octants[index].ChildrenStartAtIndex);
+                    octants[index].SetTraversableLeaf();
                 }
                 return false;
             }
@@ -116,18 +119,18 @@ namespace Enderlook.Unity.Pathfinding
             {
                 // There are obstacles but we can't subdivide more
                 // So make the node an intransitable leaf 
-                nodes[index].SetIntransitableLeaf();
+                octants[index].SetIntransitableLeaf();
                 return true;
             }
 
             // At this point we can subdivide
 
-            int childrenStartAtIndex = nodes[index].ChildrenStartAtIndex;
+            int childrenStartAtIndex = octants[index].ChildrenStartAtIndex;
             if (childrenStartAtIndex <= 0)
             {
                 // The node doesn't have any children, so we add room for them
                 childrenStartAtIndex = GetChildrenSpace();
-                nodes[index].ChildrenStartAtIndex = childrenStartAtIndex;
+                octants[index].ChildrenStartAtIndex = childrenStartAtIndex;
             }
 
             depth++;
@@ -145,7 +148,7 @@ namespace Enderlook.Unity.Pathfinding
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 
-                nodes[index].SetIntransitableParent();
+                octants[index].SetIntransitableParent();
                 Reclaim(old);
                 return true;
             }
@@ -154,40 +157,34 @@ namespace Enderlook.Unity.Pathfinding
 
         private void Reclaim(int childrenStartAtIndex)
         {
-            free.Add(childrenStartAtIndex);
+            freeOctanRegions.Push(childrenStartAtIndex);
             int to = childrenStartAtIndex + 8;
             for (int i = childrenStartAtIndex; i < to; i++)
-                nodes[i] = default;
+                octants[i] = default;
         }
 
         private int GetChildrenSpace()
         {
-            int index;
-            if (free.Count > 0)
-            {
-                int last = free.Count - 1;
-                index = free[last];
-                free.RemoveAt(last);
+            if (freeOctanRegions.TryPop(out int index))
                 return index;
-            }
 
             EnsureAdditionalCapacity(8);
-            index = nodesCount;
-            nodesCount += 8;
+            index = octantsCount;
+            octantsCount += 8;
             return index;
         }
 
         private void EnsureAdditionalCapacity(int additional)
         {
-            int required = nodesCount + additional;
-            if (required <= nodes.Length)
+            int required = octantsCount + additional;
+            if (required <= octants.Length)
                 return;
 
-            int newSize = (nodes.Length * GROW_ARRAY_FACTOR_MULTIPLICATIVE) + GROW_ARRAY_FACTOR_ADDITIVE;
+            int newSize = (octants.Length * GROW_ARRAY_FACTOR_MULTIPLICATIVE) + GROW_ARRAY_FACTOR_ADDITIVE;
             if (newSize < required)
                 newSize = required;
 
-            Array.Resize(ref nodes, newSize);
+            Array.Resize(ref octants, newSize);
         }
     }
 }

@@ -11,7 +11,7 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly GUIContent CLEAR_BUTTON = new GUIContent("Clear", "Remove the bake.");
         private static readonly GUIContent GIZMOS_LABEL = new GUIContent("Gizmos", "Gizmos configuration.");
         private static readonly GUIContent DRAW_MODE_ENUM = new GUIContent("Draw Mode", "Determines how the octree is drawed by the gizmos.");
-        private static readonly GUIContent NODES_COUNT = new GUIContent("Nodes", "Amount of stores nodes. Note that this value is actually the number of serialized nodes, so it can be outdated until a new serialization if changes are made.");
+        private static readonly GUIContent OCTANS_COUNT = new GUIContent("Octans", "Amount of stores octans. Note that this value is actually the number of serialized nodes, so it can be outdated until a new serialization if changes are made.");
 
         private new PathAreaAnchor target;
 
@@ -44,7 +44,7 @@ namespace Enderlook.Unity.Pathfinding
             EditorGUI.indentLevel++;
             {
                 EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.IntField(NODES_COUNT, target.SerializedNodesCount);
+                EditorGUILayout.IntField(OCTANS_COUNT, target.SerializedOctansCount);
                 EditorGUI.EndDisabledGroup();
                 target.DrawMode = (Octree.DrawMode)EditorGUILayout.EnumFlagsField(DRAW_MODE_ENUM, target.DrawMode);
             }
