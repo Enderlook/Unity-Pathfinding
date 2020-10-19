@@ -22,7 +22,6 @@ namespace Enderlook.Unity.Pathfinding
         {
             DrawDefaultInspector();
 
-            EditorGUI.BeginChangeCheck();
             EditorGUILayout.BeginHorizontal();
             {
                 if (GUILayout.Button(BAKE_BUTTON))
@@ -37,8 +36,6 @@ namespace Enderlook.Unity.Pathfinding
                 }
             }
             EditorGUILayout.EndHorizontal();
-            if (EditorGUI.EndChangeCheck())
-                serializedObject.ApplyModifiedProperties();
 
             EditorGUILayout.PrefixLabel(GIZMOS_LABEL);
             EditorGUI.indentLevel++;
