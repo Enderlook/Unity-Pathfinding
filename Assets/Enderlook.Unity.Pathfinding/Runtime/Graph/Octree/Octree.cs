@@ -42,6 +42,8 @@ namespace Enderlook.Unity.Pathfinding
             // -3 -> Not serialize
             public int ChildrenStartAtIndex;
 
+            public int ParentIndex;
+
             public Vector3 Center;
 
             public bool HasChildren => ChildrenStartAtIndex > 0;
@@ -50,14 +52,16 @@ namespace Enderlook.Unity.Pathfinding
 
             public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
 
-            public InnerOctant(int childrenStartAtIndex, Vector3 center)
+            public InnerOctant(int parentIndex, int childrenStartAtIndex, Vector3 center)
             {
+                ParentIndex = parentIndex;
                 ChildrenStartAtIndex = childrenStartAtIndex;
                 Center = center;
             }
 
-            public InnerOctant(int childrenStartAtIndex)
+            public InnerOctant(int parentIndex, int childrenStartAtIndex)
             {
+                ParentIndex = parentIndex;
                 ChildrenStartAtIndex = childrenStartAtIndex;
                 Center = default;
             }
@@ -103,7 +107,7 @@ namespace Enderlook.Unity.Pathfinding
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(0, center, size, 0, ref tuple))
-                octants[0] = new InnerOctant(-2, center);
+                octants[0] = new InnerOctant(-1, -2, center);
         }
 
         private bool CheckChild(int index, Vector3 center, float size, int depth, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)

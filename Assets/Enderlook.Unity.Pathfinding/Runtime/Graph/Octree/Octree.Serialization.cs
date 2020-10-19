@@ -131,7 +131,7 @@ namespace Enderlook.Unity.Pathfinding
                         octantsCount = serializedOctantsRaw.Length;
                         octants = new InnerOctant[octantsCount];
                         for (int i = 0; i < octantsCount; i++)
-                            octants[i] = new InnerOctant(serializedOctants[i].ChildrenStartAtIndex);
+                            octants[i] = new InnerOctant(i, serializedOctants[i].ChildrenStartAtIndex);
 
                         int stackLenght = (subdivisions * 8) + 2;
                         OnAfterDeserializeFrame* stackFrame = stackalloc OnAfterDeserializeFrame[stackLenght];
