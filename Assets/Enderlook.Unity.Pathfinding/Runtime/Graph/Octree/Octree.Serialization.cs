@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -35,65 +34,50 @@ namespace Enderlook.Unity.Pathfinding
 
             public SerializableOctant(int childrenStartAtIndex) => i = childrenStartAtIndex;
         }
-        
+
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
+            if (octantsCount == 0)
+            {
+                serializedOctans = Array.Empty<SerializableOctant>();
+                return;
+            }
+
             if (serializedOctans is null)
                 serializedOctans = new SerializableOctant[octantsCount];
-            else if (serializedOctans.Length < octantsCount)
-                Array.Resize(ref serializedOctans, octantsCount);
-
-            int freeCount;
-            if (freeOctanRegions is null || freeOctanRegions.Count == 0)
-            {
-                if (octantsCount == 0)
-                    return;
-
-                for (int i = 0; i < octantsCount; i++)
-                {
-                    Debug.Assert(octants[i].ChildrenStartAtIndex != 3);
-                    serializedOctans[i].ChildrenStartAtIndex = octants[i].ChildrenStartAtIndex;
-                }
-
-                Array.Resize(ref serializedOctans, octantsCount);
-            }
             else
+                Array.Resize(ref serializedOctans, octantsCount);
+
+            int top = 0;
+            if (octantsCount > 0)
+                Serialize(0, 0, ref top);
+
+            void Serialize(int oldIndex, int newIndex, ref int fronteer)
             {
-                freeCount = freeOctanRegions.Count * 8;
-                foreach (int index in freeOctanRegions)
+                InnerOctant octant = octants[oldIndex];
+                Debug.Assert(octant.ChildrenStartAtIndex != 3);
+                if (octant.IsLeaf || octant.IsIntransitable)
+                    serializedOctans[newIndex].ChildrenStartAtIndex = octant.ChildrenStartAtIndex;
+                else
                 {
-                    int to = index + 8;
-                    for (int i = 0; i < to; i++)
-                        octants[i].ChildrenStartAtIndex = -3;
+                    int newChildrenStartAtIndex = ++fronteer;
+                    serializedOctans[newIndex].ChildrenStartAtIndex = newChildrenStartAtIndex;
+                    fronteer += 7;
+
+                    int oldChildrenStartAtIndex = octant.ChildrenStartAtIndex;
+
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex++, newChildrenStartAtIndex++, ref fronteer);
+                    Serialize(oldChildrenStartAtIndex, newChildrenStartAtIndex, ref fronteer);
                 }
-
-                int capacity = octantsCount - freeCount;
-                Dictionary<int, int> map = new Dictionary<int, int>(capacity < 0 ? 0 : capacity);
-                int j = 0;
-                for (int i = 0; i < octantsCount; i++)
-                {
-                    if (octants[i].ChildrenStartAtIndex != -3)
-                        j++;
-                    map.Add(i, j);
-                }
-
-                j = 0;
-                for (int i = 0; i < octantsCount; i++)
-                {
-                    int oldStart = octants[i].ChildrenStartAtIndex;
-                    int start;
-                    if (oldStart == -3)
-                        continue;
-                    if (oldStart < 0)
-                        start = oldStart;
-                    else
-                        start = map[oldStart];
-
-                    serializedOctans[j++].ChildrenStartAtIndex = start;
-                }
-
-                Array.Resize(ref serializedOctans, j);
             }
+
+            Debug.Assert(octantsCount == (top + 1));
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
