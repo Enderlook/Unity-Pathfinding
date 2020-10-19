@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding
         private bool includeTriggerColliders;
 
         [SerializeField, Min(1), Tooltip("Defiens the level of detail of the path area.")]
-        private int subdivisions = 1;
+        private byte subdivisions = 1;
 
         [SerializeField, HideInInspector]
         private Octree graph;

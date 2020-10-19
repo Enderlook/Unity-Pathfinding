@@ -17,7 +17,7 @@ namespace Enderlook.Unity.Pathfinding
         private float size;
 
         [SerializeField]
-        private int subdivisions;
+        private byte subdivisions;
 
         private InnerOctant[] octants;
         private int octantsCount;
@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         private Stack<int> freeOctanRegions;
 
-        public Octree(Vector3 center, float size, int subdivisions)
+        public Octree(Vector3 center, float size, byte subdivisions)
         {
             this.center = center;
             this.size = size;
@@ -69,7 +69,7 @@ namespace Enderlook.Unity.Pathfinding
             public void SetIntransitableParent() => ChildrenStartAtIndex = -2;
         }
 
-        internal void Reset(Vector3 center, float size, int subdivisions)
+        internal void Reset(Vector3 center, float size, byte subdivisions)
         {
 #if !UNITY_EDITOR
             if (serializedNodes is null)
