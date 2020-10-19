@@ -42,13 +42,25 @@ namespace Enderlook.Unity.Pathfinding
             // -3 -> Not serialize
             public int ChildrenStartAtIndex;
 
+            public Vector3 Center;
+
             public bool HasChildren => ChildrenStartAtIndex > 0;
 
             public bool IsLeaf => ChildrenStartAtIndex == 0 || ChildrenStartAtIndex == -1;
 
             public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
 
-            public InnerOctant(int childrenStartAtIndex) => ChildrenStartAtIndex = childrenStartAtIndex;
+            public InnerOctant(int childrenStartAtIndex, Vector3 center)
+            {
+                ChildrenStartAtIndex = childrenStartAtIndex;
+                Center = center;
+            }
+
+            public InnerOctant(int childrenStartAtIndex)
+            {
+                ChildrenStartAtIndex = childrenStartAtIndex;
+                Center = default;
+            }
 
             public void SetTraversableLeaf() => ChildrenStartAtIndex = 0;
 
@@ -94,11 +106,13 @@ namespace Enderlook.Unity.Pathfinding
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(0, center, size, 0, ref tuple))
-                octants[0] = new InnerOctant(-2);
+                octants[0] = new InnerOctant(-2, center);
         }
 
         private bool CheckChild(int index, Vector3 center, float size, int depth, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
         {
+            octants[index].Center = center;
+
             size /= 2;
 
             int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * size, tuple.test, Quaternion.identity, tuple.filterInclude, tuple.query);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -31,6 +32,10 @@ namespace Enderlook.Unity.Pathfinding
                 get => i;
                 set => i = value;
             }
+
+            public bool IsLeaf => ChildrenStartAtIndex == 0 || ChildrenStartAtIndex == -1;
+
+            public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
 
             public SerializableOctant(int childrenStartAtIndex) => i = childrenStartAtIndex;
         }
@@ -117,6 +122,53 @@ namespace Enderlook.Unity.Pathfinding
                 octants = new InnerOctant[octantsCount];
                 for (int i = 0; i < octantsCount; i++)
                     octants[i] = new InnerOctant(serializedOctans[i].ChildrenStartAtIndex);
+
+                unsafe
+                {
+                    int stackLenght = (subdivisions * 8) + 2;
+                    IndexPosition* stack = stackalloc IndexPosition[stackLenght];
+                    stack[0] = new IndexPosition(0, center);
+                    int stackPointer = 0;
+
+                    while (stackPointer >= 0)
+                    {
+                        IndexPosition item = stack[stackPointer];
+
+                        octants[item.Index].Center = center;
+                        InnerOctant octant = octants[item.Index];
+
+                        if (octant.IsLeaf || octant.IsIntransitable)
+                        {
+                            stackPointer--;
+                            return;
+                        }
+
+                        int childrenStartAtIndex = octant.ChildrenStartAtIndex;
+
+                        Debug.Assert(stackPointer + 7 < stackLenght);
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir0 * size * .5f));
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir1 * size * .5f));
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir2 * size * .5f));
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir3 * size * .5f));
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f));
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f));
+                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f));
+                        stack[stackPointer] = new IndexPosition(childrenStartAtIndex, center + (DirectionsHelper.Dir7 * size * .5f));
+                    }
+                }
+            }
+        }
+
+        public readonly struct IndexPosition
+        {
+            public readonly int Index;
+
+            public readonly Vector3 Center;
+
+            public IndexPosition(int index, Vector3 center)
+            {
+                Index = index;
+                Center = center;
             }
         }
     }
