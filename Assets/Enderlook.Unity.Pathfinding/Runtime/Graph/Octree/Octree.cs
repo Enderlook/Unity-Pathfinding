@@ -92,9 +92,6 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
         {
-            if (freeOctanRegions is null)
-                freeOctanRegions = new Stack<int>();
-
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
@@ -158,7 +155,7 @@ namespace Enderlook.Unity.Pathfinding
                 CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f), size, depth, ref tuple) &
                 CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f), size, depth, ref tuple) &
                 CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir7 * size * .5f), size, depth, ref tuple))
+                CheckChild(childrenStartAtIndex, center + (DirectionsHelper.Dir7 * size * .5f), size, depth, ref tuple))
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 
