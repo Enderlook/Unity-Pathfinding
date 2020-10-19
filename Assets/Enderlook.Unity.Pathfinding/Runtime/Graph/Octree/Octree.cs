@@ -31,7 +31,7 @@ namespace Enderlook.Unity.Pathfinding
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
-            serializedOctans = Array.Empty<SerializableOctant>();
+            serializedOctantsRaw = Array.Empty<int>();
         }
 
         private struct InnerOctant
@@ -72,12 +72,12 @@ namespace Enderlook.Unity.Pathfinding
         internal void Reset(Vector3 center, float size, byte subdivisions)
         {
 #if !UNITY_EDITOR
-            if (serializedNodes is null)
-                serializedNodes = Array.Empty<SerializableNode>();
+            if (serializedOctantsRaw is null)
+                serializedOctantsRaw = Array.Empty<int>();
             else
-                Array.Clear(serializedNodes, 0, serializedNodes.Length);
+                Array.Clear(serializedOctantsRaw, 0, serializedOctantsRaw.Length);
 #else
-            serializedOctans = Array.Empty<SerializableOctant>();
+            serializedOctantsRaw = Array.Empty<int>();
 #endif
             this.center = center;
             this.size = size;
