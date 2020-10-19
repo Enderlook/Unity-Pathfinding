@@ -154,14 +154,14 @@ namespace Enderlook.Unity.Pathfinding
                             int childrenStartAtIndex = octant.ChildrenStartAtIndex;
 
                             Debug.Assert(stackPointer + 7 < stackLenght);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir0 * size * .5f));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir1 * size * .5f));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir2 * size * .5f));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir3 * size * .5f));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f));
-                            stackFrame[stackPointer] = new OnAfterDeserializeFrame(childrenStartAtIndex, center + (DirectionsHelper.Dir7 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f));
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f));
+                            stackFrame[stackPointer] = new OnAfterDeserializeFrame(childrenStartAtIndex, center + (ChildrenPositions.Child7 * size * .5f));
                         }
                     }
                 }

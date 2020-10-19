@@ -152,14 +152,14 @@ namespace Enderlook.Unity.Pathfinding
 
             int old = childrenStartAtIndex;
 
-            if (CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir0 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir1 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir2 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir3 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex, center + (DirectionsHelper.Dir7 * size * .5f), size, depth, ref tuple))
+            if (CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f), size, depth, ref tuple) &
+                CheckChild(childrenStartAtIndex, center + (ChildrenPositions.Child7 * size * .5f), size, depth, ref tuple))
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 

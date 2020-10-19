@@ -61,14 +61,14 @@ namespace Enderlook.Unity.Pathfinding
 
                 size /= 2;
 
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir0 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir1 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir2 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir3 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (DirectionsHelper.Dir7 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child7 * size * .5f), size);
             }
         }
     }
