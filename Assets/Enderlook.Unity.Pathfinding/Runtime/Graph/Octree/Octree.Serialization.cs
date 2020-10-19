@@ -57,39 +57,37 @@ namespace Enderlook.Unity.Pathfinding
             unsafe
             {
                 int stackLenght = (subdivisions * 8) + 2;
-                IndexTransfer* stack = stackalloc IndexTransfer[stackLenght];
-                stack[0] = new IndexTransfer(0, 0);
+                OnBeforeSerializeFrame* stackFrame = stackalloc OnBeforeSerializeFrame[stackLenght];
+                stackFrame[0] = new OnBeforeSerializeFrame(0, 0);
                 int stackPointer = 0;
 
                 while (stackPointer >= 0)
                 {
-                    IndexTransfer item = stack[stackPointer];
-                    int oldIndex = item.OldIndex;
-                    int newIndex = item.NewIndex;
-                    InnerOctant octant = octants[oldIndex];
+                    OnBeforeSerializeFrame frame = stackFrame[stackPointer];
+                    InnerOctant octant = octants[frame.OldIndex];
                     Debug.Assert(octant.ChildrenStartAtIndex != 3);
                     if (octant.IsLeaf || octant.IsIntransitable)
                     {
                         stackPointer--;
-                        serializedOctans[newIndex].ChildrenStartAtIndex = octant.ChildrenStartAtIndex;
+                        serializedOctans[frame.NewIndex].ChildrenStartAtIndex = octant.ChildrenStartAtIndex;
                     }
                     else
                     {
                         int newChildrenStartAtIndex = ++fronteer;
-                        serializedOctans[newIndex].ChildrenStartAtIndex = newChildrenStartAtIndex;
+                        serializedOctans[frame.NewIndex].ChildrenStartAtIndex = newChildrenStartAtIndex;
                         fronteer += 7;
 
                         int oldChildrenStartAtIndex = octant.ChildrenStartAtIndex;
 
                         Debug.Assert(stackPointer + 7 < stackLenght);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer++] = new IndexTransfer(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                        stack[stackPointer] = new IndexTransfer(oldChildrenStartAtIndex, newChildrenStartAtIndex);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
+                        stackFrame[stackPointer] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex, newChildrenStartAtIndex);
                     }
                 }
             }
@@ -97,12 +95,12 @@ namespace Enderlook.Unity.Pathfinding
             Debug.Assert(octantsCount == (fronteer + 1));
         }
 
-        private readonly struct IndexTransfer
+        private readonly struct OnBeforeSerializeFrame
         {
             public readonly int OldIndex;
             public readonly int NewIndex;
 
-            public IndexTransfer(int oldIndex, int newIndex)
+            public OnBeforeSerializeFrame(int oldIndex, int newIndex)
             {
                 OldIndex = oldIndex;
                 NewIndex = newIndex;
@@ -128,16 +126,16 @@ namespace Enderlook.Unity.Pathfinding
                 unsafe
                 {
                     int stackLenght = (subdivisions * 8) + 2;
-                    IndexPosition* stack = stackalloc IndexPosition[stackLenght];
-                    stack[0] = new IndexPosition(0, center);
+                    OnAfterDeserializeFrame* stackFrame = stackalloc OnAfterDeserializeFrame[stackLenght];
+                    stackFrame[0] = new OnAfterDeserializeFrame(0, center);
                     int stackPointer = 0;
 
                     while (stackPointer >= 0)
                     {
-                        IndexPosition item = stack[stackPointer];
+                        OnAfterDeserializeFrame frame = stackFrame[stackPointer];
 
-                        octants[item.Index].Center = center;
-                        InnerOctant octant = octants[item.Index];
+                        octants[frame.Index].Center = center;
+                        InnerOctant octant = octants[frame.Index];
 
                         if (octant.IsLeaf || octant.IsIntransitable)
                         {
@@ -148,26 +146,25 @@ namespace Enderlook.Unity.Pathfinding
                         int childrenStartAtIndex = octant.ChildrenStartAtIndex;
 
                         Debug.Assert(stackPointer + 7 < stackLenght);
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir0 * size * .5f));
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir1 * size * .5f));
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir2 * size * .5f));
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir3 * size * .5f));
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f));
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f));
-                        stack[stackPointer++] = new IndexPosition(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f));
-                        stack[stackPointer] = new IndexPosition(childrenStartAtIndex, center + (DirectionsHelper.Dir7 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir0 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir1 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir2 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir3 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir4 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir5 * size * .5f));
+                        stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (DirectionsHelper.Dir6 * size * .5f));
+                        stackFrame[stackPointer] = new OnAfterDeserializeFrame(childrenStartAtIndex, center + (DirectionsHelper.Dir7 * size * .5f));
                     }
                 }
             }
         }
 
-        public readonly struct IndexPosition
+        public readonly struct OnAfterDeserializeFrame
         {
             public readonly int Index;
-
             public readonly Vector3 Center;
 
-            public IndexPosition(int index, Vector3 center)
+            public OnAfterDeserializeFrame(int index, Vector3 center)
             {
                 Index = index;
                 Center = center;
