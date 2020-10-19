@@ -29,9 +29,9 @@ namespace Enderlook.Unity.Pathfinding
             if (octants is null || octantsCount == 0 || octants.Length == 0)
                 return;
 
-            DrawGizmosChild(0, center, size);
+            DrawGizmosChild(0, size);
 
-            void DrawGizmosChild(int index, Vector3 center, float size)
+            void DrawGizmosChild(int index, float size)
             {
                 InnerOctant node = octants[index];
 
@@ -51,7 +51,7 @@ namespace Enderlook.Unity.Pathfinding
                 if (draw)
                 {
                     Gizmos.color = node.IsIntransitable ? Color.red : Color.blue;
-                    Gizmos.DrawWireCube(center, Vector3.one * size);
+                    Gizmos.DrawWireCube(node.Center, Vector3.one * size);
                 }
 
                 if (!node.HasChildren)
@@ -61,14 +61,14 @@ namespace Enderlook.Unity.Pathfinding
 
                 size /= 2;
 
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f), size);
-                DrawGizmosChild(childrenStartAtIndex++, center + (ChildrenPositions.Child7 * size * .5f), size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(childrenStartAtIndex++, size);
             }
         }
     }
