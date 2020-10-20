@@ -59,8 +59,8 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     SerializableOctant* serializedOctants = (SerializableOctant*)serializedOctansRawPointer;
                     int fronteer = 0;
-                    int stackLenght = (subdivisions * 8) + 2;
-                    OnBeforeSerializeFrame* stackFrame = stackalloc OnBeforeSerializeFrame[stackLenght];
+                    int stackLength = (subdivisions * 8) + 2;
+                    OnBeforeSerializeFrame* stackFrame = stackalloc OnBeforeSerializeFrame[stackLength];
                     stackFrame[0] = new OnBeforeSerializeFrame(0, 0);
                     int stackPointer = 0;
 
@@ -83,7 +83,7 @@ namespace Enderlook.Unity.Pathfinding
 
                             int oldChildrenStartAtIndex = octant.ChildrenStartAtIndex;
 
-                            Debug.Assert(stackPointer + 7 < stackLenght);
+                            Debug.Assert(stackPointer + 7 < stackLength);
                             stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
                             stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
                             stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);

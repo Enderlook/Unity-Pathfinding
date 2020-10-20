@@ -33,16 +33,16 @@ namespace Enderlook.Unity.Pathfinding
 
             void DrawGizmosChild(int index, float size)
             {
-                InnerOctant node = octants[index];
+                InnerOctant octant = octants[index];
 
                 bool draw = false;
 
-                if ((drawMode & DrawMode.Transitable) != 0 && !node.IsIntransitable)
+                if ((drawMode & DrawMode.Transitable) != 0 && !octant.IsIntransitable)
                 {
                     Gizmos.color = Color.green;
                     draw = true;
                 }
-                else if ((drawMode & DrawMode.Intransitable) != 0 && node.IsIntransitable)
+                else if ((drawMode & DrawMode.Intransitable) != 0 && octant.IsIntransitable)
                 {
                     Gizmos.color = Color.red;
                     draw = true;
@@ -50,14 +50,14 @@ namespace Enderlook.Unity.Pathfinding
 
                 if (draw)
                 {
-                    Gizmos.color = node.IsIntransitable ? Color.red : Color.blue;
-                    Gizmos.DrawWireCube(node.Center, Vector3.one * size);
+                    Gizmos.color = octant.IsIntransitable ? Color.red : Color.blue;
+                    Gizmos.DrawWireCube(octant.Center, Vector3.one * size);
                 }
 
-                if (!node.HasChildren)
+                if (!octant.HasChildren)
                     return;
 
-                int childrenStartAtIndex = node.ChildrenStartAtIndex;
+                int childrenStartAtIndex = octant.ChildrenStartAtIndex;
 
                 size /= 2;
 
