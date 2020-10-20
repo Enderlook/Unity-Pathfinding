@@ -111,7 +111,8 @@ namespace Enderlook.Unity.Pathfinding
 
         private bool CheckChild(int index, Vector3 center, float size, int depth, Vector3Int position, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
         {
-            octants[index].Center = center;
+            ref InnerOctant octant = ref octants[index];
+            octant.Center = center;
 
             size /= 2;
 
@@ -119,10 +120,10 @@ namespace Enderlook.Unity.Pathfinding
             if (count == 0)
             {
                 // If the node isn't a leaf we make it a leaf because there are no obstacles
-                if (!octants[index].IsLeaf)
+                if (!octant.IsLeaf)
                 {
-                    octants.Free8ConsecutiveOctants(octants[index].ChildrenStartAtIndex);
-                    octants[index].SetTraversableLeaf();
+                    octants.Free8ConsecutiveOctants(octant.ChildrenStartAtIndex);
+                    octant.SetTraversableLeaf();
                 }
                 return false;
             }
@@ -133,18 +134,18 @@ namespace Enderlook.Unity.Pathfinding
             {
                 // There are obstacles but we can't subdivide more
                 // So make the node an intransitable leaf 
-                octants[index].SetIntransitableLeaf();
+                octant.SetIntransitableLeaf();
                 return true;
             }
 
             // At this point we can subdivide
 
-            int childrenStartAtIndex = octants[index].ChildrenStartAtIndex;
+            int childrenStartAtIndex = octant.ChildrenStartAtIndex;
             if (childrenStartAtIndex <= 0)
             {
                 // The node doesn't have any children, so we add room for them
                 childrenStartAtIndex = octants.Allocate8ConsecutiveOctans();
-                octants[index].ChildrenStartAtIndex = childrenStartAtIndex;
+                octant.ChildrenStartAtIndex = childrenStartAtIndex;
             }
 
             depth++;
@@ -162,7 +163,7 @@ namespace Enderlook.Unity.Pathfinding
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 
-                octants[index].SetIntransitableParent();
+                octant.SetIntransitableParent();
                 octants.Free8ConsecutiveOctants(old);
                 return true;
             }

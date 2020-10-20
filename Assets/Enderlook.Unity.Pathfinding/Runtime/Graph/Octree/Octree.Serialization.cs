@@ -66,7 +66,7 @@ namespace Enderlook.Unity.Pathfinding
                     while (stackPointer >= 0)
                     {
                         OnBeforeSerializeFrame frame = stackFrame[stackPointer];
-                        InnerOctant octant = octants[frame.OldIndex];
+                        ref InnerOctant octant = ref octants[frame.OldIndex];
                         Debug.Assert(octant.ChildrenStartAtIndex != 3);
                         Debug.Assert(serializedOctantsRaw.Length > frame.NewIndex);
                         if (octant.IsLeaf || octant.IsIntransitable)
@@ -133,7 +133,7 @@ namespace Enderlook.Unity.Pathfinding
 
                         while (stackPointer >= 0)
                         {
-                            OnAfterDeserializeFrame frame = stackFrame[stackPointer];
+                            ref OnAfterDeserializeFrame frame = ref stackFrame[stackPointer];
 
                             octants[frame.Index].Center = frame.Center;
                             InnerOctant octant = octants[frame.Index];
@@ -149,14 +149,15 @@ namespace Enderlook.Unity.Pathfinding
                             float halfSize = frame.Size * .5f;
 
                             Debug.Assert(stackPointer + 7 < stackLenght);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child0 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ0);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child1 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ1);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child2 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ2);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child3 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ3);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child4 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ4);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child5 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ5);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child6 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ6);
-                            stackFrame[stackPointer  ] = new OnAfterDeserializeFrame(childrenStartAtIndex  , frame.Center + (ChildrenPositions.Child7 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ7);
+                            Vector3 center = frame.Center;
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ0);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ1);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ2);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ3);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ4);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ5);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ6);
+                            stackFrame[stackPointer  ] = new OnAfterDeserializeFrame(childrenStartAtIndex  , center + (ChildrenPositions.Child7 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ7);
                         }
                     }
                 }

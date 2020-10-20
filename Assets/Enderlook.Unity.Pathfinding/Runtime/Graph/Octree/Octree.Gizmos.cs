@@ -33,7 +33,7 @@ namespace Enderlook.Unity.Pathfinding
 
             void DrawGizmosChild(int index, float size)
             {
-                InnerOctant octant = octants[index];
+                ref InnerOctant octant = ref octants[index];
 
                 bool draw = false;
 
