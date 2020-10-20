@@ -116,7 +116,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             freeOctanRegions = new Stack<int>();
 
-            if (serializedOctantsRaw is null)
+            if (serializedOctantsRaw is null || serializedOctantsRaw.Length == 0)
             {
                 octants = Array.Empty<InnerOctant>();
                 octantsCount = 0;
