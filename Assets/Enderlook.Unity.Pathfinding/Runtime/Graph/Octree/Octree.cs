@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -19,12 +18,7 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField]
         private byte subdivisions;
 
-        private InnerOctant[] octants;
-        private int octantsCount;
-        /// <summary>
-        /// Each index in this list represent 8 contiguos free octans in the <see cref="octants"/> array.
-        /// </summary>
-        private Stack<int> freeOctanRegions;
+        private OctantCollection octants;
 
         public Octree(Vector3 center, float size, byte subdivisions)
         {
@@ -96,23 +90,19 @@ namespace Enderlook.Unity.Pathfinding
             this.size = size;
             this.subdivisions = subdivisions;
 
-            if (octants is null)
-                octants = Array.Empty<InnerOctant>();
-            else
-                Array.Clear(octants, 0, octants.Length);
-            octantsCount = 0;
+            Clear();
         }
+
+        private void Clear() => octants.Clear();
 
         internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
         {
+            Clear();
+
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
-            if (octantsCount == 0)
-            {
-                EnsureAdditionalCapacity(1);
-                octantsCount++;
-            }
+            octants.SetRoot(default);
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(0, center, size, 0, Vector3Int.zero, ref tuple))
@@ -131,7 +121,7 @@ namespace Enderlook.Unity.Pathfinding
                 // If the node isn't a leaf we make it a leaf because there are no obstacles
                 if (!octants[index].IsLeaf)
                 {
-                    Reclaim(octants[index].ChildrenStartAtIndex);
+                    octants.Free8ConsecutiveOctants(octants[index].ChildrenStartAtIndex);
                     octants[index].SetTraversableLeaf();
                 }
                 return false;
@@ -153,7 +143,7 @@ namespace Enderlook.Unity.Pathfinding
             if (childrenStartAtIndex <= 0)
             {
                 // The node doesn't have any children, so we add room for them
-                childrenStartAtIndex = GetChildrenSpace();
+                childrenStartAtIndex = octants.Allocate8ConsecutiveOctans();
                 octants[index].ChildrenStartAtIndex = childrenStartAtIndex;
             }
 
@@ -173,42 +163,10 @@ namespace Enderlook.Unity.Pathfinding
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 
                 octants[index].SetIntransitableParent();
-                Reclaim(old);
+                octants.Free8ConsecutiveOctants(old);
                 return true;
             }
             return false;
-        }
-
-        private void Reclaim(int childrenStartAtIndex)
-        {
-            freeOctanRegions.Push(childrenStartAtIndex);
-            int to = childrenStartAtIndex + 8;
-            for (int i = childrenStartAtIndex; i < to; i++)
-                octants[i] = default;
-        }
-
-        private int GetChildrenSpace()
-        {
-            if (freeOctanRegions.TryPop(out int index))
-                return index;
-
-            EnsureAdditionalCapacity(8);
-            index = octantsCount;
-            octantsCount += 8;
-            return index;
-        }
-
-        private void EnsureAdditionalCapacity(int additional)
-        {
-            int required = octantsCount + additional;
-            if (required <= octants.Length)
-                return;
-
-            int newSize = (octants.Length * GROW_ARRAY_FACTOR_MULTIPLICATIVE) + GROW_ARRAY_FACTOR_ADDITIVE;
-            if (newSize < required)
-                newSize = required;
-
-            Array.Resize(ref octants, newSize);
         }
     }
 }

@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void DrawGizmos()
         {
-            if (octants is null || octantsCount == 0 || octants.Length == 0)
+            if (octants is null || octants.Count == 0)
                 return;
 
             DrawGizmosChild(0, size);

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -42,16 +41,16 @@ namespace Enderlook.Unity.Pathfinding
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
-            if (octantsCount == 0)
+            if (octants is null || octants.Count == 0)
             {
                 serializedOctantsRaw = Array.Empty<int>();
                 return;
             }
 
             if (serializedOctantsRaw is null)
-                serializedOctantsRaw = new int[octantsCount];
+                serializedOctantsRaw = new int[octants.Count];
             else
-                Array.Resize(ref serializedOctantsRaw, octantsCount);
+                Array.Resize(ref serializedOctantsRaw, octants.Count);
 
             unsafe
             {
@@ -95,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding
                         }
                     }
 
-                    Debug.Assert(octantsCount == (fronteer + 1));
+                    Debug.Assert(octants.Count == (fronteer + 1));
                 }
             }
         }
@@ -114,23 +113,17 @@ namespace Enderlook.Unity.Pathfinding
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
-            freeOctanRegions = new Stack<int>();
-
             if (serializedOctantsRaw is null || serializedOctantsRaw.Length == 0)
-            {
-                octants = Array.Empty<InnerOctant>();
-                octantsCount = 0;
-            }
+                octants = new OctantCollection();
             else
             {
+                octants = OctantCollection.WithCount(serializedOctantsRaw.Length);
                 unsafe
                 {
                     fixed (int* serializedOctansRawPointer = serializedOctantsRaw)
                     {
                         SerializableOctant* serializedOctants = (SerializableOctant*)serializedOctansRawPointer;
-                        octantsCount = serializedOctantsRaw.Length;
-                        octants = new InnerOctant[octantsCount];
-                        for (int i = 0; i < octantsCount; i++)
+                        for (int i = 0; i < octants.Count; i++)
                             octants[i] = new InnerOctant(i, serializedOctants[i].ChildrenStartAtIndex);
 
                         int stackLenght = (subdivisions * 8) + 2;
