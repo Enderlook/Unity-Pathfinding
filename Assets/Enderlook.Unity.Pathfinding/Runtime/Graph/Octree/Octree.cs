@@ -31,6 +31,8 @@ namespace Enderlook.Unity.Pathfinding
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
+            if (subdivisions > 10 || subdivisions < 1)
+                throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
             serializedOctantsRaw = Array.Empty<int>();
         }
 
@@ -44,6 +46,8 @@ namespace Enderlook.Unity.Pathfinding
 
             public int ParentIndex;
 
+            public MortonCode3D Code;
+
             public Vector3 Center;
 
             public bool HasChildren => ChildrenStartAtIndex > 0;
@@ -52,11 +56,12 @@ namespace Enderlook.Unity.Pathfinding
 
             public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
 
-            public InnerOctant(int parentIndex, int childrenStartAtIndex, Vector3 center)
+            public InnerOctant(int parentIndex, int childrenStartAtIndex, MortonCode3D code, Vector3 center)
             {
                 ParentIndex = parentIndex;
                 ChildrenStartAtIndex = childrenStartAtIndex;
                 Center = center;
+                Code = code;
             }
 
             public InnerOctant(int parentIndex, int childrenStartAtIndex)
@@ -64,6 +69,7 @@ namespace Enderlook.Unity.Pathfinding
                 ParentIndex = parentIndex;
                 ChildrenStartAtIndex = childrenStartAtIndex;
                 Center = default;
+                Code = default;
             }
 
             public void SetTraversableLeaf() => ChildrenStartAtIndex = 0;
@@ -75,6 +81,9 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void Reset(Vector3 center, float size, byte subdivisions)
         {
+            if (subdivisions > 10 || subdivisions < 1)
+                throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
+
 #if !UNITY_EDITOR
             if (serializedOctantsRaw is null)
                 serializedOctantsRaw = Array.Empty<int>();
@@ -106,11 +115,11 @@ namespace Enderlook.Unity.Pathfinding
             }
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
-            if (CheckChild(0, center, size, 0, ref tuple))
-                octants[0] = new InnerOctant(-1, -2, center);
+            if (CheckChild(0, center, size, 0, Vector3Int.zero, ref tuple))
+                octants[0] = new InnerOctant(-1, -2, new MortonCode3D(Vector3Int.zero), center);
         }
 
-        private bool CheckChild(int index, Vector3 center, float size, int depth, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
+        private bool CheckChild(int index, Vector3 center, float size, int depth, Vector3Int position, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
         {
             octants[index].Center = center;
 
@@ -152,14 +161,14 @@ namespace Enderlook.Unity.Pathfinding
 
             int old = childrenStartAtIndex;
 
-            if (CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f), size, depth, ref tuple) &
-                CheckChild(childrenStartAtIndex, center + (ChildrenPositions.Child7 * size * .5f), size, depth, ref tuple))
+            if (CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple) &
+                CheckChild(childrenStartAtIndex  , center + (ChildrenPositions.Child7 * size * .5f), size, depth, position + ChildrenPositions.ChildZ0, ref tuple))
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 

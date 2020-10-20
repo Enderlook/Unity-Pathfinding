@@ -91,7 +91,7 @@ namespace Enderlook.Unity.Pathfinding
                             stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
                             stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
                             stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex, newChildrenStartAtIndex);
+                            stackFrame[stackPointer  ] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex  , newChildrenStartAtIndex);
                         }
                     }
 
@@ -135,7 +135,7 @@ namespace Enderlook.Unity.Pathfinding
 
                         int stackLenght = (subdivisions * 8) + 2;
                         OnAfterDeserializeFrame* stackFrame = stackalloc OnAfterDeserializeFrame[stackLenght];
-                        stackFrame[0] = new OnAfterDeserializeFrame(0, center, size / 2);
+                        stackFrame[0] = new OnAfterDeserializeFrame(0, center, size / 2, Vector3Int.zero);
                         int stackPointer = 0;
 
                         while (stackPointer >= 0)
@@ -153,16 +153,17 @@ namespace Enderlook.Unity.Pathfinding
 
                             int childrenStartAtIndex = octant.ChildrenStartAtIndex;
 
-                            Debug.Assert(stackPointer + 7 < stackLenght);
                             float halfSize = frame.Size * .5f;
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child0 * halfSize), halfSize);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child1 * halfSize), halfSize);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child2 * halfSize), halfSize);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child3 * halfSize), halfSize);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child4 * halfSize), halfSize);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child5 * halfSize), halfSize);
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child6 * halfSize), halfSize);
-                            stackFrame[stackPointer  ] = new OnAfterDeserializeFrame(childrenStartAtIndex  , frame.Center + (ChildrenPositions.Child7 * halfSize), halfSize);
+
+                            Debug.Assert(stackPointer + 7 < stackLenght);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child0 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ0);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child1 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ1);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child2 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ2);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child3 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ3);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child4 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ4);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child5 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ5);
+                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, frame.Center + (ChildrenPositions.Child6 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ6);
+                            stackFrame[stackPointer  ] = new OnAfterDeserializeFrame(childrenStartAtIndex  , frame.Center + (ChildrenPositions.Child7 * halfSize), halfSize, frame.Position + ChildrenPositions.ChildZ7);
                         }
                     }
                 }
@@ -174,12 +175,14 @@ namespace Enderlook.Unity.Pathfinding
             public readonly int Index;
             public readonly Vector3 Center;
             public readonly float Size;
+            public readonly Vector3Int Position;
 
-            public OnAfterDeserializeFrame(int index, Vector3 center, float size)
+            public OnAfterDeserializeFrame(int index, Vector3 center, float size, Vector3Int position)
             {
                 Index = index;
                 Center = center;
                 Size = size;
+                Position = position;
             }
         }
     }

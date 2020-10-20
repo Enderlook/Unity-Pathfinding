@@ -25,7 +25,7 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, ShowIf(nameof(geometryType), typeof(GeometryType), GeometryType.PhysicsColliders, true), Tooltip("Whenever it should include trigger colliders for path areas.")]
         private bool includeTriggerColliders;
 
-        [SerializeField, Min(1), Tooltip("Defiens the level of detail of the path area.")]
+        [SerializeField, UnityEngine.Range(1, 10), Tooltip("Defiens the level of detail of the path area.")]
         private byte subdivisions = 1;
 
         [SerializeField, HideInInspector]
