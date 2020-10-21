@@ -6,33 +6,28 @@ namespace Enderlook.Unity.Pathfinding
     {
         private static class ChildrenPositions
         {
-            public static readonly Vector3 LeftUpFoward = new Vector3(-1, 1, 1);
-            public static readonly Vector3 LeftUpBack = new Vector3(-1, 1, -1);
-            public static readonly Vector3 LeftDownFoward = new Vector3(-1, -1, 1);
-            public static readonly Vector3 LeftDownBack = new Vector3(-1, -1, -1);
-            public static readonly Vector3 RightUpFoward = new Vector3(1, 1, 1);
-            public static readonly Vector3 RightUpBack = new Vector3(1, 1, -1);
-            public static readonly Vector3 RightDownFoward = new Vector3(1, -1, 1);
-            public static readonly Vector3 RightDownBack = new Vector3(1, -1, -1);
+            /*          .________._________.
+             *         /        /         / |          Y      X     Z           Location   Vector3
+             *        /   110  /   111   /  |   0 000  Bottom Left  Front       Back     = Back
+             *       /________/_________/   |   1 001  Bottom Right Back        Bottom   = Down
+             *      |         |         |   |   2 010  Bottom Left  Back        Front    = Forward
+             *      |   100   |   101   |  /|   3 011  Bottom Right Front       Left     = Left
+             *      |         |         | / |   4 100  Top    Left  Front       Right    = Right
+             *      |_________|_________|/  |   5 101  Top    Right Front       Top      = Up
+             *      |         |         |001|   6 110  Top    Left  Back
+             * 000  |   010   |   011   |  /    7 111  Top    Right Back
+             *      |         |         | /
+             *      |_________|_________|/
+             */
 
-            public static readonly Vector3 Child0 = new Vector3(-1, 1, 1);    // LeftUpFoward
-            public static readonly Vector3 Child1 = new Vector3(-1, 1, -1);   // LeftUpBack
-            public static readonly Vector3 Child2 = new Vector3(-1, -1, 1);   // LeftDownFoward
-            public static readonly Vector3 Child3 = new Vector3(-1, -1, -1);  // LeftDownBack
-            public static readonly Vector3 Child4 = new Vector3(1, 1, 1);     // RightUpFoward
-            public static readonly Vector3 Child5 = new Vector3(1, 1, -1);    // RightUpBack
-            public static readonly Vector3 Child6 = new Vector3(1, -1, 1);    // RightDownFoward
-            public static readonly Vector3 Child7 = new Vector3(1, -1, -1);   // RightDownBack
-
-            public static readonly Vector3Int ChildZ0 = new Vector3Int(0, 1, 1);  // LeftUpFoward
-            public static readonly Vector3Int ChildZ1 = new Vector3Int(0, 1, 0);  // LeftUpBack
-            public static readonly Vector3Int ChildZ2 = new Vector3Int(0, 0, 1);  // LeftDownFoward
-            public static readonly Vector3Int ChildZ3 = new Vector3Int(0, 0, 0);  // LeftDownBack
-            public static readonly Vector3Int ChildZ4 = new Vector3Int(1, 1, 1);  // RightUpFoward
-            public static readonly Vector3Int ChildZ5 = new Vector3Int(1, 1, 0);  // RightUpBack
-            public static readonly Vector3Int ChildZ6 = new Vector3Int(1, 0, 1);  // RightDownFoward
-            public static readonly Vector3Int ChildZ7 = new Vector3Int(1, 0, 0);  // RightDownBack
-
+            public static readonly Vector3 Child0 = Vector3.down + Vector3.left  + Vector3.forward;
+            public static readonly Vector3 Child1 = Vector3.down + Vector3.right + Vector3.back;
+            public static readonly Vector3 Child2 = Vector3.down + Vector3.left  + Vector3.back;
+            public static readonly Vector3 Child3 = Vector3.down + Vector3.right + Vector3.forward;
+            public static readonly Vector3 Child4 = Vector3.up   + Vector3.left  + Vector3.forward;
+            public static readonly Vector3 Child5 = Vector3.up   + Vector3.right + Vector3.forward;
+            public static readonly Vector3 Child6 = Vector3.up   + Vector3.left  + Vector3.back;
+            public static readonly Vector3 Child7 = Vector3.up   + Vector3.right + Vector3.back;
         }
     }
 }

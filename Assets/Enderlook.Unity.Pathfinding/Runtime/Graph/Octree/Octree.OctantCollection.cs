@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
@@ -12,28 +13,58 @@ namespace Enderlook.Unity.Pathfinding
             private InnerOctant[] array;
             public int Count { get; private set; }
 
+            private Dictionary<LocationCode, int> map;
+
             /// <summary>
             /// Each index in this list represent 8 contiguos free octans in the <see cref="array"/> array.
             /// </summary>
             private Stack<int> freeOctanRegions = new Stack<int>();
 
-            public ref InnerOctant this[int index] => ref array[index];
+            public ref InnerOctant this[int index] {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => ref array[index];
+            }
 
-            public OctantCollection() => array = Array.Empty<InnerOctant>();
+            public ref InnerOctant this[LocationCode code] {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => ref array[map[code]];
+            }
+
+            public OctantCollection()
+            {
+                array = Array.Empty<InnerOctant>();
+                map = new Dictionary<LocationCode, int>();
+            }
 
             private OctantCollection(int count)
             {
                 array = new InnerOctant[count];
                 Count = count;
+                map = new Dictionary<LocationCode, int>(count);
             }
 
             public static OctantCollection WithCount(int count) => new OctantCollection(count);
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Clear()
             {
                 Array.Clear(array, 0, array.Length);
                 freeOctanRegions.Clear();
                 Count = 0;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void SetIndexAndKey(InnerOctant octant, int index)
+            {
+                array[index] = octant;
+                map[octant.Code] = index;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void MapIndexWithKey(int index, LocationCode code)
+            {
+                array[index].Code = code;
+                map[code] = index;
             }
 
             public void SetRoot(InnerOctant octant)
