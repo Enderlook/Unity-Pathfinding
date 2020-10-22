@@ -29,11 +29,12 @@ namespace Enderlook.Unity.Pathfinding
             if (octants is null || octants.Count == 0)
                 return;
 
-            DrawGizmosChild(0, size);
+            DrawGizmosChild(new LocationCode(1));
 
-            void DrawGizmosChild(int index, float size)
+            void DrawGizmosChild(LocationCode code)
             {
-                ref InnerOctant octant = ref octants[index];
+                if (!octants.TryGetValue(code, out InnerOctant octant))
+                    return;
 
                 bool draw = false;
 
@@ -51,24 +52,20 @@ namespace Enderlook.Unity.Pathfinding
                 if (draw)
                 {
                     Gizmos.color = octant.IsIntransitable ? Color.red : Color.blue;
-                    Gizmos.DrawWireCube(octant.Center, Vector3.one * size);
+                    Gizmos.DrawWireCube(octant.Center, Vector3.one * code.GetSize(size));
                 }
 
-                if (!octant.HasChildren)
+                if (octant.IsIntransitable)
                     return;
 
-                int childrenStartAtIndex = octant.ChildrenStartAtIndex;
-
-                size /= 2;
-
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
-                DrawGizmosChild(childrenStartAtIndex++, size);
+                DrawGizmosChild(code.GetChildTh(0));
+                DrawGizmosChild(code.GetChildTh(1));
+                DrawGizmosChild(code.GetChildTh(2));
+                DrawGizmosChild(code.GetChildTh(3));
+                DrawGizmosChild(code.GetChildTh(4));
+                DrawGizmosChild(code.GetChildTh(5));
+                DrawGizmosChild(code.GetChildTh(6));
+                DrawGizmosChild(code.GetChildTh(7));
             }
         }
     }

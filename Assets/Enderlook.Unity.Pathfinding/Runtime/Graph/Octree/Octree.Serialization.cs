@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -8,176 +9,116 @@ namespace Enderlook.Unity.Pathfinding
     internal sealed partial class Octree : ISerializationCallbackReceiver
     {
         [SerializeField]
-        private int[] serializedOctantsRaw;
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// Only use in Editor.
-        /// </summary>
-        internal int SerializedOctansCount => serializedOctantsRaw.Length;
-#endif
+        private byte[] octantsBytes;
 
         [Serializable]
         private struct SerializableOctant
         {
-            //  0 -> Completely transitable but has no children
-            // -1 -> Intransitable Leaf
-            // -2 -> Intransitable Non-Leaf (all its children are intransitable)
-            // ChildrenStartAtIndex
-            [SerializeField]
-            private int i; // Use a short name to reduce serialization size
+            public LocationCode Code;
 
-            public int ChildrenStartAtIndex {
-                get => i;
-                set => i = value;
+            public InnerOctantFlags Flags;
+
+            public SerializableOctant(LocationCode code, InnerOctantFlags flags)
+            {
+                Code = code;
+                Flags = flags;
             }
-
-            public bool IsLeaf => ChildrenStartAtIndex == 0 || ChildrenStartAtIndex == -1;
-
-            public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
-
-            public SerializableOctant(int childrenStartAtIndex) => i = childrenStartAtIndex;
         }
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
-            if (octants is null || octants.Count == 0)
-            {
-                serializedOctantsRaw = Array.Empty<int>();
-                return;
-            }
+            octantsBytes = new byte[(LocationCode.SIZE + sizeof(byte)) * octants.Count];
 
-            if (serializedOctantsRaw is null)
-                serializedOctantsRaw = new int[octants.Count];
-            else
-                Array.Resize(ref serializedOctantsRaw, octants.Count);
+            int index = 0;
 
-            unsafe
+            Span<LocationCode> stack = stackalloc LocationCode[(8 * subdivisions) + 9];
+            stack[0] = new LocationCode(1);
+            int stackPointer = 0;
+
+            while (stackPointer >= 0)
             {
-                fixed (int* serializedOctansRawPointer = serializedOctantsRaw)
+                LocationCode code = stack[stackPointer];
+                if (!octants.TryGetValue(code, out InnerOctant octant))
                 {
-                    SerializableOctant* serializedOctants = (SerializableOctant*)serializedOctansRawPointer;
-                    int fronteer = 0;
-                    int stackLength = (subdivisions * 8) + 2;
-                    OnBeforeSerializeFrame* stackFrame = stackalloc OnBeforeSerializeFrame[stackLength];
-                    stackFrame[0] = new OnBeforeSerializeFrame(0, 0);
-                    int stackPointer = 0;
-
-                    while (stackPointer >= 0)
-                    {
-                        OnBeforeSerializeFrame frame = stackFrame[stackPointer];
-                        ref InnerOctant octant = ref octants[frame.OldIndex];
-                        Debug.Assert(octant.ChildrenStartAtIndex != 3);
-                        Debug.Assert(serializedOctantsRaw.Length > frame.NewIndex);
-                        if (octant.IsLeaf || octant.IsIntransitable)
-                        {
-                            stackPointer--;
-                            serializedOctants[frame.NewIndex].ChildrenStartAtIndex = octant.ChildrenStartAtIndex;
-                        }
-                        else
-                        {
-                            int newChildrenStartAtIndex = ++fronteer;
-                            serializedOctants[frame.NewIndex].ChildrenStartAtIndex = newChildrenStartAtIndex;
-                            fronteer += 7;
-
-                            int oldChildrenStartAtIndex = octant.ChildrenStartAtIndex;
-
-                            Debug.Assert(stackPointer + 7 < stackLength);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer++] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex++, newChildrenStartAtIndex++);
-                            stackFrame[stackPointer  ] = new OnBeforeSerializeFrame(oldChildrenStartAtIndex  , newChildrenStartAtIndex);
-                        }
-                    }
-
-                    Debug.Assert(octants.Count == (fronteer + 1));
+                    stackPointer--;
+                    continue;
                 }
-            }
-        }
 
-        private readonly struct OnBeforeSerializeFrame
-        {
-            public readonly int OldIndex;
-            public readonly int NewIndex;
+                octant.Code.WriteBytes(octantsBytes.AsSpan(index, LocationCode.SIZE));
+                index += LocationCode.SIZE;
+                octantsBytes[index++] = (byte)octant.Flags;
 
-            public OnBeforeSerializeFrame(int oldIndex, int newIndex)
-            {
-                OldIndex = oldIndex;
-                NewIndex = newIndex;
+                stack[stackPointer++] = code.GetChildTh(0);
+                stack[stackPointer++] = code.GetChildTh(1);
+                stack[stackPointer++] = code.GetChildTh(2);
+                stack[stackPointer++] = code.GetChildTh(3);
+                stack[stackPointer++] = code.GetChildTh(4);
+                stack[stackPointer++] = code.GetChildTh(5);
+                stack[stackPointer++] = code.GetChildTh(6);
+                stack[stackPointer  ] = code.GetChildTh(7);
             }
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
-            if (serializedOctantsRaw is null || serializedOctantsRaw.Length == 0)
-                octants = new OctantCollection();
+            if (octantsBytes is null || octantsBytes.Length == 0)
+                octants = new Dictionary<LocationCode, InnerOctant>();
             else
             {
-                octants = OctantCollection.WithCount(serializedOctantsRaw.Length);
-                unsafe
+                octants = new Dictionary<LocationCode, InnerOctant>(octantsBytes.Length / (LocationCode.SIZE + sizeof(byte)));
+
+                for (int i = 0; i < octantsBytes.Length;)
                 {
-                    fixed (int* serializedOctansRawPointer = serializedOctantsRaw)
+                    LocationCode code = new LocationCode(octantsBytes.AsSpan(i));
+                    i += LocationCode.SIZE;
+
+                    InnerOctantFlags flags = (InnerOctantFlags)octantsBytes[i++];
+
+                    octants[code] = new InnerOctant(code, flags);
+                }
+
+                Span<OnAfterDeserialize> stack = stackalloc OnAfterDeserialize[(8 * subdivisions) + 9];
+                stack[0] = new OnAfterDeserialize(new LocationCode(1), center);
+                int stackPointer = 0;
+
+                while (stackPointer >= 0)
+                {
+                    OnAfterDeserialize frame = stack[stackPointer];
+
+                    LocationCode code = frame.Code;
+                    if (!octants.TryGetValue(code, out InnerOctant octant))
                     {
-                        SerializableOctant* serializedOctants = (SerializableOctant*)serializedOctansRawPointer;
-                        for (int i = 0; i < octants.Count; i++)
-                            octants[i] = new InnerOctant(i, serializedOctants[i].ChildrenStartAtIndex);
-
-                        int stackLenght = (subdivisions * 8) + 2;
-                        OnAfterDeserializeFrame* stackFrame = stackalloc OnAfterDeserializeFrame[stackLenght];
-                        stackFrame[0] = new OnAfterDeserializeFrame(0, center, size / 2, new LocationCode(1));
-                        int stackPointer = 0;
-
-                        while (stackPointer >= 0)
-                        {
-                            ref OnAfterDeserializeFrame frame = ref stackFrame[stackPointer];
-
-                            octants[frame.Index].Center = frame.Center;
-                            InnerOctant octant = octants[frame.Index];
-                            octants.MapIndexWithKey(stackPointer, frame.Code);
-
-                            if (octant.IsLeaf || octant.IsIntransitable)
-                            {
-                                stackPointer--;
-                                continue;
-                            }
-
-                            int childrenStartAtIndex = octant.ChildrenStartAtIndex;
-
-                            float halfSize = frame.Size * .5f;
-
-                            Debug.Assert(stackPointer + 7 < stackLenght);
-                            Vector3 center = frame.Center;
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * halfSize), halfSize, frame.Code.GetChildTh(0));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * halfSize), halfSize, frame.Code.GetChildTh(1));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * halfSize), halfSize, frame.Code.GetChildTh(2));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * halfSize), halfSize, frame.Code.GetChildTh(3));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * halfSize), halfSize, frame.Code.GetChildTh(4));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * halfSize), halfSize, frame.Code.GetChildTh(5));
-                            stackFrame[stackPointer++] = new OnAfterDeserializeFrame(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * halfSize), halfSize, frame.Code.GetChildTh(6));
-                            stackFrame[stackPointer  ] = new OnAfterDeserializeFrame(childrenStartAtIndex  , center + (ChildrenPositions.Child7 * halfSize), halfSize, frame.Code.GetChildTh(7));
-                        }
+                        stackPointer--;
+                        continue;
                     }
+
+                    Vector3 center = frame.Center;
+                    octant.Center = center;
+                    octants[code] = octant;
+
+                    float currentSize = code.GetSize(size) / 4;
+
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(0), center + (ChildrenPositions.Child0 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(1), center + (ChildrenPositions.Child1 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(2), center + (ChildrenPositions.Child2 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(3), center + (ChildrenPositions.Child3 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(4), center + (ChildrenPositions.Child4 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(5), center + (ChildrenPositions.Child5 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(6), center + (ChildrenPositions.Child6 * currentSize));
+                    stack[stackPointer  ] = new OnAfterDeserialize(code.GetChildTh(7), center + (ChildrenPositions.Child7 * currentSize));
                 }
             }
         }
 
-        private readonly struct OnAfterDeserializeFrame
+        private struct OnAfterDeserialize
         {
-            public readonly int Index;
-            public readonly Vector3 Center;
-            public readonly float Size;
-            public readonly LocationCode Code;
+            public LocationCode Code;
+            public Vector3 Center;
 
-            public OnAfterDeserializeFrame(int index, Vector3 center, float size, LocationCode code)
+            public OnAfterDeserialize(LocationCode code, Vector3 center)
             {
-                Index = index;
-                Center = center;
-                Size = size;
                 Code = code;
+                Center = center;
             }
         }
     }

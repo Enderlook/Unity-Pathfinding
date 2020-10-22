@@ -28,6 +28,11 @@ namespace Enderlook.Unity.Pathfinding
             public static readonly Vector3 Child5 = Vector3.up   + Vector3.right + Vector3.forward;
             public static readonly Vector3 Child6 = Vector3.up   + Vector3.left  + Vector3.back;
             public static readonly Vector3 Child7 = Vector3.up   + Vector3.right + Vector3.back;
+
+            public static readonly Vector3[] Childs = new Vector3[]
+            {
+                Child0, Child1, Child2, Child3, Child4, Child5, Child6, Child7
+            };
         }
     }
 }

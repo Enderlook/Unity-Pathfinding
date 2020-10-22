@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -10,6 +11,8 @@ namespace Enderlook.Unity.Pathfinding
         [Serializable]
         private readonly struct LocationCode : IEquatable<LocationCode>, IComparable<LocationCode>
         {
+            public static int SIZE = sizeof(uint);
+
             // https://geidav.wordpress.com/2014/08/18/advanced-octrees-2-node-representations/
             // A Morton 3D Code with includes depth
 
@@ -29,7 +32,20 @@ namespace Enderlook.Unity.Pathfinding
             public LocationCode(uint code) => Code = code;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public LocationCode GetChildTh(uint th) => new LocationCode((Code << 3) | th);
+            public LocationCode GetChildTh(uint th)
+            {
+                Debug.Assert(th <= 8, th);
+                return new LocationCode((Code << 3) | th);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public LocationCode(ReadOnlySpan<byte> source) => Code = BinaryPrimitives.ReadUInt32LittleEndian(source);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool IsMaxDepth(uint maxDepth) => Code == maxDepth;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public float GetSize(float rootSize) => Mathf.Pow(.5f, Depth) * rootSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int CompareTo(LocationCode other) => Code.CompareTo(other.Code);
@@ -49,6 +65,9 @@ namespace Enderlook.Unity.Pathfinding
                     return *(int*)&code;
                 }
             }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void WriteBytes(Span<byte> destination) => BinaryPrimitives.WriteUInt32LittleEndian(destination, Code);
         }
     }
 }

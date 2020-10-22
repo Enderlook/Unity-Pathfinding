@@ -25,7 +25,7 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, ShowIf(nameof(geometryType), typeof(GeometryType), GeometryType.PhysicsColliders, true), Tooltip("Whenever it should include trigger colliders for path areas.")]
         private bool includeTriggerColliders;
 
-        [SerializeField, UnityEngine.Range(1, 10), Tooltip("Defiens the level of detail of the path area.")]
+        [SerializeField, UnityEngine.Range(0, 9), Tooltip("Defiens the level of detail of the path area.")]
         private byte subdivisions = 1;
 
         [SerializeField, HideInInspector]
@@ -44,7 +44,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <summary>
         /// Only use in Editor.
         /// </summary>
-        internal int SerializedOctansCount => graph.SerializedOctansCount;
+        internal int OctantsCount => graph.OctantsCount;
 #endif
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]

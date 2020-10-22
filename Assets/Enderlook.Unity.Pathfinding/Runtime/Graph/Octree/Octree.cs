@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -6,9 +7,6 @@ namespace Enderlook.Unity.Pathfinding
 {
     internal sealed partial class Octree
     {
-        private const int GROW_ARRAY_FACTOR_MULTIPLICATIVE = 2;
-        private const int GROW_ARRAY_FACTOR_ADDITIVE = 8;
-
         [SerializeField]
         private Vector3 center;
 
@@ -18,31 +16,26 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField]
         private byte subdivisions;
 
-        private OctantCollection octants;
+        private Dictionary<LocationCode, InnerOctant> octants;
+
+        internal int OctantsCount => octants.Count;
 
         public Octree(Vector3 center, float size, byte subdivisions)
         {
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
-            if (subdivisions > 10 || subdivisions < 1)
+            if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
-            serializedOctantsRaw = Array.Empty<int>();
         }
 
         internal void Reset(Vector3 center, float size, byte subdivisions)
         {
-            if (subdivisions > 10 || subdivisions < 1)
+            if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
 
-#if !UNITY_EDITOR
-            if (serializedOctantsRaw is null)
-                serializedOctantsRaw = Array.Empty<int>();
-            else
-                Array.Clear(serializedOctantsRaw, 0, serializedOctantsRaw.Length);
-#else
-            serializedOctantsRaw = Array.Empty<int>();
-#endif
+            octantsBytes = null;
+
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
@@ -59,72 +52,79 @@ namespace Enderlook.Unity.Pathfinding
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
-            octants.SetRoot(default);
+            octants[new LocationCode(1)] = new InnerOctant(new LocationCode(1));
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
-            if (CheckChild(0, center, size, 0, new LocationCode(1), ref tuple))
-                octants.SetIndexAndKey(new InnerOctant(-1, -2, new LocationCode(1), center), 0);
+            if (CheckChild(new LocationCode(1), center, ref tuple))
+                octants[new LocationCode(1)] = new InnerOctant(new LocationCode(1), center, InnerOctantFlags.IsIntransitable);
         }
 
-        private bool CheckChild(int index, Vector3 center, float size, int depth, LocationCode code, ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
+        private bool CheckChild(
+            LocationCode code,
+            Vector3 center,
+            ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
         {
-            ref InnerOctant octant = ref octants[index];
+            InnerOctant octant = new InnerOctant(code, center);
             octant.Center = center;
-            octants.MapIndexWithKey(index, code);
 
-            size /= 2;
+            float currentSize = octant.GetSize(size) * .5f;
 
-            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * size, tuple.test, Quaternion.identity, tuple.filterInclude, tuple.query);
+            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * currentSize, tuple.test, Quaternion.identity, tuple.filterInclude, tuple.query);
             if (count == 0)
             {
-                // If the node isn't a leaf we make it a leaf because there are no obstacles
-                if (!octant.IsLeaf)
-                {
-                    octants.Free8ConsecutiveOctants(octant.ChildrenStartAtIndex);
-                    octant.SetTraversableLeaf();
-                }
+                octants[code] = octant;
                 return false;
             }
 
             // At this point there are obstacles
 
-            if (depth > subdivisions)
+            if (code.Depth > subdivisions)
             {
                 // There are obstacles but we can't subdivide more
-                // So make the node an intransitable leaf 
-                octant.SetIntransitableLeaf();
+                // So make the octant intransitable
+                octant.IsIntransitable = true;
+                octants[code] = octant;
                 return true;
             }
 
             // At this point we can subdivide
-
-            int childrenStartAtIndex = octant.ChildrenStartAtIndex;
-            if (childrenStartAtIndex <= 0)
-            {
-                // The node doesn't have any children, so we add room for them
-                childrenStartAtIndex = octants.Allocate8ConsecutiveOctans();
-                octant.ChildrenStartAtIndex = childrenStartAtIndex;
-            }
-
-            depth++;
-
-            int old = childrenStartAtIndex;
-
-            if (CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child0 * size * .5f), size, depth, code.GetChildTh(0), ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child1 * size * .5f), size, depth, code.GetChildTh(1), ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child2 * size * .5f), size, depth, code.GetChildTh(2), ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child3 * size * .5f), size, depth, code.GetChildTh(3), ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child4 * size * .5f), size, depth, code.GetChildTh(4), ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child5 * size * .5f), size, depth, code.GetChildTh(5), ref tuple) &
-                CheckChild(childrenStartAtIndex++, center + (ChildrenPositions.Child6 * size * .5f), size, depth, code.GetChildTh(6), ref tuple) &
-                CheckChild(childrenStartAtIndex  , center + (ChildrenPositions.Child7 * size * .5f), size, depth, code.GetChildTh(7), ref tuple))
+            currentSize *= .5f;
+            LocationCode code0 = code.GetChildTh(0);
+            LocationCode code1 = code.GetChildTh(1);
+            LocationCode code2 = code.GetChildTh(2);
+            LocationCode code3 = code.GetChildTh(3);
+            LocationCode code4 = code.GetChildTh(4);
+            LocationCode code5 = code.GetChildTh(5);
+            LocationCode code6 = code.GetChildTh(6);
+            LocationCode code7 = code.GetChildTh(7);
+            if (
+                CheckChild(code0, center + (ChildrenPositions.Child0 * currentSize), ref tuple) &
+                CheckChild(code1, center + (ChildrenPositions.Child1 * currentSize), ref tuple) &
+                CheckChild(code2, center + (ChildrenPositions.Child2 * currentSize), ref tuple) &
+                CheckChild(code3, center + (ChildrenPositions.Child3 * currentSize), ref tuple) &
+                CheckChild(code4, center + (ChildrenPositions.Child4 * currentSize), ref tuple) &
+                CheckChild(code5, center + (ChildrenPositions.Child5 * currentSize), ref tuple) &
+                CheckChild(code6, center + (ChildrenPositions.Child6 * currentSize), ref tuple) &
+                CheckChild(code7, center + (ChildrenPositions.Child7 * currentSize), ref tuple)
+                )
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
 
-                octant.SetIntransitableParent();
-                octants.Free8ConsecutiveOctants(old);
+                octants.Remove(code0);
+                octants.Remove(code1);
+                octants.Remove(code2);
+                octants.Remove(code3);
+                octants.Remove(code4);
+                octants.Remove(code5);
+                octants.Remove(code6);
+                octants.Remove(code7);
+
+                octant.IsIntransitable = true;
+                octants[code] = octant;
                 return true;
             }
+
+            octants[code] = octant;
             return false;
         }
     }

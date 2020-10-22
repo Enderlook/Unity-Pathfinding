@@ -1,50 +1,88 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Runtime.CompilerServices;
+
+using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
     internal sealed partial class Octree
     {
+        [Flags]
+        public enum InnerOctantFlags : byte
+        {
+            IsIntransitable = 1 << 0,
+        }
+
         private struct InnerOctant
         {
-            //  0 -> Completely transitable but has no children
-            // -1 -> Intransitable Leaf
-            // -2 -> Intransitable Non-Leaf (all its children are intransitable)
-            // -3 -> Not serialize
-            public int ChildrenStartAtIndex;
-
-            public int ParentIndex;
+            public InnerOctantFlags Flags;
 
             public LocationCode Code;
 
             public Vector3 Center;
 
-            public bool HasChildren => ChildrenStartAtIndex > 0;
+            public bool IsIntransitable {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (Flags & InnerOctantFlags.IsIntransitable) != 0;
+                set {
+                    if (value)
+                        Flags |= InnerOctantFlags.IsIntransitable;
+                    else
+                        Flags &= InnerOctantFlags.IsIntransitable;
+                }
+            }
 
-            public bool IsLeaf => ChildrenStartAtIndex == 0 || ChildrenStartAtIndex == -1;
+            public bool IsTransitable {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => !IsIntransitable;
+            }
 
-            public bool IsIntransitable => ChildrenStartAtIndex == -1 || ChildrenStartAtIndex == -2;
+            public int Depth {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => Code.Depth;
+            }
 
-            public InnerOctant(int parentIndex, int childrenStartAtIndex, LocationCode code, Vector3 center)
+            public LocationCode Parent {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => Code.Parent;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public LocationCode GetChildTh(uint th) => Code.GetChildTh(th);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool IsMaxDepth(uint maxDepth) => Code.IsMaxDepth(maxDepth);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public float GetSize(float rootSize) => Code.GetSize(rootSize);
+
+            public InnerOctant(LocationCode code, Vector3 center)
             {
-                ParentIndex = parentIndex;
-                ChildrenStartAtIndex = childrenStartAtIndex;
                 Center = center;
                 Code = code;
+                Flags = default;
             }
 
-            public InnerOctant(int parentIndex, int childrenStartAtIndex)
+            public InnerOctant(LocationCode code, Vector3 center, InnerOctantFlags flags)
             {
-                ParentIndex = parentIndex;
-                ChildrenStartAtIndex = childrenStartAtIndex;
-                Center = default;
-                Code = default;
+                Center = center;
+                Code = code;
+                Flags = flags;
             }
 
-            public void SetTraversableLeaf() => ChildrenStartAtIndex = 0;
+            public InnerOctant(LocationCode code, InnerOctantFlags flags)
+            {
+                Code = code;
+                Flags = flags;
+                Center = default;
+            }
 
-            public void SetIntransitableLeaf() => ChildrenStartAtIndex = -1;
-
-            public void SetIntransitableParent() => ChildrenStartAtIndex = -2;
+            public InnerOctant(LocationCode code)
+            {
+                Code = code;
+                Center = default;
+                Flags = default;
+            }
         }
     }
 }

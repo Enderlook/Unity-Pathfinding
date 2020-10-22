@@ -41,7 +41,7 @@ namespace Enderlook.Unity.Pathfinding
             EditorGUI.indentLevel++;
             {
                 EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.IntField(OCTANS_COUNT, target.SerializedOctansCount);
+                EditorGUILayout.IntField(OCTANS_COUNT, target.OctantsCount);
                 EditorGUI.EndDisabledGroup();
                 target.DrawMode = (Octree.DrawMode)EditorGUILayout.EnumFlagsField(DRAW_MODE_ENUM, target.DrawMode);
             }
