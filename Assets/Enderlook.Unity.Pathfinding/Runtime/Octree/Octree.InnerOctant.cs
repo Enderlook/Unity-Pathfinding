@@ -10,20 +10,32 @@ namespace Enderlook.Unity.Pathfinding
         [Flags]
         public enum InnerOctantFlags : byte
         {
+            /// <summary>
+            /// Determines that the octant can't be traversable.
+            /// </summary>
             IsIntransitable = 1 << 0,
+
+            /// <summary>
+            /// Determines that the octant deosn't have any child.<br/>
+            /// This can be applied to branch nodes to determine that are leaf nodes.<br/>
+            /// Leaf nodes are required to have this for perfomance reasons.
+            /// </summary>
+            IsLeaf = 1 << 2,
         }
 
+        [System.Diagnostics.DebuggerDisplay("{Code} {Center} {Flags}")]
         private struct InnerOctant
         {
             public InnerOctantFlags Flags;
 
-            public LocationCode Code;
+            public OctantCode Code;
 
             public Vector3 Center;
 
             public bool IsIntransitable {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => (Flags & InnerOctantFlags.IsIntransitable) != 0;
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 set {
                     if (value)
                         Flags |= InnerOctantFlags.IsIntransitable;
@@ -32,9 +44,16 @@ namespace Enderlook.Unity.Pathfinding
                 }
             }
 
-            public bool IsTransitable {
+            public bool IsLeaf {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => !IsIntransitable;
+                get => (Flags & InnerOctantFlags.IsLeaf) != 0;
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                set {
+                    if (value)
+                        Flags |= InnerOctantFlags.IsLeaf;
+                    else
+                        Flags &= InnerOctantFlags.IsLeaf;
+                }
             }
 
             public int Depth {
@@ -42,13 +61,13 @@ namespace Enderlook.Unity.Pathfinding
                 get => Code.Depth;
             }
 
-            public LocationCode Parent {
+            public OctantCode Parent {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => Code.Parent;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public LocationCode GetChildTh(uint th) => Code.GetChildTh(th);
+            public OctantCode GetChildTh(uint th) => Code.GetChildTh(th);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool IsMaxDepth(uint maxDepth) => Code.IsMaxDepth(maxDepth);
@@ -56,28 +75,28 @@ namespace Enderlook.Unity.Pathfinding
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public float GetSize(float rootSize) => Code.GetSize(rootSize);
 
-            public InnerOctant(LocationCode code, Vector3 center)
+            public InnerOctant(OctantCode code, Vector3 center)
             {
                 Center = center;
                 Code = code;
                 Flags = default;
             }
 
-            public InnerOctant(LocationCode code, Vector3 center, InnerOctantFlags flags)
+            public InnerOctant(OctantCode code, Vector3 center, InnerOctantFlags flags)
             {
                 Center = center;
                 Code = code;
                 Flags = flags;
             }
 
-            public InnerOctant(LocationCode code, InnerOctantFlags flags)
+            public InnerOctant(OctantCode code, InnerOctantFlags flags)
             {
                 Code = code;
                 Flags = flags;
                 Center = default;
             }
 
-            public InnerOctant(LocationCode code)
+            public InnerOctant(OctantCode code)
             {
                 Code = code;
                 Center = default;

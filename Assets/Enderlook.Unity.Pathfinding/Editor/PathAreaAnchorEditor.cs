@@ -11,7 +11,8 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly GUIContent CLEAR_BUTTON = new GUIContent("Clear", "Remove the bake.");
         private static readonly GUIContent GIZMOS_LABEL = new GUIContent("Gizmos", "Gizmos configuration.");
         private static readonly GUIContent DRAW_MODE_ENUM = new GUIContent("Draw Mode", "Determines how the octree is drawed by the gizmos.");
-        private static readonly GUIContent OCTANS_COUNT = new GUIContent("Octans", "Amount of stores octans. Note that this value is actually the number of serialized nodes, so it can be outdated until a new serialization if changes are made.");
+        private static readonly GUIContent OCTANS_COUNT = new GUIContent("Octans", "Amount of stores octans.");
+        private static readonly GUIContent NEIGHBOURS_COUNT = new GUIContent("Neighbours", "Amount of stored neighbours.");
 
         private new PathAreaAnchor target;
 
@@ -41,9 +42,10 @@ namespace Enderlook.Unity.Pathfinding
             EditorGUI.indentLevel++;
             {
                 EditorGUI.BeginDisabledGroup(true);
-                EditorGUILayout.IntField(OCTANS_COUNT, target.OctantsCount);
+                EditorGUILayout.IntField(OCTANS_COUNT, target.Graph.OctantsCount);
+                EditorGUILayout.IntField(NEIGHBOURS_COUNT, target.Graph.NeighboursCount);
                 EditorGUI.EndDisabledGroup();
-                target.DrawMode = (Octree.DrawMode)EditorGUILayout.EnumFlagsField(DRAW_MODE_ENUM, target.DrawMode);
+                target.Graph.drawMode = (Octree.DrawMode)EditorGUILayout.EnumFlagsField(DRAW_MODE_ENUM, target.Graph.drawMode);
             }
             EditorGUI.indentLevel--;
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -21,6 +22,7 @@ namespace Enderlook.Unity.Pathfinding
             Nothing = 0,
             Intransitable = 1 << 0,
             Transitable = 1 << 1,
+            Connections = 1 << 2,
         }
 #endif
 
@@ -29,9 +31,9 @@ namespace Enderlook.Unity.Pathfinding
             if (octants is null || octants.Count == 0)
                 return;
 
-            DrawGizmosChild(new LocationCode(1));
+            DrawGizmosChild(new OctantCode(1));
 
-            void DrawGizmosChild(LocationCode code)
+            void DrawGizmosChild(OctantCode code)
             {
                 if (!octants.TryGetValue(code, out InnerOctant octant))
                     return;
@@ -40,7 +42,7 @@ namespace Enderlook.Unity.Pathfinding
 
                 if ((drawMode & DrawMode.Transitable) != 0 && !octant.IsIntransitable)
                 {
-                    Gizmos.color = Color.green;
+                    Gizmos.color = Color.blue;
                     draw = true;
                 }
                 else if ((drawMode & DrawMode.Intransitable) != 0 && octant.IsIntransitable)
@@ -53,6 +55,21 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     Gizmos.color = octant.IsIntransitable ? Color.red : Color.blue;
                     Gizmos.DrawWireCube(octant.Center, Vector3.one * code.GetSize(size));
+
+                    if ((drawMode & DrawMode.Connections) != 0 && connections.TryGetValue(octant.Code, out HashSet<OctantCode> neighbours))
+                    {
+                        Gizmos.color = Color.yellow;
+                        foreach (OctantCode neighbourCode in neighbours)
+                        {
+                            InnerOctant neighbour = octants[neighbourCode];
+                            
+                            if (
+                                ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable) ||
+                                ((drawMode & DrawMode.Intransitable) != 0 && neighbour.IsIntransitable)
+                            )
+                                Gizmos.DrawLine(octant.Center, neighbour.Center);
+                        }
+                    }
                 }
 
                 if (octant.IsIntransitable)
