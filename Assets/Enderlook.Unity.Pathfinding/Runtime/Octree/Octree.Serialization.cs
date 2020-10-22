@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -8,17 +9,33 @@ namespace Enderlook.Unity.Pathfinding
     [Serializable]
     internal sealed partial class Octree : ISerializationCallbackReceiver
     {
+        /// <summary>
+        /// Data Layout:<br/><br/>
+        /// 
+        /// Header:<br/>
+        /// -(<see cref="int"/>: <c><see cref="octants"/>.Count</c>. Amount of stored octants and body.)<br/>
+        /// -(<see cref="int"/>: <c><see cref="connections"/>.Count</c>. Amount of stored connections.)<br/><br/>
+        /// 
+        /// -Body (repeated an amount of times equal to <c><see cref="octants"/>.Count</c>):<br/>
+        /// --(<see cref="OctantCode"/>: <see cref="InnerOctant.Code"/>. Code of this octant.)<br/>
+        /// --(<see cref="InnerOctantFlags"/>(<see cref="byte"/>): <see cref="InnerOctant.Flags"/>. Flags of this octant.)<br/>
+        /// --(<see cref="int"/>: <c><see cref="connections"/>[<see cref="InnerOctant.Code"/>].Count</c>. Amount of connections this octant has.)<br/>
+        /// ---Connections (repeated an amoaunt of times euqal to <c><see cref="connections"/>[<see cref="InnerOctant.Code"/>].Count</c>)<br/>
+        /// ----(<see cref="OctantCode"/>: <see cref="InnerOctant.Code"/>. Code of connected octant.)<br/>
+        /// </summary>
         [SerializeField]
-        private byte[] octantsBytes;
+        private byte[] serialized;
+
+        private bool isSerializationUpdated;
 
         [Serializable]
         private struct SerializableOctant
         {
-            public LocationCode Code;
+            public OctantCode Code;
 
             public InnerOctantFlags Flags;
 
-            public SerializableOctant(LocationCode code, InnerOctantFlags flags)
+            public SerializableOctant(OctantCode code, InnerOctantFlags flags)
             {
                 Code = code;
                 Flags = flags;
@@ -27,65 +44,133 @@ namespace Enderlook.Unity.Pathfinding
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
-            octantsBytes = new byte[(LocationCode.SIZE + sizeof(byte)) * octants.Count];
+            if (isSerializationUpdated)
+                return;
+
+            isSerializationUpdated = true;
+
+            if (octants is null)
+                octants = new Dictionary<OctantCode, InnerOctant>();
+            if (connections is null)
+                connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
+
+            int edgesCount = 0;
+            foreach (HashSet<OctantCode> edges in connections.Values)
+                edgesCount += edges.Count;
+
+            serialized = new byte[
+                (sizeof(int) * 2) + // Number of octants and number of connections
+                ((OctantCode.SIZE + sizeof(byte)) * octants.Count) + // Space for octant information
+                (OctantCode.SIZE * edgesCount) + // Space for neighbour information
+                (sizeof(int) * octants.Count) // Space to say if an octant has or not neighbours
+            ];
 
             int index = 0;
 
-            Span<LocationCode> stack = stackalloc LocationCode[(8 * subdivisions) + 9];
-            stack[0] = new LocationCode(1);
-            int stackPointer = 0;
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), octants.Count);
+            index += sizeof(int);
 
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), connections.Count);
+            index += sizeof(int);
+
+            Span<OctantCode> stack = stackalloc OctantCode[(8 * subdivisions) + 15];
+            stack[0] = new OctantCode(1);
+            int stackPointer = 0;
             while (stackPointer >= 0)
             {
-                LocationCode code = stack[stackPointer];
+                OctantCode code = stack[stackPointer];
                 if (!octants.TryGetValue(code, out InnerOctant octant))
                 {
                     stackPointer--;
                     continue;
                 }
 
-                octant.Code.WriteBytes(octantsBytes.AsSpan(index, LocationCode.SIZE));
-                index += LocationCode.SIZE;
-                octantsBytes[index++] = (byte)octant.Flags;
+                octant.Code.WriteBytes(serialized.AsSpan(index, OctantCode.SIZE));
+                index += OctantCode.SIZE;
+                serialized[index++] = (byte)octant.Flags;
 
-                stack[stackPointer++] = code.GetChildTh(0);
-                stack[stackPointer++] = code.GetChildTh(1);
-                stack[stackPointer++] = code.GetChildTh(2);
-                stack[stackPointer++] = code.GetChildTh(3);
-                stack[stackPointer++] = code.GetChildTh(4);
-                stack[stackPointer++] = code.GetChildTh(5);
-                stack[stackPointer++] = code.GetChildTh(6);
-                stack[stackPointer  ] = code.GetChildTh(7);
+                if (!connections.TryGetValue(octant.Code, out HashSet<OctantCode> neighbours))
+                {
+                    BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), 0);
+                    index += sizeof(int);
+                }
+                else
+                {
+                    BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), neighbours.Count);
+                    index += sizeof(int);
+
+                    foreach (OctantCode neighbour in neighbours)
+                    {
+                        neighbour.WriteBytes(serialized.AsSpan(index, OctantCode.SIZE));
+                        index += OctantCode.SIZE;
+                    }
+                }
+
+                uint firstChild = code.GetChildTh(0).Code;
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer++] = new OctantCode(firstChild++);
+                stack[stackPointer] = new OctantCode(firstChild);
             }
         }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
-            if (octantsBytes is null || octantsBytes.Length == 0)
-                octants = new Dictionary<LocationCode, InnerOctant>();
+            if (isSerializationUpdated)
+                return;
+
+            isSerializationUpdated = true;
+
+            if (serialized is null || serialized.Length == 0)
+            {
+                octants = new Dictionary<OctantCode, InnerOctant>();
+                connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
+            }
             else
             {
-                octants = new Dictionary<LocationCode, InnerOctant>(octantsBytes.Length / (LocationCode.SIZE + sizeof(byte)));
+                int index = 0;
 
-                for (int i = 0; i < octantsBytes.Length;)
+                int octantsCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int)));
+                octants = new Dictionary<OctantCode, InnerOctant>(octantsCount);
+                index += sizeof(int);
+
+                connections = new Dictionary<OctantCode, HashSet<OctantCode>>(BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int))));
+                index += sizeof(int);
+
+                for (int i = 0; i < octantsCount; i++)
                 {
-                    LocationCode code = new LocationCode(octantsBytes.AsSpan(i));
-                    i += LocationCode.SIZE;
+                    OctantCode code = new OctantCode(serialized.AsSpan(index, OctantCode.SIZE));
+                    index += OctantCode.SIZE;
 
-                    InnerOctantFlags flags = (InnerOctantFlags)octantsBytes[i++];
+                    InnerOctantFlags flags = (InnerOctantFlags)serialized[index++];
 
                     octants[code] = new InnerOctant(code, flags);
+
+                    int neigboursCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int)));
+                    index += sizeof(int);
+                    HashSet<OctantCode> neigbours = new HashSet<OctantCode>(); // TODO: In .Net Standard 2.1 we can add initial capacity
+
+                    for (int j = 0; j < neigboursCount; j++)
+                    {
+                        neigbours.Add(new OctantCode(serialized.AsSpan(index, OctantCode.SIZE)));
+                        index += OctantCode.SIZE;
+                    }
+                    connections.Add(code, neigbours);
                 }
 
-                Span<OnAfterDeserialize> stack = stackalloc OnAfterDeserialize[(8 * subdivisions) + 9];
-                stack[0] = new OnAfterDeserialize(new LocationCode(1), center);
+                Span<OnAfterDeserialize> stack = stackalloc OnAfterDeserialize[(8 * subdivisions) + 10];
+                stack[0] = new OnAfterDeserialize(new OctantCode(1), center);
                 int stackPointer = 0;
 
                 while (stackPointer >= 0)
                 {
                     OnAfterDeserialize frame = stack[stackPointer];
 
-                    LocationCode code = frame.Code;
+                    OctantCode code = frame.Code;
                     if (!octants.TryGetValue(code, out InnerOctant octant))
                     {
                         stackPointer--;
@@ -98,24 +183,25 @@ namespace Enderlook.Unity.Pathfinding
 
                     float currentSize = code.GetSize(size) / 4;
 
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(0), center + (ChildrenPositions.Child0 * currentSize));
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(1), center + (ChildrenPositions.Child1 * currentSize));
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(2), center + (ChildrenPositions.Child2 * currentSize));
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(3), center + (ChildrenPositions.Child3 * currentSize));
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(4), center + (ChildrenPositions.Child4 * currentSize));
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(5), center + (ChildrenPositions.Child5 * currentSize));
-                    stack[stackPointer++] = new OnAfterDeserialize(code.GetChildTh(6), center + (ChildrenPositions.Child6 * currentSize));
-                    stack[stackPointer  ] = new OnAfterDeserialize(code.GetChildTh(7), center + (ChildrenPositions.Child7 * currentSize));
+                    uint firstChild = code.GetChildTh(0).Code;
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child0 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child1 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child2 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child3 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child4 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child5 * currentSize));
+                    stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child6 * currentSize));
+                    stack[stackPointer] = new OnAfterDeserialize(new OctantCode(firstChild), center + (ChildrenPositions.Child7 * currentSize));
                 }
             }
         }
 
         private struct OnAfterDeserialize
         {
-            public LocationCode Code;
+            public OctantCode Code;
             public Vector3 Center;
 
-            public OnAfterDeserialize(LocationCode code, Vector3 center)
+            public OnAfterDeserialize(OctantCode code, Vector3 center)
             {
                 Code = code;
                 Center = center;

@@ -36,15 +36,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <summary>
         /// Only use in Editor.
         /// </summary>
-        internal Octree.DrawMode DrawMode {
-            get => graph.drawMode;
-            set => graph.drawMode = value;
-        }
-
-        /// <summary>
-        /// Only use in Editor.
-        /// </summary>
-        internal int OctantsCount => graph.OctantsCount;
+        internal Octree Graph => graph;
 #endif
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]

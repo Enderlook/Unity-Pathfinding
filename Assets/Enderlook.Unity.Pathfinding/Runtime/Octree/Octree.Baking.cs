@@ -1,9 +1,20 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+
+using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
     internal sealed partial class Octree
     {
+        private Dictionary<OctantCode, InnerOctant> octants;
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Only use in Editor.
+        /// </summary>
+        internal int OctantsCount => (octants?.Count) ?? 0;
+#endif
+
         internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
         {
             Clear();
@@ -11,15 +22,19 @@ namespace Enderlook.Unity.Pathfinding
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
-            octants[new LocationCode(1)] = new InnerOctant(new LocationCode(1));
+            octants[new OctantCode(1)] = new InnerOctant(new OctantCode(1));
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
-            if (CheckChild(new LocationCode(1), center, ref tuple))
-                octants[new LocationCode(1)] = new InnerOctant(new LocationCode(1), center, InnerOctantFlags.IsIntransitable);
+            if (CheckChild(new OctantCode(1), center, ref tuple))
+                octants[new OctantCode(1)] = new InnerOctant(new OctantCode(1), center, InnerOctantFlags.IsIntransitable);
+
+            CalculateConnectionsBruteForce();
+
+            isSerializationUpdated = false;
         }
 
         private bool CheckChild(
-            LocationCode code,
+            OctantCode code,
             Vector3 center,
             ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
         {
@@ -43,21 +58,22 @@ namespace Enderlook.Unity.Pathfinding
             {
                 // There are obstacles but we can't subdivide more
                 // So make the octant intransitable
-                octant.IsIntransitable = true;
+                octant.Flags |= InnerOctantFlags.IsIntransitable | InnerOctantFlags.IsLeaf;
                 octants[code] = octant;
                 return true;
             }
 
             // At this point we can subdivide
             currentSize *= .5f;
-            LocationCode code0 = code.GetChildTh(0);
-            LocationCode code1 = code.GetChildTh(1);
-            LocationCode code2 = code.GetChildTh(2);
-            LocationCode code3 = code.GetChildTh(3);
-            LocationCode code4 = code.GetChildTh(4);
-            LocationCode code5 = code.GetChildTh(5);
-            LocationCode code6 = code.GetChildTh(6);
-            LocationCode code7 = code.GetChildTh(7);
+            uint firstChild = code.GetChildTh(0).Code;
+            OctantCode code0 = new OctantCode(firstChild++);
+            OctantCode code1 = new OctantCode(firstChild++);
+            OctantCode code2 = new OctantCode(firstChild++);
+            OctantCode code3 = new OctantCode(firstChild++);
+            OctantCode code4 = new OctantCode(firstChild++);
+            OctantCode code5 = new OctantCode(firstChild++);
+            OctantCode code6 = new OctantCode(firstChild++);
+            OctantCode code7 = new OctantCode(firstChild);
             if (
                 CheckChild(code0, center + (ChildrenPositions.Child0 * currentSize), ref tuple) &
                 CheckChild(code1, center + (ChildrenPositions.Child1 * currentSize), ref tuple) &
@@ -80,7 +96,7 @@ namespace Enderlook.Unity.Pathfinding
                 octants.Remove(code6);
                 octants.Remove(code7);
 
-                octant.IsIntransitable = true;
+                octant.Flags |= InnerOctantFlags.IsIntransitable | InnerOctantFlags.IsLeaf;
                 octants[code] = octant;
                 return true;
             }
