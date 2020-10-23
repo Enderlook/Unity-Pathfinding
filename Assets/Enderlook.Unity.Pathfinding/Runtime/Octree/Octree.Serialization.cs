@@ -73,7 +73,7 @@ namespace Enderlook.Unity.Pathfinding
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), connections.Count);
             index += sizeof(int);
 
-            Span<OctantCode> stack = stackalloc OctantCode[(8 * subdivisions) + 15];
+            Span<OctantCode> stack = stackalloc OctantCode[(8 * subdivisions) + 20]; // TODO: this value causes to much trouble. Calculate this better.
             stack[0] = new OctantCode(1);
             int stackPointer = 0;
             while (stackPointer >= 0)
@@ -162,7 +162,7 @@ namespace Enderlook.Unity.Pathfinding
                     connections.Add(code, neigbours);
                 }
 
-                Span<OnAfterDeserialize> stack = stackalloc OnAfterDeserialize[(8 * subdivisions) + 10];
+                Span<OnAfterDeserialize> stack = stackalloc OnAfterDeserialize[(8 * subdivisions) + 15];
                 stack[0] = new OnAfterDeserialize(new OctantCode(1), center);
                 int stackPointer = 0;
 
