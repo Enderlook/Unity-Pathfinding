@@ -6,8 +6,8 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [AddComponentMenu("Enderlook/Pathfinding/PathAreaManagerAnchor")]
-    public class PathAreaAnchor : MonoBehaviour
+    [AddComponentMenu("Enderlook/Pathfinding/Navigation Volume")]
+    public sealed class NavigationVolume : MonoBehaviour
     {
 #pragma warning disable CS0649
         [SerializeField, Tooltip("Defines which GameObjects are used to determine the path area.")]

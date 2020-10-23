@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [CustomEditor(typeof(PathAreaAnchor))]
-    internal sealed class PathAreaAnchorEditor : Editor
+    [CustomEditor(typeof(NavigationVolume))]
+    internal sealed class NavigationVolumeEditor : Editor
     {
         private static readonly GUIContent BAKE_BUTTON = new GUIContent("Bake", "Bake the path area.");
         private static readonly GUIContent CLEAR_BUTTON = new GUIContent("Clear", "Remove the bake.");
@@ -14,10 +14,10 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly GUIContent OCTANS_COUNT = new GUIContent("Octans", "Amount of stores octans.");
         private static readonly GUIContent NEIGHBOURS_COUNT = new GUIContent("Neighbours", "Amount of stored neighbours.");
 
-        private new PathAreaAnchor target;
+        private new NavigationVolume target;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void OnEnable() => target = (PathAreaAnchor)base.target;
+        private void OnEnable() => target = (NavigationVolume)base.target;
 
         public override void OnInspectorGUI()
         {
