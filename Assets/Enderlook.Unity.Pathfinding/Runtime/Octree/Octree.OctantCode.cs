@@ -118,6 +118,34 @@ namespace Enderlook.Unity.Pathfinding
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void WriteBytes(Span<byte> destination) => BinaryPrimitives.WriteUInt32LittleEndian(destination, Code);
+
+            /// <summary>
+            /// Get the code of all vertex of this octant code.
+            /// </summary>
+            /// <param name="verticeAndDepth">Where codes are stored.</param>
+            public void GetVertexCodes(Dictionary<VertexCode, int> verticeAndDepth)
+            {
+                int depth = Depth;
+                uint lvK = 1u << 3 * depth;
+
+                for (uint i = 0; i < 8; i++)
+                {
+                    // Dilated integer addition k +i
+                    uint vk = (((Code | ~DIL_X) + (i & DIL_X)) & DIL_X) |
+                              (((Code | ~DIL_Y) + (i & DIL_Y)) & DIL_Y) |
+                              (((Code | ~DIL_Z) + (i & DIL_Z)) & DIL_Z);
+
+                    // Overflow test (repeat of for [xyz])
+                    if (!((vk >= (lvK << 1)) || (~((vk - lvK) & DIL_XYZ) != 0)))
+                    {
+                        VertexCode vertexCode = new VertexCode(vk);
+                        if (!verticeAndDepth.TryGetValue(vertexCode, out int depth_))
+                            verticeAndDepth[vertexCode] = depth;
+                        else if (depth_ < depth)
+                            verticeAndDepth[vertexCode] = depth;
+                    }
+                }
+            }
         }
     }
 }

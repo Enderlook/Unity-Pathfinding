@@ -124,5 +124,77 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
+        private Dictionary<VertexCode, int> GetVerticesAndDepth()
+        {
+            Dictionary<VertexCode, int> verticesAndDepth = new Dictionary<VertexCode, int>();
+
+            foreach (InnerOctant octant in octants.Values)
+            {
+                if (!octant.IsLeaf)
+                    continue;
+
+                octant.Code.GetVertexCodes(verticesAndDepth);
+            }
+
+            return verticesAndDepth;
+        }
+
+        private void GetOctantLeaves(Dictionary<VertexCode, int> verticesAndDepth, Span<OctantCode> octantCodesGroupes)
+        {
+            Debug.Assert(octantCodesGroupes.Length == verticesAndDepth.Count * 8);
+
+            int index = 0;
+            foreach (KeyValuePair<VertexCode, int> pair in verticesAndDepth)
+            {
+                Span<OctantCode> slice = octantCodesGroupes.Slice(index, 8);
+                pair.Key.GetLeavesCode(pair.Value, slice, MaxDepth);
+                foreach (OctantCode code in slice)
+                {
+                    OctantCode code_ = code;
+
+                    while (!octants.ContainsKey(code_))
+                        code_ = code_.Parent;
+
+                    octantCodesGroupes[index++] = code_;
+                }
+            }
+        }
+
+        private void CalculateConnections()
+        {
+            Dictionary<VertexCode, int> verticesAndDepth = GetVerticesAndDepth();
+
+            int count = verticesAndDepth.Count * 8;
+
+            Span<OctantCode> octantCodes = (count * OctantCode.SIZE) > 500 ? new OctantCode[count] : stackalloc OctantCode[count];
+
+            GetOctantLeaves(verticesAndDepth, octantCodes);
+
+            if (connections is null)
+                connections = new Dictionary<OctantCode, HashSet<OctantCode>>(verticesAndDepth.Count * 8);
+            else
+                connections.Clear();
+
+            for (int i = 0; i < count; i += 8)
+            {
+                int iTo = i + 8;
+                for (int j = i; j < iTo; j++)
+                {
+                    if (!connections.TryGetValue(octantCodes[i], out HashSet<OctantCode> to))
+                    {
+                        to = new HashSet<OctantCode>(); // TODO: In .Net Standard 2.1 add 8 as initial capacity.
+                        connections[octantCodes[i]] = to;
+                    }
+                    else
+                    {
+                        for (int k = i; k < j; k++)
+                            to.Add(octantCodes[k]);
+
+                        for (int k = j + 1; k < iTo; k++)
+                            to.Add(octantCodes[k]);
+                    }
+                }
+            }
+        }
     }
 }
