@@ -40,7 +40,7 @@ namespace Enderlook.Unity.Pathfinding
             // Finally we create connection between those octants which shares a vertex position.
 
             Span<CalculateConnectionsBruteForceFrame> stack = stackalloc CalculateConnectionsBruteForceFrame[8 * subdivisions + 8];
-            stack[0] = new CalculateConnectionsBruteForceFrame(new OctantCode(1), Vector3.zero);
+            stack[0] = new CalculateConnectionsBruteForceFrame(OctantCode.Root, Vector3.zero);
             int stackPointer = 0;
 
             Dictionary<Vector3, HashSet<OctantCode>> positions = new Dictionary<Vector3, HashSet<OctantCode>>();

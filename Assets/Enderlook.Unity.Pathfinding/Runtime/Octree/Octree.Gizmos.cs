@@ -31,7 +31,7 @@ namespace Enderlook.Unity.Pathfinding
             if (octants is null || octants.Count == 0)
                 return;
 
-            DrawGizmosChild(new OctantCode(1));
+            DrawGizmosChild(OctantCode.Root);
 
             void DrawGizmosChild(OctantCode code)
             {

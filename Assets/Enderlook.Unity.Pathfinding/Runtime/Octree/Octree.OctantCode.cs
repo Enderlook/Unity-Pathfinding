@@ -23,6 +23,8 @@ namespace Enderlook.Unity.Pathfinding
 
             internal readonly uint Code;
 
+            internal static OctantCode Root => new OctantCode(1);
+
             internal int Depth {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => Mathf.FloorToInt(Mathf.Log(Code, 2) / 3);// Alternative this may work: (31 - System.Numerics.BitOperations.LeadingZeroCount(Code)) / 3;

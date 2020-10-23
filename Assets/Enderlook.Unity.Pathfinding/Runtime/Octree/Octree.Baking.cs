@@ -22,11 +22,11 @@ namespace Enderlook.Unity.Pathfinding
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
-            octants[new OctantCode(1)] = new Octant(new OctantCode(1));
+            octants[OctantCode.Root] = new Octant(OctantCode.Root);
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
-            if (CheckChild(new OctantCode(1), center, ref tuple))
-                octants[new OctantCode(1)] = new Octant(new OctantCode(1), center, Octant.StatusFlags.IsIntransitable);
+            if (CheckChild(OctantCode.Root, center, ref tuple))
+                octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
 
             CalculateConnectionsBruteForce();
 

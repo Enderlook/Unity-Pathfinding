@@ -60,7 +60,7 @@ namespace Enderlook.Unity.Pathfinding
             index += sizeof(int);
 
             Span<OctantCode> stack = stackalloc OctantCode[(8 * subdivisions) + 20]; // TODO: this value causes to much trouble. Calculate this better.
-            stack[0] = new OctantCode(1);
+            stack[0] = OctantCode.Root;
             int stackPointer = 0;
             while (stackPointer >= 0)
             {
@@ -149,7 +149,7 @@ namespace Enderlook.Unity.Pathfinding
                 }
 
                 Span<OnAfterDeserialize> stack = stackalloc OnAfterDeserialize[(8 * subdivisions) + 15];
-                stack[0] = new OnAfterDeserialize(new OctantCode(1), center);
+                stack[0] = new OnAfterDeserialize(OctantCode.Root, center);
                 int stackPointer = 0;
 
                 while (stackPointer >= 0)
