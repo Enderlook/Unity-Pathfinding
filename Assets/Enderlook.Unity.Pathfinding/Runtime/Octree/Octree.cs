@@ -67,7 +67,7 @@ namespace Enderlook.Unity.Pathfinding
         private void Clear()
         {
             if (octants is null)
-                octants = new Dictionary<OctantCode, InnerOctant>();
+                octants = new Dictionary<OctantCode, Octant>();
             else
                 octants.Clear();
 

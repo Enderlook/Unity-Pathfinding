@@ -17,30 +17,16 @@ namespace Enderlook.Unity.Pathfinding
         /// -(<see cref="int"/>: <c><see cref="connections"/>.Count</c>. Amount of stored connections.)<br/><br/>
         /// 
         /// -Body (repeated an amount of times equal to <c><see cref="octants"/>.Count</c>):<br/>
-        /// --(<see cref="OctantCode"/>: <see cref="InnerOctant.Code"/>. Code of this octant.)<br/>
-        /// --(<see cref="InnerOctantFlags"/>(<see cref="byte"/>): <see cref="InnerOctant.Flags"/>. Flags of this octant.)<br/>
-        /// --(<see cref="int"/>: <c><see cref="connections"/>[<see cref="InnerOctant.Code"/>].Count</c>. Amount of connections this octant has.)<br/>
-        /// ---Connections (repeated an amoaunt of times euqal to <c><see cref="connections"/>[<see cref="InnerOctant.Code"/>].Count</c>)<br/>
-        /// ----(<see cref="OctantCode"/>: <see cref="InnerOctant.Code"/>. Code of connected octant.)<br/>
+        /// --(<see cref="OctantCode"/>: <see cref="Octant.Code"/>. Code of this octant.)<br/>
+        /// --(<see cref="StatusFlags"/>(<see cref="byte"/>): <see cref="Octant.Flags"/>. Flags of this octant.)<br/>
+        /// --(<see cref="int"/>: <c><see cref="connections"/>[<see cref="Octant.Code"/>].Count</c>. Amount of connections this octant has.)<br/>
+        /// ---Connections (repeated an amoaunt of times euqal to <c><see cref="connections"/>[<see cref="Octant.Code"/>].Count</c>)<br/>
+        /// ----(<see cref="OctantCode"/>: <see cref="Octant.Code"/>. Code of connected octant.)<br/>
         /// </summary>
         [SerializeField]
         private byte[] serialized;
 
         private bool isSerializationUpdated;
-
-        [Serializable]
-        private struct SerializableOctant
-        {
-            public OctantCode Code;
-
-            public InnerOctantFlags Flags;
-
-            public SerializableOctant(OctantCode code, InnerOctantFlags flags)
-            {
-                Code = code;
-                Flags = flags;
-            }
-        }
 
         void ISerializationCallbackReceiver.OnBeforeSerialize()
         {
@@ -50,7 +36,7 @@ namespace Enderlook.Unity.Pathfinding
             isSerializationUpdated = true;
 
             if (octants is null)
-                octants = new Dictionary<OctantCode, InnerOctant>();
+                octants = new Dictionary<OctantCode, Octant>();
             if (connections is null)
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
 
@@ -79,7 +65,7 @@ namespace Enderlook.Unity.Pathfinding
             while (stackPointer >= 0)
             {
                 OctantCode code = stack[stackPointer];
-                if (!octants.TryGetValue(code, out InnerOctant octant))
+                if (!octants.TryGetValue(code, out Octant octant))
                 {
                     stackPointer--;
                     continue;
@@ -127,7 +113,7 @@ namespace Enderlook.Unity.Pathfinding
 
             if (serialized is null || serialized.Length == 0)
             {
-                octants = new Dictionary<OctantCode, InnerOctant>();
+                octants = new Dictionary<OctantCode, Octant>();
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
             }
             else
@@ -135,7 +121,7 @@ namespace Enderlook.Unity.Pathfinding
                 int index = 0;
 
                 int octantsCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int)));
-                octants = new Dictionary<OctantCode, InnerOctant>(octantsCount);
+                octants = new Dictionary<OctantCode, Octant>(octantsCount);
                 index += sizeof(int);
 
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>(BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int))));
@@ -146,9 +132,9 @@ namespace Enderlook.Unity.Pathfinding
                     OctantCode code = new OctantCode(serialized.AsSpan(index, OctantCode.SIZE));
                     index += OctantCode.SIZE;
 
-                    InnerOctantFlags flags = (InnerOctantFlags)serialized[index++];
+                    Octant.StatusFlags flags = (Octant.StatusFlags)serialized[index++];
 
-                    octants[code] = new InnerOctant(code, flags);
+                    octants[code] = new Octant(code, flags);
 
                     int neigboursCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int)));
                     index += sizeof(int);
@@ -171,7 +157,7 @@ namespace Enderlook.Unity.Pathfinding
                     OnAfterDeserialize frame = stack[stackPointer];
 
                     OctantCode code = frame.Code;
-                    if (!octants.TryGetValue(code, out InnerOctant octant))
+                    if (!octants.TryGetValue(code, out Octant octant))
                     {
                         stackPointer--;
                         continue;

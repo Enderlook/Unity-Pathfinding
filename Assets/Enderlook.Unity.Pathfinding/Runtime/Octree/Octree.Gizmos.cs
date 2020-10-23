@@ -35,7 +35,7 @@ namespace Enderlook.Unity.Pathfinding
 
             void DrawGizmosChild(OctantCode code)
             {
-                if (!octants.TryGetValue(code, out InnerOctant octant))
+                if (!octants.TryGetValue(code, out Octant octant))
                     return;
 
                 bool draw = false;
@@ -62,7 +62,7 @@ namespace Enderlook.Unity.Pathfinding
                     Gizmos.color = Color.yellow;
                     foreach (OctantCode neighbourCode in neighbours)
                     {
-                        InnerOctant neighbour = octants[neighbourCode];
+                        Octant neighbour = octants[neighbourCode];
                             
                         if (
                             ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable) ||

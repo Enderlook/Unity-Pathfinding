@@ -6,7 +6,7 @@ namespace Enderlook.Unity.Pathfinding
 {
     internal sealed partial class Octree
     {
-        private Dictionary<OctantCode, InnerOctant> octants;
+        private Dictionary<OctantCode, Octant> octants;
 
 #if UNITY_EDITOR
         /// <summary>
@@ -22,11 +22,11 @@ namespace Enderlook.Unity.Pathfinding
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
-            octants[new OctantCode(1)] = new InnerOctant(new OctantCode(1));
+            octants[new OctantCode(1)] = new Octant(new OctantCode(1));
 
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(new OctantCode(1), center, ref tuple))
-                octants[new OctantCode(1)] = new InnerOctant(new OctantCode(1), center, InnerOctantFlags.IsIntransitable);
+                octants[new OctantCode(1)] = new Octant(new OctantCode(1), center, Octant.StatusFlags.IsIntransitable);
 
             CalculateConnectionsBruteForce();
 
@@ -38,7 +38,7 @@ namespace Enderlook.Unity.Pathfinding
             Vector3 center,
             ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
         {
-            InnerOctant octant = new InnerOctant(code, center)
+            Octant octant = new Octant(code, center)
             {
                 Center = center
             };
@@ -58,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding
             {
                 // There are obstacles but we can't subdivide more
                 // So make the octant intransitable
-                octant.Flags |= InnerOctantFlags.IsIntransitable | InnerOctantFlags.IsLeaf;
+                octant.Flags |= Octant.StatusFlags.IsIntransitable | Octant.StatusFlags.IsLeaf;
                 octants[code] = octant;
                 return true;
             }
@@ -96,7 +96,7 @@ namespace Enderlook.Unity.Pathfinding
                 octants.Remove(code6);
                 octants.Remove(code7);
 
-                octant.Flags |= InnerOctantFlags.IsIntransitable | InnerOctantFlags.IsLeaf;
+                octant.Flags |= Octant.StatusFlags.IsIntransitable | Octant.StatusFlags.IsLeaf;
                 octants[code] = octant;
                 return true;
             }

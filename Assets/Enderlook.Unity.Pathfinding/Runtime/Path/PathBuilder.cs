@@ -31,6 +31,7 @@ namespace Enderlook.Unity.Pathfinding
             toVisit.Clear();
             costs.Clear();
             edges.Clear();
+            path.Clear();
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode}.EnqueueToVisit(TNode, float)"/>
@@ -44,8 +45,6 @@ namespace Enderlook.Unity.Pathfinding
 
             if (Status == PathState.PathFound)
             {
-                path.Clear();
-
                 if (edges.Count == 0)
                     path.Add(targetNode);
                 else
