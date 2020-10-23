@@ -58,6 +58,25 @@ namespace Enderlook.Unity.Pathfinding
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public float GetSize(float rootSize) => Code.GetSize(rootSize);
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool Contains(Vector3 position, float rootSize)
+            {
+                float size = GetSize(rootSize) * .5f;
+
+                float xMin = Center.x - size;
+                float xMax = Center.x + size;
+
+                float yMin = Center.y - size;
+                float yMax = Center.y + size;
+
+                float zMax = Center.z + size;
+                float zMin = Center.z - size;
+
+                return xMin <= position.x && position.x <= xMax &&
+                       yMin <= position.y && position.y <= yMax &&
+                       zMin <= position.z && position.z <= zMax;
+            }
+
             public Octant(OctantCode code, Vector3 center)
             {
                 Center = center;
