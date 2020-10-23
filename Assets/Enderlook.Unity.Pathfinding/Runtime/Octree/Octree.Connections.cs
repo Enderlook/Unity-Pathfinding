@@ -29,10 +29,17 @@ namespace Enderlook.Unity.Pathfinding
         {
             // TODO: replace this with http://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Lewiner10.pdf
 
+            Stack<HashSet<OctantCode>> pool;
             if (connections is null)
+            {
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
+                pool = new Stack<HashSet<OctantCode>>();
+            }
             else
+            {
+                pool = new Stack<HashSet<OctantCode>>(connections.Values);
                 connections.Clear();
+            }
 
             // We calcualte all true leaf octants (deepest), even from leaves that we don't store.
             // For each leaf, we traverse the parent hierarchy until find an octant which we store.
@@ -56,7 +63,7 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     // Find an octant which is stored from its hierarchy
                     while (!octants.ContainsKey(code))
-                       code = code.Parent;
+                        code = code.Parent;
 
                     // If the octant is intransitable we don't need to create connections
                     if (!octants[code].IsIntransitable)
@@ -69,7 +76,11 @@ namespace Enderlook.Unity.Pathfinding
                             Vector3 vertex = octants[code].Center + (ChildrenPositions.Childs[i] * currentSize);
                             if (!positions.TryGetValue(vertex, out HashSet<OctantCode> list))
                             {
-                                list = new HashSet<OctantCode>();
+                                if (pool.TryPop(out list))
+                                    list.Clear();
+                                else
+                                    list = new HashSet<OctantCode>();
+
                                 positions.Add(vertex, list);
                             }
 
@@ -94,11 +105,6 @@ namespace Enderlook.Unity.Pathfinding
                 uint firstChild = code.GetChildTh(0).Code;
             }
 
-            if (connections is null)
-                connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
-            else
-                connections.Clear();
-
             // Create connections between octans which shares a vertex
             foreach (HashSet<OctantCode> octants in positions.Values)
             {
@@ -106,7 +112,10 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     if (!connections.TryGetValue(code, out HashSet<OctantCode> codes))
                     {
-                        codes = new HashSet<OctantCode>();
+                        if (pool.TryPop(out codes))
+                            codes.Clear();
+                        else
+                            codes = new HashSet<OctantCode>();
                         connections.Add(code, codes);
                     }
 
@@ -121,6 +130,7 @@ namespace Enderlook.Unity.Pathfinding
                         codes.Add(code2);
                     }
                 }
+                pool.Push(octants);
             }
         }
 
@@ -135,6 +145,5 @@ namespace Enderlook.Unity.Pathfinding
                 Center = center;
             }
         }
-
     }
 }
