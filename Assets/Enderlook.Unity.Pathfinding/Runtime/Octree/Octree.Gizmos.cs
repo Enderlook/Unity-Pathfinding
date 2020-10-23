@@ -55,20 +55,20 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     Gizmos.color = octant.IsIntransitable ? Color.red : Color.blue;
                     Gizmos.DrawWireCube(octant.Center, Vector3.one * code.GetSize(size));
+                }
 
-                    if ((drawMode & DrawMode.Connections) != 0 && connections.TryGetValue(octant.Code, out HashSet<OctantCode> neighbours))
+                if ((drawMode & DrawMode.Connections) != 0 && connections.TryGetValue(octant.Code, out HashSet<OctantCode> neighbours))
+                {
+                    Gizmos.color = Color.yellow;
+                    foreach (OctantCode neighbourCode in neighbours)
                     {
-                        Gizmos.color = Color.yellow;
-                        foreach (OctantCode neighbourCode in neighbours)
-                        {
-                            InnerOctant neighbour = octants[neighbourCode];
+                        InnerOctant neighbour = octants[neighbourCode];
                             
-                            if (
-                                ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable) ||
-                                ((drawMode & DrawMode.Intransitable) != 0 && neighbour.IsIntransitable)
-                            )
-                                Gizmos.DrawLine(octant.Center, neighbour.Center);
-                        }
+                        if (
+                            ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable) ||
+                            ((drawMode & DrawMode.Intransitable) != 0 && neighbour.IsIntransitable)
+                        )
+                            Gizmos.DrawLine(octant.Center, neighbour.Center);
                     }
                 }
 
