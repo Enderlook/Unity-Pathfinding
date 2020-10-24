@@ -66,6 +66,8 @@ namespace Enderlook.Unity.Pathfinding
 
         private void Clear()
         {
+            isSerializationUpdated = false;
+
             if (octants is null)
                 octants = new Dictionary<OctantCode, Octant>();
             else

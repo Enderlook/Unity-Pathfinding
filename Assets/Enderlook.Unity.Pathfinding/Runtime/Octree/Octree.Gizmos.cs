@@ -38,40 +38,47 @@ namespace Enderlook.Unity.Pathfinding
                 if (!octants.TryGetValue(code, out Octant octant))
                     return;
 
-                bool draw = false;
-
                 if ((drawMode & DrawMode.Transitable) != 0 && !octant.IsIntransitable)
                 {
-                    Gizmos.color = Color.blue;
-                    draw = true;
+                    Gizmos.color = Color.green;
+                    goto alfa;
                 }
                 else if ((drawMode & DrawMode.Intransitable) != 0 && octant.IsIntransitable)
                 {
                     Gizmos.color = Color.red;
-                    draw = true;
+                    goto alfa;
                 }
 
-                if (draw)
-                {
-                    Gizmos.color = octant.IsIntransitable ? Color.red : Color.blue;
-                    Gizmos.DrawWireCube(octant.Center, Vector3.one * code.GetSize(size));
-                }
+                goto beta;
+
+                alfa:
+                Gizmos.DrawWireCube(octant.Center, Vector3.one * code.GetSize(size));
 
                 if ((drawMode & DrawMode.Connections) != 0 && connections.TryGetValue(octant.Code, out HashSet<OctantCode> neighbours))
                 {
-                    Gizmos.color = Color.yellow;
                     foreach (OctantCode neighbourCode in neighbours)
                     {
                         Octant neighbour = octants[neighbourCode];
-                            
-                        if (
-                            ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable) ||
-                            ((drawMode & DrawMode.Intransitable) != 0 && neighbour.IsIntransitable)
-                        )
-                            Gizmos.DrawLine(octant.Center, neighbour.Center);
+
+                        if ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable)
+                        {
+                            Gizmos.color = Color.green;
+                            goto gamma;
+                        }
+                        else if ((drawMode & DrawMode.Intransitable) != 0 && neighbour.IsIntransitable)
+                        {
+                            Gizmos.color = Color.red;
+                            goto gamma;
+                        }
+
+                        continue;
+
+                        gamma:
+                        Gizmos.DrawLine(octant.Center, neighbour.Center);
                     }
                 }
 
+                beta:
                 if (octant.IsIntransitable)
                     return;
 

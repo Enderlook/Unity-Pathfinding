@@ -17,7 +17,12 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
         {
-            Clear();
+            isSerializationUpdated = false;
+
+            if (octants is null)
+                octants = new Dictionary<OctantCode, Octant>();
+            else
+                octants.Clear();
 
             QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
@@ -27,10 +32,6 @@ namespace Enderlook.Unity.Pathfinding
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(OctantCode.Root, center, ref tuple))
                 octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
-
-            CalculateConnectionsBruteForce();
-
-            isSerializationUpdated = false;
         }
 
         private bool CheckChild(

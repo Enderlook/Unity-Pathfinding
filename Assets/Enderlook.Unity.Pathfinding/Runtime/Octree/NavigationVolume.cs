@@ -28,6 +28,9 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, UnityEngine.Range(0, 9), Tooltip("Defiens the level of detail of the path area.")]
         private byte subdivisions = 1;
 
+        [SerializeField, Tooltip("Determines which types of connections are produced.")]
+        private ConnectionType connectionType = ConnectionType.Transitable;
+
         [SerializeField, HideInInspector]
         private Octree graph;
 #pragma warning restore CS0649
@@ -61,6 +64,7 @@ namespace Enderlook.Unity.Pathfinding
 
             Clear();
             graph.SubdivideFromObstacles(filterInclude, includeTriggerColliders);
+            graph.CalculateConnections(connectionType);
         }
 
         internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions);

@@ -25,9 +25,11 @@ namespace Enderlook.Unity.Pathfinding
         }
 #endif
 
-        private void CalculateConnectionsBruteForce()
+        internal void CalculateConnections(ConnectionType connectionType)
         {
             // TODO: replace this with http://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Lewiner10.pdf
+
+            isSerializationUpdated = false;
 
             Stack<HashSet<OctantCode>> pool;
             if (connections is null)
@@ -65,29 +67,37 @@ namespace Enderlook.Unity.Pathfinding
                     while (!octants.ContainsKey(code))
                         code = code.Parent;
 
-                    // If the octant is intransitable we don't need to create connections
-                    if (!octants[code].IsIntransitable)
+                    if (octants[code].IsIntransitable)
                     {
-                        // Calculate the 8 vertex of this octant and store them in a dictionary:
-                        // key: vertex position, value: all octants which has this vertex.
-                        float currentSize = code.GetSize(this.size) * .5f;
-                        for (int i = 0; i < 8; i++)
-                        {
-                            Vector3 vertex = octants[code].Center + (ChildrenPositions.Childs[i] * currentSize);
-                            if (!positions.TryGetValue(vertex, out HashSet<OctantCode> list))
-                            {
-                                if (pool.TryPop(out list))
-                                    list.Clear();
-                                else
-                                    list = new HashSet<OctantCode>();
-
-                                positions.Add(vertex, list);
-                            }
-
-                            list.Add(code);
-                        }
+                        if ((connectionType & ConnectionType.Intransitable) == 0)
+                            goto next;
+                    }
+                    else
+                    {
+                        if ((connectionType & ConnectionType.Transitable) == 0)
+                            goto next;
                     }
 
+                    // Calculate the 8 vertex of this octant and store them in a dictionary:
+                    // key: vertex position, value: all octants which has this vertex.
+                    float currentSize = code.GetSize(this.size) * .5f;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3 vertex = octants[code].Center + (ChildrenPositions.Childs[i] * currentSize);
+                        if (!positions.TryGetValue(vertex, out HashSet<OctantCode> list))
+                        {
+                            if (pool.TryPop(out list))
+                                list.Clear();
+                            else
+                                list = new HashSet<OctantCode>();
+
+                            positions.Add(vertex, list);
+                        }
+
+                        list.Add(code);
+                    }
+
+                    next:
                     stackPointer--;
                     continue;
                 }
@@ -101,7 +111,7 @@ namespace Enderlook.Unity.Pathfinding
                 stack[stackPointer++] = new CalculateConnectionsBruteForceFrame(code.GetChildTh(4), frame.Center + (ChildrenPositions.Child4 * size));
                 stack[stackPointer++] = new CalculateConnectionsBruteForceFrame(code.GetChildTh(5), frame.Center + (ChildrenPositions.Child5 * size));
                 stack[stackPointer++] = new CalculateConnectionsBruteForceFrame(code.GetChildTh(6), frame.Center + (ChildrenPositions.Child6 * size));
-                stack[stackPointer  ] = new CalculateConnectionsBruteForceFrame(code.GetChildTh(7), frame.Center + (ChildrenPositions.Child7 * size));
+                stack[stackPointer] = new CalculateConnectionsBruteForceFrame(code.GetChildTh(7), frame.Center + (ChildrenPositions.Child7 * size));
                 uint firstChild = code.GetChildTh(0).Code;
             }
 
