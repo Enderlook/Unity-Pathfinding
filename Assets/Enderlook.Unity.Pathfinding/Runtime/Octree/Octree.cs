@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    public sealed partial class Octree
     {
         /* Octree Representation Data Structures
          *  https://geidav.wordpress.com/2014/08/18/advanced-octrees-2-node-representations/
@@ -48,6 +48,7 @@ namespace Enderlook.Unity.Pathfinding
             this.subdivisions = subdivisions;
             if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
+            distances = new Dictionary<(OctantCode, OctantCode), float>();
         }
 
         internal void Reset(Vector3 center, float size, byte subdivisions)
@@ -77,6 +78,11 @@ namespace Enderlook.Unity.Pathfinding
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
             else
                 connections.Clear();
+
+            if (distances is null)
+                distances = new Dictionary<(OctantCode, OctantCode), float>();
+            else
+                distances.Clear();
         }
     }
 }

@@ -57,13 +57,13 @@ namespace Enderlook.Unity.Pathfinding
                 throw new InvalidOperationException("Path was modified; enumeration operation may not execute. This doesn't raise on release build.");
         }
 
-        /// <inheritdoc cref="IEnumerator{T}"/>
+        /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
         public Enumerator GetEnumerator() => new Enumerator(this);
 
-        /// <inheritdoc cref="IEnumerator{T}"/>
+        /// <inheritdoc cref="IEnumerable.GetEnumerator"/>
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        /// <inheritdoc cref="IEnumerator{T}"/>
+        /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
 #endif
 

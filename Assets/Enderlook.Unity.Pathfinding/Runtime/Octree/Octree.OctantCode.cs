@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    public sealed partial class Octree
     {
         [Serializable, System.Diagnostics.DebuggerDisplay("{Code}")]
         public readonly struct OctantCode : IEquatable<OctantCode>, IComparable<OctantCode>
@@ -19,11 +19,14 @@ namespace Enderlook.Unity.Pathfinding
             internal const int SIZE = sizeof(uint);
 
             // https://geidav.wordpress.com/2014/08/18/advanced-octrees-2-node-representations/
-            // A Morton 3D Code with includes depth
-
+            // A Morton 3D Code which also includes depth
             internal readonly uint Code;
 
             internal static OctantCode Root => new OctantCode(1);
+
+            internal static OctantCode Invalid => new OctantCode(0);
+
+            internal bool IsInvalid => Code == 0;
 
             internal int Depth {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -46,10 +49,19 @@ namespace Enderlook.Unity.Pathfinding
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            internal ChildrenPosition GetChildPosition()
+            {
+                // https://www.geeksforgeeks.org/first-and-last-three-bits/
+                uint code = (Code & 4) | (Code & 2) | (Code & 1);
+                Debug.Assert(Parent.GetChildTh(code).Code == Code);
+                return (ChildrenPosition)code;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal OctantCode(ReadOnlySpan<byte> source) => Code = BinaryPrimitives.ReadUInt32LittleEndian(source);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal bool IsMaxDepth(uint maxDepth) => Code == maxDepth;
+            internal bool IsMaxDepth(uint maxDepth) => Depth == maxDepth;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal float GetSize(float rootSize) => Mathf.Pow(.5f, Depth) * rootSize;

@@ -1,14 +1,25 @@
 ﻿using System.Collections.Generic;
 
+using UnityEditor;
+
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    public sealed partial class Octree
     {
         private Dictionary<OctantCode, Octant> octants;
 
 #if UNITY_EDITOR
+        /// <summary>
+        /// Only use in Editor.
+        /// </summary>
+        internal void DrawOctantWithHandle(OctantCode code)
+        {
+            Octant octant = octants[code];
+            Handles.DrawWireCube(octant.Center, Vector3.one * octant.GetSize(size));
+        }
+
         /// <summary>
         /// Only use in Editor.
         /// </summary>

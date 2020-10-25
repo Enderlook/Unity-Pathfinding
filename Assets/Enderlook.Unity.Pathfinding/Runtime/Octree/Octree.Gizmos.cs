@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    public sealed partial class Octree
     {
 #if UNITY_EDITOR
         /// <summary>
@@ -28,11 +28,11 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void DrawGizmos()
         {
-            if (octants is null || octants.Count == 0)
+            if (octants is null || octants.Count == 0 || drawMode == DrawMode.Nothing)
                 return;
 
             DrawGizmosChild(OctantCode.Root);
-
+            
             void DrawGizmosChild(OctantCode code)
             {
                 if (!octants.TryGetValue(code, out Octant octant))

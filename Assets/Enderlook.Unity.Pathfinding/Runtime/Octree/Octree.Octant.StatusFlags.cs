@@ -2,7 +2,7 @@
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    public sealed partial class Octree
     {
         private partial struct Octant
         {

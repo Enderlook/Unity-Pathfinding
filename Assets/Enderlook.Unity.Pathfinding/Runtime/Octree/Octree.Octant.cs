@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    public sealed partial class Octree
     {
         [System.Diagnostics.DebuggerDisplay("{Code} {Center} {Flags}")]
         private partial struct Octant
@@ -61,20 +61,9 @@ namespace Enderlook.Unity.Pathfinding
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool Contains(Vector3 position, float rootSize)
             {
+                Vector3 difference = Center - position;
                 float size = GetSize(rootSize) * .5f;
-
-                float xMin = Center.x - size;
-                float xMax = Center.x + size;
-
-                float yMin = Center.y - size;
-                float yMax = Center.y + size;
-
-                float zMax = Center.z + size;
-                float zMin = Center.z - size;
-
-                return xMin <= position.x && position.x <= xMax &&
-                       yMin <= position.y && position.y <= yMax &&
-                       zMin <= position.z && position.z <= zMax;
+                return (Mathf.Abs(difference.x) < size) && (Mathf.Abs(difference.y) < size) && (Mathf.Abs(difference.z) < size);
             }
 
             public Octant(OctantCode code, Vector3 center)

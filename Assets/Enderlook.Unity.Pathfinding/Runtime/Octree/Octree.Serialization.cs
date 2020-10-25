@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Enderlook.Unity.Pathfinding
 {
     [Serializable]
-    internal sealed partial class Octree : ISerializationCallbackReceiver
+    public sealed partial class Octree : ISerializationCallbackReceiver
     {
         /// <summary>
         /// Data Layout:<br/><br/>
@@ -110,6 +110,8 @@ namespace Enderlook.Unity.Pathfinding
                 return;
 
             isSerializationUpdated = true;
+
+            distances = new Dictionary<(OctantCode, OctantCode), float>();
 
             if (serialized is null || serialized.Length == 0)
             {
