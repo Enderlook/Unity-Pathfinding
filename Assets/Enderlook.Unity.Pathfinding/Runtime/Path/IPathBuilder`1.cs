@@ -10,8 +10,7 @@
         /// Clear the current path and initializes a new builder session.<br/>
         /// If a builder session was already enabled, undefined behaviour.
         /// </summary>
-        /// <param name="initialNode">Initial node of the path.</param>
-        void InitializeBuilderSession(TNode initialNode);
+        void InitializeBuilderSession();
 
         /// <summary>
         /// Finalize the building session.<br/>
@@ -19,8 +18,7 @@
         /// If the initial node and the target node are the same, no other method is necessary to be executed.
         /// </summary>
         /// <param name="result">Result status.</param>
-        /// <param name="targetNode">If <paramref name="result"/> is <see cref="CalculationResult.PathFound"/>, then this is the destination node.</param>
-        void FinalizeBuilderSession(CalculationResult result, TNode targetNode);
+        void FinalizeBuilderSession(CalculationResult result);
 
         /// <summary>
         /// Enques a node to visit it later.
@@ -59,6 +57,19 @@
         /// <param name="from">Starting edge's node.</param>
         /// <param name="to">End edge's node.</param>
         void SetEdge(TNode from, TNode to);
+
+        /// <summary>
+        /// Set the end node of this path.
+        /// </summary>
+        /// <param name="end">End node of the path.</param>
+        /// <remarks>The argument of this method may be the same as the argument of <see cref="SetStart(TCoord)"/> or be <see cref="default"/>.</remarks>
+        void SetEnd(TNode end);
+
+        /// <summary>
+        /// Set the start node of this path.
+        /// </summary>
+        /// <param name="start">Start node of the path.</param>
+        void SetStart(TNode start);
 
         /// <summary>
         /// Determines the state of the path.
