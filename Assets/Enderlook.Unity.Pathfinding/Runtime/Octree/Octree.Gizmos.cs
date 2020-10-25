@@ -25,7 +25,6 @@ namespace Enderlook.Unity.Pathfinding
             HasGround = 1 << 2,
             Connections = 1 << 3,
         }
-#endif
 
         internal void DrawGizmos()
         {
@@ -109,5 +108,6 @@ namespace Enderlook.Unity.Pathfinding
                 DrawGizmosChild(code.GetChildTh(7));
             }
         }
+#endif
     }
 }

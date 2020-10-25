@@ -56,6 +56,7 @@ namespace Enderlook.Unity.Pathfinding
             if (version != this.version)
                 throw new InvalidOperationException("Path was modified; enumeration operation may not execute. This doesn't raise on release build.");
         }
+#endif
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
         public Enumerator GetEnumerator() => new Enumerator(this);
@@ -65,7 +66,6 @@ namespace Enderlook.Unity.Pathfinding
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
-#endif
 
         public struct Enumerator : IEnumerator<T>
         {

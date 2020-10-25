@@ -42,6 +42,7 @@ namespace Enderlook.Unity.Pathfinding
         internal Octree Graph => graph;
 #endif
 
+#if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDrawGizmos()
         {
@@ -53,6 +54,7 @@ namespace Enderlook.Unity.Pathfinding
 
             graph.DrawGizmos();
         }
+#endif
 
         internal void Bake()
         {
