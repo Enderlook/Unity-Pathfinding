@@ -68,5 +68,14 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions);
+
+        public void CalculatePath<TBuilder, TWatchdog>(Vector3 from, Vector3 to, TBuilder builder, TWatchdog watchdog)
+            where TBuilder : IPathBuilder<Octree.OctantCode, Vector3>
+            where TWatchdog : IWatchdog
+            => graph.CalculatePath(from, to, builder, watchdog);
+
+        public void CalculatePath<TBuilder>(Vector3 from, Vector3 to, TBuilder builder)
+            where TBuilder : IPathBuilder<Octree.OctantCode, Vector3>
+            => graph.CalculatePath(from, to, builder);
     }
 }
