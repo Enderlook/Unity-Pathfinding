@@ -67,14 +67,15 @@ namespace Enderlook.Unity.Pathfinding
                     while (!octants.ContainsKey(code))
                         code = code.Parent;
 
-                    if (octants[code].IsIntransitable)
+                    Octant octant = octants[code];
+                    if (octant.IsIntransitable)
                     {
                         if ((connectionType & ConnectionType.Intransitable) == 0)
                             goto next;
                     }
                     else
                     {
-                        if ((connectionType & ConnectionType.Transitable) == 0)
+                        if ((connectionType & ConnectionType.Transitable) == 0 && ((connectionType & ConnectionType.HasGround) == 0) || !octant.HasGround)
                             goto next;
                     }
 

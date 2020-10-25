@@ -39,6 +39,18 @@ namespace Enderlook.Unity.Pathfinding
                 }
             }
 
+            public bool HasGround {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (Flags & StatusFlags.HasGround) != 0;
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                set {
+                    if (value)
+                        Flags |= StatusFlags.HasGround;
+                    else
+                        Flags &= StatusFlags.HasGround;
+                }
+            }
+
             public int Depth {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => Code.Depth;

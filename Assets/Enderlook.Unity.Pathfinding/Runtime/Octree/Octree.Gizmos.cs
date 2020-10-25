@@ -22,7 +22,8 @@ namespace Enderlook.Unity.Pathfinding
             Nothing = 0,
             Intransitable = 1 << 0,
             Transitable = 1 << 1,
-            Connections = 1 << 2,
+            HasGround = 1 << 2,
+            Connections = 1 << 3,
         }
 #endif
 
@@ -32,7 +33,7 @@ namespace Enderlook.Unity.Pathfinding
                 return;
 
             DrawGizmosChild(OctantCode.Root);
-            
+
             void DrawGizmosChild(OctantCode code)
             {
                 if (!octants.TryGetValue(code, out Octant octant))
@@ -40,12 +41,20 @@ namespace Enderlook.Unity.Pathfinding
 
                 if ((drawMode & DrawMode.Transitable) != 0 && !octant.IsIntransitable)
                 {
-                    Gizmos.color = Color.green;
+                    if ((drawMode & DrawMode.HasGround) != 0 && octant.HasGround)
+                        Gizmos.color = Color.cyan;
+                    else
+                        Gizmos.color = Color.green;
                     goto alfa;
                 }
                 else if ((drawMode & DrawMode.Intransitable) != 0 && octant.IsIntransitable)
                 {
                     Gizmos.color = Color.red;
+                    goto alfa;
+                }
+                else if ((drawMode & DrawMode.HasGround) != 0 && octant.HasGround)
+                {
+                    Gizmos.color = Color.cyan;
                     goto alfa;
                 }
 
@@ -62,12 +71,20 @@ namespace Enderlook.Unity.Pathfinding
 
                         if ((drawMode & DrawMode.Transitable) != 0 && !neighbour.IsIntransitable)
                         {
-                            Gizmos.color = Color.green;
+                            if ((drawMode & DrawMode.HasGround) != 0 && octant.HasGround)
+                                Gizmos.color = Color.cyan;
+                            else
+                                Gizmos.color = Color.green;
                             goto gamma;
                         }
                         else if ((drawMode & DrawMode.Intransitable) != 0 && neighbour.IsIntransitable)
                         {
                             Gizmos.color = Color.red;
+                            goto gamma;
+                        }
+                        else if ((drawMode & DrawMode.HasGround) != 0 && octant.HasGround)
+                        {
+                            Gizmos.color = Color.cyan;
                             goto gamma;
                         }
 

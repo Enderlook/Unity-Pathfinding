@@ -17,5 +17,10 @@ namespace Enderlook.Unity.Pathfinding
         /// Allow connection between intransitable nodes.
         /// </summary>
         Intransitable = 1 << 1,
+
+        /// <summary>
+        /// Allow connection between nodes which has ground.
+        /// </summary>
+        HasGround = 1 << 3,
     }
 }

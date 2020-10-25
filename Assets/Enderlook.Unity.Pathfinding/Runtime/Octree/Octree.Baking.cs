@@ -43,6 +43,36 @@ namespace Enderlook.Unity.Pathfinding
             (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
             if (CheckChild(OctantCode.Root, center, ref tuple))
                 octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
+
+            FilterFloor();
+        }
+
+        private void FilterFloor()
+        {
+            // TODO: this is extremelly innefficient
+
+            List<OctantCode> toChange = new List<OctantCode>();
+            foreach (KeyValuePair<OctantCode, Octant> kvp in octants)
+            {
+                if (kvp.Value.IsIntransitable)
+                    continue;
+
+                float epsilon = 1f / size / MaxDepth; // Some random value to find octant below
+                OctantCode belowCode = FindClosestNodeTo(kvp.Value.Center + Vector3.down * (kvp.Value.GetSize(size) + epsilon));
+                if (belowCode.IsInvalid)
+                    continue;
+
+                Octant belowOctant = octants[belowCode];
+                if (belowOctant.IsIntransitable)
+                    toChange.Add(kvp.Key);
+            }
+
+            foreach (OctantCode code in toChange)
+            {
+                Octant octant = octants[code];
+                octant.HasGround = true;
+                octants[code] = octant;
+            }
         }
 
         private bool CheckChild(

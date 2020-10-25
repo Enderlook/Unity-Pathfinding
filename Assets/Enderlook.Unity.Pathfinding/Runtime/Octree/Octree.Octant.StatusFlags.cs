@@ -20,6 +20,11 @@ namespace Enderlook.Unity.Pathfinding
                 /// Leaf nodes are required to have this for perfomance reasons.
                 /// </summary>
                 IsLeaf = 1 << 2,
+
+                /// <summary>
+                /// Determines if the octant bellow this one is intransitable.
+                /// </summary>
+                HasGround = 1 << 3,
             }
         }
     }
