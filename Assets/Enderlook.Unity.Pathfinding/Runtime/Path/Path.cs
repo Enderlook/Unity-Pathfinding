@@ -115,7 +115,7 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR || DEBUG
                     source.GuardVersion(version);
                     if (index == -1)
-                        throw new InvalidOperationException($"{nameof(MoveNext)} must be called at least once before. This doesn't raise on release build.");
+                        throw new InvalidOperationException($"{nameof(MoveNext)} must be called at least once before. This doesn't raise on release build, but undefined behaviour.");
 #endif
                     return source.list[index];
                 }
