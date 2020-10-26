@@ -1,7 +1,7 @@
 ﻿namespace Enderlook.Unity.Pathfinding
 {
     /// <inheritdoc cref="IPathBuilder{TNode}"/>
-    /// <typeparam name="TNode">Type of coordinate.</typeparam>
+    /// <typeparam name="TCoord">Type of coordinate.</typeparam>
     /// <remarks>Execution order of methods is:<br/>
     /// <list type="number">
     ///     <item><term><see cref="IPathBuilder{TNode}.InitializeBuilderSession()"/></term></item>
