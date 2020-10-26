@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Enderlook.Unity.Pathfinding
@@ -8,7 +9,7 @@ namespace Enderlook.Unity.Pathfinding
     /// </summary>
     /// <typeparam name="TNode">Node type.</typeparam>
     /// <typeparam name="TCoord">Coordinate type.</typeparam>
-    public sealed class PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<IReadOnlyList<TCoord>>, IPathFeeder<IEnumerable<TCoord>>
+    public sealed class PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>
     {
         private PathBuilderInner<TNode> inner = new PathBuilderInner<TNode>(false);
         private readonly List<TCoord> path = new List<TCoord>();
@@ -16,8 +17,8 @@ namespace Enderlook.Unity.Pathfinding
         private TCoord start;
         private TCoord end;
 
-        /// <inheritdoc cref="IPathBuilder{TNode}.Status"/>
-        public PathState Status {
+        /// <inheritdoc cref="IPathFeeder{TInfo}.Status"/>
+        public PathBuilderState Status {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => inner.Status;
         }
@@ -37,7 +38,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             inner.FinalizeBuilderSession(result);
 
-            if (Status == PathState.PathFound)
+            if (Status == PathBuilderState.PathFound)
             {
                 if (inner.edges.Count == 0)
                 {
@@ -78,31 +79,6 @@ namespace Enderlook.Unity.Pathfinding
                     path.Reverse();
                 }
             }
-        }
-
-        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FeedPathTo(IPathFeedable<IReadOnlyList<TCoord>> path)
-        {
-            inner.FeedToPathGuard();
-            path.Feed(this.path);
-        }
-
-        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FeedPathTo(IPathFeedable<IEnumerable<TCoord>> path)
-        {
-            inner.FeedToPathGuard();
-            path.Feed(this.path);
-        }
-
-        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FeedPathTo<T>(T path)
-            where T : IPathFeedable<IEnumerable<TCoord>>
-        {
-            inner.FeedToPathGuard();
-            path.Feed(this.path);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode}.SetCost(TNode, float)"/>
@@ -148,5 +124,16 @@ namespace Enderlook.Unity.Pathfinding
         /// <inheritdoc cref="IPathBuilder{TNode}.WasVisited(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode>.WasVisited(TNode node) => inner.WasVisited(node);
+
+        /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        IEnumerable<TCoord> IPathFeeder<TCoord>.GetPathInfo()
+        {
+#if UNITY_EDITOR || DEBUG
+            if (Status == PathBuilderState.InProgress)
+                throw new InvalidOperationException(PathBuilder<TNode>.CAN_NOT_GET_PATH_IN_PROGRESS);
+#endif
+            return path;
+        }
     }
 }

@@ -1,21 +1,27 @@
 ﻿namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
-    /// Determines the state of a <see cref="Path{T}"/>.
+    /// Determines the state of a <see cref="IPathBuilder{TNode}"/>.
     /// </summary>
-    public enum PathState
+    public enum PathBuilderState
     {
         /// <summary>
         /// The path is empty and doesn't contain anything.
         /// </summary>
-        EmptyOrNotFound,
+        Empty,
 
         /// <summary>
-        /// The path is being stored.
+        /// The path is being calculated.
         /// </summary>
         InProgress,
 
         /// <inheritdoc cref="CalculationResult.PathFound"/>
         PathFound,
+
+        /// <inheritdoc cref="CalculationResult.PathNotFound"/>
+        PathNotFound,
+
+        /// <inheritdoc cref="CalculationResult.Timedout"/>
+        Timedout,
     }
 }

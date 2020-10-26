@@ -9,7 +9,7 @@
         /// <summary>
         /// Feeds the path with new information;
         /// </summary>
-        /// <param name="information">Information of the path.</param>
-        void Feed(TInfo information);
+        /// <param name="feeder">Object which has the path information to get.</param>
+        void Feed(IPathFeeder<TInfo> feeder);
     }
 }

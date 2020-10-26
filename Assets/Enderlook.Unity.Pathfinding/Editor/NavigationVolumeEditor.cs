@@ -55,7 +55,7 @@ namespace Enderlook.Unity.Pathfinding
                     if (!(startOctant.IsInvalid || endOctant.IsInvalid))
                     {
                         target.CalculatePath(startPosition, endPosition, pathBuilder);
-                        if (pathBuilder.Status == PathState.PathFound)
+                        if (pathBuilder.Status == PathBuilderState.PathFound)
                             pathBuilder.FeedPathTo(path);
                     }
                 }
@@ -88,7 +88,7 @@ namespace Enderlook.Unity.Pathfinding
                             if (start != startPosition || end != endPosition)
                             {
                                 target.CalculatePath(start, end, pathBuilder);
-                                if (pathBuilder.Status == PathState.PathFound)
+                                if (pathBuilder.Status == PathBuilderState.PathFound)
                                     pathBuilder.FeedPathTo(path);
                             }
                         }
@@ -135,7 +135,7 @@ namespace Enderlook.Unity.Pathfinding
                 if (!endOctant.IsInvalid)
                     target.Graph.DrawOctantWithHandle(endOctant);
 
-                if (!(startOctant.IsInvalid || endOctant.IsInvalid) && pathBuilder.Status == PathState.PathFound)
+                if (!(startOctant.IsInvalid || endOctant.IsInvalid) && pathBuilder.Status == PathBuilderState.PathFound)
                 {
                     using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
                     {

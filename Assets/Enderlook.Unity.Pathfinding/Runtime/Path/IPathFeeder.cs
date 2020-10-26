@@ -1,15 +1,24 @@
-﻿namespace Enderlook.Unity.Pathfinding
+﻿using System.Collections.Generic;
+
+namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
     /// Feeds a <see cref="IPathFeedable{TInfo}"/> with path information.
     /// </summary>
-    /// <typeparam name="TInfo">Information feeded to the path.</typeparam>
+    /// <typeparam name="TInfo">Type of information feeded to the path.</typeparam>
     public interface IPathFeeder<TInfo>
     {
         /// <summary>
-        /// Feeds a path with information.
+        /// Determines the state of the path.
         /// </summary>
-        /// <param name="feedable">Path to feed.</param>
-        void FeedPathTo(IPathFeedable<TInfo> feedable);
+        PathBuilderState Status { get; }
+
+        /// <summary>
+        /// Retrieves the path info of this path.<br/>
+        /// This can be empty if <see cref="Status"/> is <see cref="PathBuilderState.Empty"/> , <see cref="PathBuilderState.PathNotFound"/> or <see cref="PathBuilderState.Timedout"/>.<br/>
+        /// If <see cref="Status"/> is <see cref="PathBuilderState.InProgress"/>, this has undefined behaviour.
+        /// </summary>
+        /// <returns>The information of this path.</returns>
+        IEnumerable<TInfo> GetPathInfo();
     }
 }

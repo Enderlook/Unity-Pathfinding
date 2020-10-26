@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Enderlook.Unity.Pathfinding
@@ -7,16 +8,20 @@ namespace Enderlook.Unity.Pathfinding
     /// Represents the internal builder of a path.
     /// </summary>
     /// <typeparam name="TNode">Node type.</typeparam>
-    public sealed class PathBuilder<TNode> : IPathBuilder<TNode>, IPathFeeder<IReadOnlyList<TNode>>, IPathFeeder<IEnumerable<TNode>>
+    public sealed class PathBuilder<TNode> : IPathBuilder<TNode>, IPathFeeder<TNode>
     {
+        internal const string CAN_NOT_GET_PATH_IN_PROGRESS = "Can't get a path while the path builder is in progress. This exception will not be throw in release build, but undefined behaviour.";
+
         private PathBuilderInner<TNode> inner = new PathBuilderInner<TNode>(false);
         private readonly List<TNode> path = new List<TNode>();
 
-        /// <inheritdoc cref="IPathBuilder{TNode}.Status"/>
-        public PathState Status {
+        /// <inheritdoc cref="IPathFeeder{TInfo}.Status"/>
+        public PathBuilderState Status {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => inner.Status;
         }
+
+        PathBuilderState IPathFeeder<TNode>.Status => throw new System.NotImplementedException();
 
         /// <inheritdoc cref="IPathBuilder{TNode}.InitializeBuilderSession()"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -33,7 +38,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             inner.FinalizeBuilderSession(result);
 
-            if (Status == PathState.PathFound)
+            if (Status == PathBuilderState.PathFound)
             {
                 if (inner.edges.Count == 0)
                 {
@@ -55,31 +60,6 @@ namespace Enderlook.Unity.Pathfinding
                     path.Reverse();
                 }
             }
-        }
-
-        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FeedPathTo(IPathFeedable<IReadOnlyList<TNode>> path)
-        {
-            inner.FeedToPathGuard();
-            path.Feed(this.path);
-        }
-
-        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FeedPathTo(IPathFeedable<IEnumerable<TNode>> path)
-        {
-            inner.FeedToPathGuard();
-            path.Feed(this.path);
-        }
-
-        /// <inheritdoc cref="IPathFeeder{TInfo}.FeedPathTo(IPathFeedable{TInfo})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FeedPathTo<T>(T path)
-            where T : IPathFeedable<IEnumerable<TNode>>
-        {
-            inner.FeedToPathGuard();
-            path.Feed(this.path);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode}.SetCost(TNode, float)"/>
@@ -113,5 +93,16 @@ namespace Enderlook.Unity.Pathfinding
         /// <inheritdoc cref="IPathBuilder{TNode}.WasVisited(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode>.WasVisited(TNode node) => inner.WasVisited(node);
+
+        /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        IEnumerable<TNode> IPathFeeder<TNode>.GetPathInfo()
+        {
+#if UNITY_EDITOR || DEBUG
+            if (Status == PathBuilderState.InProgress)
+                throw new InvalidOperationException(CAN_NOT_GET_PATH_IN_PROGRESS);
+#endif
+            return path;
+        }
     }
 }

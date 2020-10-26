@@ -1,6 +1,5 @@
 ﻿using Enderlook.Collections;
 
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -16,12 +15,12 @@ namespace Enderlook.Unity.Pathfinding
         private readonly BinaryHeapMin<TNode, float> toVisit;
         private readonly Dictionary<TNode, float> costs;
         public readonly Dictionary<TNode, TNode> edges;
-        private PathState status;
+        private PathBuilderState status;
         private TNode end;
         private TNode start;
 
-        /// <inheritdoc cref="IPathBuilder{TNode}.Status"/>
-        public PathState Status {
+        /// <inheritdoc cref="IPathFeeder{TInfo}.Status"/>
+        public PathBuilderState Status {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => status;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -48,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding
             toVisit = new BinaryHeapMin<TNode, float>();
             costs = new Dictionary<TNode, float>();
             edges = new Dictionary<TNode, TNode>();
-            status = PathState.Empty;
+            status = PathBuilderState.Empty;
             end = default;
             start = default;
         }
@@ -56,7 +55,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <inheritdoc cref="IPathBuilder{TNode}.InitializeBuilderSession(TNode)"/>
         public void InitializeBuilderSession()
         {
-            Status = PathState.InProgress;
+            Status = PathBuilderState.InProgress;
             visited.Clear();
             toVisit.Clear();
             costs.Clear();
@@ -69,23 +68,7 @@ namespace Enderlook.Unity.Pathfinding
 
         /// <inheritdoc cref="IPathBuilder{TNode}.FinalizeBuilderSession(CalculationResult)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FinalizeBuilderSession(CalculationResult result) => Status = result.ToPathState();
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void FeedToPathGuard()
-        {
-            switch (Status)
-            {
-                case PathState.Empty:
-                    throw new InvalidOperationException("Can't create path if path builder is empty.");
-                case PathState.InProgress:
-                    throw new InvalidOperationException("Can't create path while path builder is in progress.");
-                case PathState.PathNotFound:
-                    throw new InvalidOperationException("Can't create path because no path was found.");
-                case PathState.Timedout:
-                    throw new InvalidOperationException("Can't create path because path building was aborted prematurely.");
-            }
-        }
+        public void FinalizeBuilderSession(CalculationResult result) => Status = result.ToPathBuilderState();
 
         /// <inheritdoc cref="IPathBuilder{TNode}.SetCost(TNode, float)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

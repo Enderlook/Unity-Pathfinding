@@ -72,11 +72,6 @@
         void SetStart(TNode start);
 
         /// <summary>
-        /// Determines the state of the path.
-        /// </summary>
-        PathState Status { get; }
-
-        /// <summary>
         /// Mark the node as visited.
         /// </summary>
         /// <param name="node">Node to mask as visited.</param>

@@ -8,45 +8,54 @@ namespace Enderlook.Unity.Pathfinding
     /// <summary>
     /// Represents a path.
     /// </summary>
-    /// <typeparam name="T">Node or coordinate type.</typeparam>
-    public sealed class Path<T> : IPathFeedable<IEnumerable<T>>, IPathFeedable<IReadOnlyList<T>>, IPathFeedable<IEnumerator<T>>, IEnumerable<T>
+    /// <typeparam name="TInfo">Node or coordinate type.</typeparam>
+    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IEnumerable<TInfo>
     {
-        private readonly List<T> list = new List<T>();
+        private readonly List<TInfo> list = new List<TInfo>();
+        private PathState state;
 #if UNITY_EDITOR || DEBUG
         private int version;
 #endif
+        /// <summary>
+        /// Determines the state of this path.
+        /// </summary>
+        public PathState State {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => state;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private set => state = value;
+        }
+
+        /// <summary>
+        /// Get the destination of this path.<br/>
+        /// This has undefined behaviour if <see cref="State"/> is <see cref="PathState.EmptyOrNotFound"/> or <see cref="PathState.InProgress"/>.
+        /// </summary>
+        public TInfo Destination {
+            get {
+#if UNITY_EDITOR || DEBUG
+                if (State != PathState.PathFound)
+                    throw new InvalidOperationException("Can't get destination if path is empty or in progess. This will not be thrown in release build, but undefined behaviuor.");
+#endif
+                return list[list.Count - 1];
+            }
+        }
 
         /// <inheritdoc cref="IPathFeedable{TInfo}"/>
-        void IPathFeedable<IEnumerable<T>>.Feed(IEnumerable<T> information)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IPathFeedable<TInfo>.Feed(IPathFeeder<TInfo> feeder)
         {
+#if UNITY_EDITOR || DEBUG
+            if (State == PathState.InProgress)
+                throw new InvalidOperationException("Can't feed a path which is already in progress.");
+#endif
+            State = PathState.InProgress;
 #if UNITY_EDITOR || DEBUG
         version++;
 #endif
             list.Clear();
             // We don't check capacity for optimization because that is already done in AddRange.
-            list.AddRange(information);
-        }
-
-        /// <inheritdoc cref="IPathFeedable{TInfo}"/>
-        void IPathFeedable<IReadOnlyList<T>>.Feed(IReadOnlyList<T> information)
-        {
-#if UNITY_EDITOR || DEBUG
-            version++;
-#endif
-            list.Clear();
-            // We don't check capacity for optimization because that is already done in AddRange.
-            list.AddRange(information);
-        }
-
-        /// <inheritdoc cref="IPathFeedable{TInfo}"/>
-        public void Feed(IEnumerator<T> information)
-        {
-#if UNITY_EDITOR || DEBUG
-            version++;
-#endif
-            list.Clear();
-            while (information.MoveNext())
-                list.Add(information.Current);
+            list.AddRange(feeder.GetPathInfo());
+            State = feeder.Status.ToPathState();
         }
 
 #if UNITY_EDITOR || DEBUG
@@ -65,11 +74,11 @@ namespace Enderlook.Unity.Pathfinding
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
-        IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
+        IEnumerator<TInfo> IEnumerable<TInfo>.GetEnumerator() => GetEnumerator();
 
-        public struct Enumerator : IEnumerator<T>
+        public struct Enumerator : IEnumerator<TInfo>
         {
-            private Path<T> source;
+            private Path<TInfo> source;
 
             private int index;
 
@@ -77,8 +86,12 @@ namespace Enderlook.Unity.Pathfinding
             private int version;
 #endif
 
-            public Enumerator(Path<T> source)
+            public Enumerator(Path<TInfo> source)
             {
+#if UNITY_EDITOR || DEBUG
+                if (source.State == PathState.InProgress)
+                    throw new InvalidOperationException("Can't enumerate a path which is in progress.");
+#endif
                 this.source = source;
                 index = -1;
 #if UNITY_EDITOR || DEBUG
@@ -87,7 +100,7 @@ namespace Enderlook.Unity.Pathfinding
             }
 
             /// <inheritdoc cref="IEnumerator{T}.Current"/>
-            public T Current {
+            public TInfo Current {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get {
 #if UNITY_EDITOR || DEBUG
