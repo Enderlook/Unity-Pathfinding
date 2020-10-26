@@ -16,6 +16,15 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR || DEBUG
         private int version;
 #endif
+
+        /// <summary>
+        /// Determines the amount of points this path has.
+        /// </summary>
+        public int Count {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => list.Count;
+        }
+
         /// <summary>
         /// Determines the state of this path.
         /// </summary>
