@@ -40,6 +40,7 @@ namespace Enderlook.Unity.Pathfinding
 
             if (Status == PathBuilderState.PathFound)
             {
+                path.Clear();
                 if (inner.edges.Count == 0)
                 {
                     path.Add(inner.Start);

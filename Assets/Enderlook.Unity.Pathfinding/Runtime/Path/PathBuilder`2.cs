@@ -25,8 +25,7 @@ namespace Enderlook.Unity.Pathfinding
 
         /// <inheritdoc cref="IPathBuilder{TNode}.InitializeBuilderSession(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IPathBuilder<TNode>.InitializeBuilderSession()
-            => inner.InitializeBuilderSession();
+        void IPathBuilder<TNode>.InitializeBuilderSession() => inner.InitializeBuilderSession();
 
         /// <inheritdoc cref="IPathBuilder{TNode}.EnqueueToVisit(TNode, float)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -40,6 +39,7 @@ namespace Enderlook.Unity.Pathfinding
 
             if (Status == PathBuilderState.PathFound)
             {
+                path.Clear();
                 if (inner.edges.Count == 0)
                 {
                     path.Add(start);
