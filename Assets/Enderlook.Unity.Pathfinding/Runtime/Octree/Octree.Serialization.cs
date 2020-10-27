@@ -1,40 +1,36 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [Serializable]
-    public sealed partial class Octree : ISerializationCallbackReceiver
+    public sealed partial class Octree
     {
-        /// <summary>
-        /// Data Layout:<br/><br/>
-        /// 
-        /// Header:<br/>
-        /// -(<see cref="int"/>: <c><see cref="octants"/>.Count</c>. Amount of stored octants and body.)<br/>
-        /// -(<see cref="int"/>: <c><see cref="connections"/>.Count</c>. Amount of stored connections.)<br/><br/>
-        /// 
-        /// -Body (repeated an amount of times equal to <c><see cref="octants"/>.Count</c>):<br/>
-        /// --(<see cref="OctantCode"/>: <see cref="Octant.Code"/>. Code of this octant.)<br/>
-        /// --(<see cref="StatusFlags"/>(<see cref="byte"/>): <see cref="Octant.Flags"/>. Flags of this octant.)<br/>
-        /// --(<see cref="int"/>: <c><see cref="connections"/>[<see cref="Octant.Code"/>].Count</c>. Amount of connections this octant has.)<br/>
-        /// ---Connections (repeated an amoaunt of times euqal to <c><see cref="connections"/>[<see cref="Octant.Code"/>].Count</c>)<br/>
-        /// ----(<see cref="OctantCode"/>: <see cref="Octant.Code"/>. Code of connected octant.)<br/>
-        /// </summary>
-        [SerializeField]
-        private byte[] serialized;
+        /* 
+         * Data Layout:
+         * 
+         * Header:
+         * - (Vetor3 (float x 3): center. Center of this octree.)
+         * - (float: size. Size of this octree.)
+         * - (byte: subdivisions. Amount of subdivisions of this octree.)
+         * - (int: octants.Count. Amount of stored octants and body.)
+         * - (int: connections.Count. Amount of stored connections.)
+         * 
+         * - Body (repeated an amount of times equal to octants.Count)
+         *  - (OctantCode: Octant.Code. Code of this octant.)
+         *  - (StatusFlags (byte): <see cref="Octant.Flags"/>. Flags of this octant.)
+         *  - (int: connections[Octant.Code].Count. Amount of connections this octant has.)
+         *   - Connections (repeated an amoaunt of times euqal to connections[Octant.Code].Count)
+         *    - (OctantCode: Octant.Code. Code of connected octant.)
+         */
 
-        private bool isSerializationUpdated;
+        public Octree(Span<byte> serialized) => LoadFrom(serialized);
 
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
+        internal byte[] SaveAs()
         {
-            if (isSerializationUpdated)
-                return;
-
-            isSerializationUpdated = true;
-
             if (octants is null)
                 octants = new Dictionary<OctantCode, Octant>();
             if (connections is null)
@@ -44,7 +40,10 @@ namespace Enderlook.Unity.Pathfinding
             foreach (HashSet<OctantCode> edges in connections.Values)
                 edgesCount += edges.Count;
 
-            serialized = new byte[
+            byte[] serialized = new byte[
+                (sizeof(int) * 3) + // Center
+                sizeof(int) + // Size
+                sizeof(byte) + // Subdivisions
                 (sizeof(int) * 2) + // Number of octants and number of connections
                 ((OctantCode.SIZE + sizeof(byte)) * octants.Count) + // Space for octant information
                 (OctantCode.SIZE * edgesCount) + // Space for neighbour information
@@ -52,6 +51,19 @@ namespace Enderlook.Unity.Pathfinding
             ];
 
             int index = 0;
+            // TODO: use BitOperations.SingleToInt32Bits(float)
+
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref center.x));
+            index += sizeof(int);
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref center.y));
+            index += sizeof(int);
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref center.z));
+            index += sizeof(int);
+
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref size));
+            index += sizeof(int);
+
+            serialized[index++] = subdivisions;
 
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), octants.Count);
             index += sizeof(int);
@@ -102,18 +114,15 @@ namespace Enderlook.Unity.Pathfinding
                 stack[stackPointer++] = new OctantCode(firstChild++);
                 stack[stackPointer] = new OctantCode(firstChild);
             }
+
+            return serialized;
         }
 
-        void ISerializationCallbackReceiver.OnAfterDeserialize()
+        internal void LoadFrom(Span<byte> serialized)
         {
-            if (isSerializationUpdated)
-                return;
-
-            isSerializationUpdated = true;
-
             distances = new Dictionary<(OctantCode, OctantCode), float>();
 
-            if (serialized is null || serialized.Length == 0)
+            if (serialized.Length == 0)
             {
                 octants = new Dictionary<OctantCode, Octant>();
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
@@ -122,29 +131,43 @@ namespace Enderlook.Unity.Pathfinding
             {
                 int index = 0;
 
-                int octantsCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int)));
+                int centerX = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
+                index += sizeof(int);
+                int centerY = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
+                index += sizeof(int);
+                int centerZ = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
+                index += sizeof(int);
+                center = new Vector3(Unsafe.As<int, float>(ref centerX), Unsafe.As<int, float>(ref centerY), Unsafe.As<int, float>(ref centerZ));
+
+                int size = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
+                index += sizeof(int);
+                this.size = Unsafe.As<int, float>(ref size);
+
+                subdivisions = serialized[index++];
+
+                int octantsCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
                 octants = new Dictionary<OctantCode, Octant>(octantsCount);
                 index += sizeof(int);
 
-                connections = new Dictionary<OctantCode, HashSet<OctantCode>>(BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int))));
+                connections = new Dictionary<OctantCode, HashSet<OctantCode>>(BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int))));
                 index += sizeof(int);
 
                 for (int i = 0; i < octantsCount; i++)
                 {
-                    OctantCode code = new OctantCode(serialized.AsSpan(index, OctantCode.SIZE));
+                    OctantCode code = new OctantCode(serialized.Slice(index, OctantCode.SIZE));
                     index += OctantCode.SIZE;
 
                     Octant.StatusFlags flags = (Octant.StatusFlags)serialized[index++];
 
                     octants[code] = new Octant(code, flags);
 
-                    int neigboursCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.AsSpan(index, sizeof(int)));
+                    int neigboursCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
                     index += sizeof(int);
                     HashSet<OctantCode> neigbours = new HashSet<OctantCode>(); // TODO: In .Net Standard 2.1 we can add initial capacity
 
                     for (int j = 0; j < neigboursCount; j++)
                     {
-                        neigbours.Add(new OctantCode(serialized.AsSpan(index, OctantCode.SIZE)));
+                        neigbours.Add(new OctantCode(serialized.Slice(index, OctantCode.SIZE)));
                         index += OctantCode.SIZE;
                     }
                     connections.Add(code, neigbours);

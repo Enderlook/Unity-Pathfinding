@@ -46,24 +46,31 @@ namespace Enderlook.Unity.Pathfinding
 
             EditorGUILayout.BeginHorizontal();
             {
-                if (GUILayout.Button(BAKE_BUTTON))
+                EditorGUI.BeginDisabledGroup(target.bakedContent == null);
                 {
-                    target.Bake();
-                    EditorUtility.SetDirty(target);
-                    startOctant = target.Graph.FindClosestNodeTo(startPosition);
-                    endOctant = target.Graph.FindClosestNodeTo(endPosition);
-                    if (!(startOctant.IsInvalid || endOctant.IsInvalid))
+                    if (GUILayout.Button(BAKE_BUTTON))
                     {
-                        target.CalculatePath(startPosition, endPosition, pathBuilder);
-                        if (pathBuilder.Status == PathBuilderState.PathFound)
-                            pathBuilder.FeedPathTo(path);
+                        target.Bake();
+                        target.Save();
+                        EditorUtility.SetDirty(target);
+                        EditorUtility.SetDirty(target.bakedContent);
+                        startOctant = target.Graph.FindClosestNodeTo(startPosition);
+                        endOctant = target.Graph.FindClosestNodeTo(endPosition);
+                        if (!(startOctant.IsInvalid || endOctant.IsInvalid))
+                        {
+                            target.CalculatePath(startPosition, endPosition, pathBuilder);
+                            if (pathBuilder.Status == PathBuilderState.PathFound)
+                                pathBuilder.FeedPathTo(path);
+                        }
                     }
-                }
-                if (GUILayout.Button(CLEAR_BUTTON))
-                {
-                    target.Clear();
-                    EditorUtility.SetDirty(target);
-                }
+                    if (GUILayout.Button(CLEAR_BUTTON))
+                    {
+                        target.Clear();
+                        EditorUtility.SetDirty(target);
+                        target.bakedContent.Clear();
+                        EditorUtility.SetDirty(target.bakedContent);
+                    } }
+                EditorGUI.EndDisabledGroup();
             }
             EditorGUILayout.EndHorizontal();
 

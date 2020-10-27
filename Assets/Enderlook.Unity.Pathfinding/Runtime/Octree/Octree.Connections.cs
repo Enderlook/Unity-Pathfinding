@@ -29,8 +29,6 @@ namespace Enderlook.Unity.Pathfinding
         {
             // TODO: replace this with http://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Lewiner10.pdf
 
-            isSerializationUpdated = false;
-
             Stack<HashSet<OctantCode>> pool;
             if (connections is null)
             {

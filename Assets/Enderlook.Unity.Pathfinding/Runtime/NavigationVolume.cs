@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [AddComponentMenu("Enderlook/Pathfinding/Navigation Volume")]
+    [AddComponentMenu("Enderlook/Pathfinding/Navigation Volume"), DefaultExecutionOrder(-100 /* Just to be sure */)]
     public sealed class NavigationVolume : MonoBehaviour
     {
 #pragma warning disable CS0649
@@ -31,7 +31,9 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("Determines which types of connections are produced.")]
         private ConnectionType connectionType = ConnectionType.Transitable;
 
-        [SerializeField, HideInInspector]
+        [SerializeField, Tooltip("If present, this content will be read as navigation information. Otherwise it's produced at runtime.")]
+        internal NavigationBaked bakedContent;
+
         private Octree graph;
 #pragma warning restore CS0649
 
@@ -39,8 +41,30 @@ namespace Enderlook.Unity.Pathfinding
         /// <summary>
         /// Only use in Editor.
         /// </summary>
-        internal Octree Graph => graph;
+        internal Octree Graph {
+            get {
+                if (graph is null)
+                {
+                    graph = new Octree(transform.position, collectionSize, subdivisions);
+                    if (bakedContent != null)
+                        graph.LoadFrom(bakedContent.content);
+                }
+                return graph;
+            }
+        }
 #endif
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
+        private void Awake()
+        {
+            if (bakedContent != null)
+                graph = new Octree(bakedContent.content);
+            else
+            {
+                graph = new Octree(transform.position, collectionSize, subdivisions);
+                Bake();
+            }
+        }
 
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -52,9 +76,16 @@ namespace Enderlook.Unity.Pathfinding
                 Gizmos.DrawWireCube(transform.position, Vector3.one * collectionSize);
             }
 
-            graph.DrawGizmos();
+            graph?.DrawGizmos();
         }
+
+        /// <summary>
+        /// Only use in Editor.
+        /// </summary>
+        internal void LoadBakedContent() => graph = new Octree(bakedContent.content);
 #endif
+
+        internal void Save() => bakedContent.content = graph.SaveAs();
 
         internal void Bake()
         {

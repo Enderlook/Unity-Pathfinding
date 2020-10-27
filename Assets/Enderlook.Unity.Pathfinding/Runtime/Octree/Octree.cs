@@ -30,13 +30,10 @@ namespace Enderlook.Unity.Pathfinding
          *  https://www.researchgate.net/publication/321487917_Binarized_octree_generation_for_Cartesian_adaptive_mesh_refinement_around_immersed_geometries
          */
 
-        [SerializeField]
         private Vector3 center;
 
-        [SerializeField]
         private float size;
 
-        [SerializeField]
         private byte subdivisions;
 
         private int MaxDepth => subdivisions + 1;
@@ -56,8 +53,6 @@ namespace Enderlook.Unity.Pathfinding
             if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
 
-            serialized = null;
-
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
@@ -67,8 +62,6 @@ namespace Enderlook.Unity.Pathfinding
 
         private void Clear()
         {
-            isSerializationUpdated = false;
-
             if (octants is null)
                 octants = new Dictionary<OctantCode, Octant>();
             else

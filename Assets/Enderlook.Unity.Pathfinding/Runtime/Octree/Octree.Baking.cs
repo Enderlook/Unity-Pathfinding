@@ -28,8 +28,6 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
         {
-            isSerializationUpdated = false;
-
             if (octants is null)
                 octants = new Dictionary<OctantCode, Octant>();
             else
