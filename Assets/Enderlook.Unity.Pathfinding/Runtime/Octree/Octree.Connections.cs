@@ -35,12 +35,22 @@ namespace Enderlook.Unity.Pathfinding
             if (connections is null)
             {
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>();
+                connections.Add(OctantCode.Invalid, new HashSet<OctantCode>());
                 pool = new Stack<HashSet<OctantCode>>();
             }
             else
             {
                 pool = new Stack<HashSet<OctantCode>>(connections.Values);
+
+                foreach (HashSet<OctantCode> set in connections.Values)
+                    pool.Push(set);
                 connections.Clear();
+
+                if (pool.TryPop(out HashSet<OctantCode> set2))
+                {
+                    set2.Clear();
+                    connections.Add(OctantCode.Invalid, set2);
+                }
             }
 
             // We calcualte all true leaf octants (deepest), even from leaves that we don't store.

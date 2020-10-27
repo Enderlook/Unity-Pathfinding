@@ -63,7 +63,12 @@ namespace Enderlook.Unity.Pathfinding
         {
             if (distances.TryGetValue((from, to), out float value))
                 return value;
-            value = Vector3.Distance(octants[from].Center, octants[to].Center);
+
+            if (from.IsInvalid || to.IsInvalid)
+                value = float.NaN;
+            else
+                value = Vector3.Distance(octants[from].Center, octants[to].Center);
+
             distances[(from, to)] = value;
             return value;
         }
