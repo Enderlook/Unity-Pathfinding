@@ -205,6 +205,8 @@ namespace Enderlook.Unity.Pathfinding
                     stack[stackPointer] = new OnAfterDeserialize(new OctantCode(firstChild), center + (ChildrenPositions.Child7 * currentSize));
                 }
             }
+
+            connections.Add(OctantCode.Invalid, new HashSet<OctantCode>());
         }
 
         private struct OnAfterDeserialize
