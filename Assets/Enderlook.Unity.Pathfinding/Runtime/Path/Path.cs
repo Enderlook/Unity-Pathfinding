@@ -3,48 +3,82 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
+using Unity.Jobs;
+
 namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
     /// Represents a path.
     /// </summary>
     /// <typeparam name="TInfo">Node or coordinate type.</typeparam>
-    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IEnumerable<TInfo>
+    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IProcessHandle, IProcessHandleSourceCompletition, IEnumerable<TInfo>
     {
+        private const string CAN_NOT_FEED_IF_IS_NOT_PENDING = "Can't feed path if it's not pending.";
+        private const string CAN_NOT_GET_DESTINATION_IF_PATH_WAS_NOT_FOUND = "Can't get destination if path is empty or not found.";
+        private const string CAN_NOT_GET_DESTINATION_IF_PATH_IS_PENDING = "Can't get destination if path is pending.";
+        private const string PATH_WAS_MODIFIED_OUTDATED_ENUMERATOR = "Path was modified; enumeration operation may not execute.";
+        private const string CAN_NOT_EXECUTE_IF_IS_PENDING = "Can't execute if it's pending.";
+
         private readonly List<TInfo> list = new List<TInfo>();
-        private PathState state;
-#if UNITY_EDITOR || DEBUG
         private int version;
-#endif
+        private Status status;
+        private ProcessHandle processHandle;
 
         /// <summary>
-        /// Determines the amount of points this path has.
+        /// Determines if this path is being calculated.
         /// </summary>
+        public bool IsPending {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => processHandle.IsPending;
+        }
+
+        /// <inheritdoc cref="IProcessHandle.IsComplete"/>
+        public bool IsComplete {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => processHandle.IsComplete;
+        }
+
+        /// <summary>
+        /// Determines if this path contains an actual path.<br/>
+        /// This will return <see langword="false"/> if it's empty, hasn't found a path, or <see cref="IsPending"/> is <see langword="true"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when <see cref="IsPending"/> is <see langword="true"/>.</exception>
+        public bool HasPath {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get {
+                if (IsPending)
+                    throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
+                return (status & Status.Found) != 0;
+            }
+        }
+
+        /// <summary>
+        /// Determines the amount of points this path has.<br/>
+        /// This returns <c>0</c> if <see cref="HasPath"/> and <see cref="IsPending"/> are both <see langword="false"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when <see cref="IsPending"/> is <see langword="true"/>.</exception>
         public int Count {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => list.Count;
-        }
-
-        /// <summary>
-        /// Determines the state of this path.
-        /// </summary>
-        public PathState State {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => state;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set => state = value;
-        }
-
-        /// <summary>
-        /// Get the destination of this path.<br/>
-        /// This has undefined behaviour if <see cref="State"/> is <see cref="PathState.EmptyOrNotFound"/> or <see cref="PathState.InProgress"/>.
-        /// </summary>
-        public TInfo Destination {
             get {
-#if UNITY_EDITOR || DEBUG
-                if (State != PathState.PathFound)
-                    throw new InvalidOperationException("Can't get destination if path is empty or in progess. This will not be thrown in release build, but undefined behaviuor.");
-#endif
+                if (IsPending)
+                    throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
+                return list.Count;
+            }
+        }
+
+        /// <summary>
+        /// Get the destination of this path.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when <see cref="HasPath"/> is <see langword="false"/> or <see cref="IsPending"/> is <see langword="true"/>.</exception>
+        internal TInfo Destination {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get {
+                if (!HasPath)
+                {
+                    if (IsPending)
+                        throw new InvalidOperationException(CAN_NOT_GET_DESTINATION_IF_PATH_IS_PENDING);
+                    throw new InvalidOperationException(CAN_NOT_GET_DESTINATION_IF_PATH_WAS_NOT_FOUND);
+                }
                 return list[list.Count - 1];
             }
         }
@@ -53,70 +87,85 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathFeedable<TInfo>.Feed(IPathFeeder<TInfo> feeder)
         {
-#if UNITY_EDITOR || DEBUG
-            if (State == PathState.InProgress)
-                throw new InvalidOperationException("Can't feed a path which is already in progress.");
-#endif
-            State = PathState.InProgress;
-#if UNITY_EDITOR || DEBUG
-        version++;
-#endif
+            if (IsComplete)
+                throw new InvalidOperationException(CAN_NOT_FEED_IF_IS_NOT_PENDING);
+
+            version++;
             list.Clear();
             // We don't check capacity for optimization because that is already done in AddRange.
             list.AddRange(feeder.GetPathInfo());
-            State = feeder.Status.ToPathState();
+            if (feeder.HasPath)
+                status = Status.Found;
+            else if (feeder.HasTimedout)
+                status = Status.Timedout;
         }
 
-#if UNITY_EDITOR || DEBUG
+#if UNITY_EDITOR || DEBUG || CHECKED
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void GuardVersion(int version)
         {
             if (version != this.version)
-                throw new InvalidOperationException("Path was modified; enumeration operation may not execute. This doesn't raise on release build.");
+                throw new InvalidOperationException(PATH_WAS_MODIFIED_OUTDATED_ENUMERATOR);
         }
 #endif
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Enumerator GetEnumerator() => new Enumerator(this);
 
         /// <inheritdoc cref="IEnumerable.GetEnumerator"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
         IEnumerator<TInfo> IEnumerable<TInfo>.GetEnumerator() => GetEnumerator();
+
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.StartFromSync"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        void IProcessHandleSourceCompletition.StartFromSync() => processHandle.StartFromSync();
+
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.StartFromJobHandle(JobHandle)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        void IProcessHandleSourceCompletition.StartFromJobHandle(JobHandle jobHandle) => processHandle.StartFromJobHandle(jobHandle);
+
+        /// <inheritdoc cref="IProcessHandle.Complete"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        public void Complete() => processHandle.Complete();
+
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.EndFromSync"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IProcessHandleSourceCompletition.EndFromSync() => processHandle.EndFromSync();
+
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.EndFromSync"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        void IProcessHandleSourceCompletition.EndFromJobHandle() => processHandle.EndFromJobHandle();
 
         public struct Enumerator : IEnumerator<TInfo>
         {
+            private const string CAN_NOT_ENUMERATE_PATH_WHICH_IS_PENDING = "Can't enumerate a path which is pending.";
+            private const string MOVE_NEXT_MUST_BE_CALLED_AT_LEAST_ONCE_BEFORE = nameof(MoveNext) + " must be called at least once before.";
+
             private Path<TInfo> source;
-
             private int index;
-
-#if UNITY_EDITOR || DEBUG
             private int version;
-#endif
 
-            public Enumerator(Path<TInfo> source)
+            internal Enumerator(Path<TInfo> source)
             {
-#if UNITY_EDITOR || DEBUG
-                if (source.State == PathState.InProgress)
-                    throw new InvalidOperationException("Can't enumerate a path which is in progress.");
-#endif
+                if (source.IsPending)
+                    throw new InvalidOperationException(CAN_NOT_ENUMERATE_PATH_WHICH_IS_PENDING);
                 this.source = source;
                 index = -1;
-#if UNITY_EDITOR || DEBUG
                 version = source.version;
-#endif
             }
 
             /// <inheritdoc cref="IEnumerator{T}.Current"/>
             public TInfo Current {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get {
-#if UNITY_EDITOR || DEBUG
                     source.GuardVersion(version);
                     if (index == -1)
-                        throw new InvalidOperationException($"{nameof(MoveNext)} must be called at least once before. This doesn't raise on release build, but undefined behaviour.");
-#endif
+                        throw new InvalidOperationException(MOVE_NEXT_MUST_BE_CALLED_AT_LEAST_ONCE_BEFORE);
                     return source.list[index];
                 }
             }
@@ -135,9 +184,8 @@ namespace Enderlook.Unity.Pathfinding
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool MoveNext()
             {
-#if UNITY_EDITOR || DEBUG
                 source.GuardVersion(version);
-#endif
+
                 if (index < source.list.Count - 1)
                 {
                     index++;
@@ -150,11 +198,17 @@ namespace Enderlook.Unity.Pathfinding
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Reset()
             {
-#if UNITY_EDITOR || DEBUG
                 source.GuardVersion(version);
-#endif
                 index = -1;
             }
+        }
+
+        [Flags]
+        private enum Status : byte
+        {
+            Found = 1 << 0,
+            Timedout = 1 << 1,
+            Reserved = 1 << 2,
         }
     }
 }

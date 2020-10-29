@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree
+    internal sealed partial class Octree
     {
         private Dictionary<OctantCode, HashSet<OctantCode>> connections;
 

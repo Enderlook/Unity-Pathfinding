@@ -1,6 +1,9 @@
 ﻿using Enderlook.Unity.Attributes;
+using Enderlook.Unity.Pathfinding.Algorithms;
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
@@ -34,6 +37,8 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("If present, this content will be read as navigation information. Otherwise it's produced at runtime.")]
         internal NavigationBaked bakedContent;
 
+        private Manager<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>> manager;
+
         private Octree graph;
 #pragma warning restore CS0649
 
@@ -43,19 +48,22 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         internal Octree Graph {
             get {
-                if (graph is null)
-                {
-                    graph = new Octree(transform.position, collectionSize, subdivisions);
-                    if (bakedContent != null)
-                        graph.LoadFrom(bakedContent.content);
-                }
+                CheckInitialize();
                 return graph;
             }
+        }
+
+        private void CheckInitialize()
+        {
+            if (graph is null || manager is null)
+                Initialize();
         }
 #endif
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void Awake()
+        private void Awake() => Initialize();
+
+        private void Initialize()
         {
             if (bakedContent != null)
                 graph = new Octree(bakedContent.content);
@@ -64,6 +72,7 @@ namespace Enderlook.Unity.Pathfinding
                 graph = new Octree(transform.position, collectionSize, subdivisions);
                 Bake();
             }
+            manager = new Manager<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>>(graph);
         }
 
 #if UNITY_EDITOR
@@ -76,7 +85,10 @@ namespace Enderlook.Unity.Pathfinding
                 Gizmos.DrawWireCube(transform.position, Vector3.one * collectionSize);
             }
 
-            graph?.DrawGizmos();
+#if UNITY_EDITOR
+            CheckInitialize();
+#endif
+            graph.DrawGizmos();
         }
 
         /// <summary>
@@ -89,6 +101,10 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void Bake()
         {
+#if UNITY_EDITOR
+            CheckInitialize();
+#endif
+
             if (geometryType == GeometryType.RenderMeshes)
                 throw new NotImplementedException();
 
@@ -102,13 +118,22 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions);
 
-        public void CalculatePath<TBuilder, TWatchdog>(Vector3 from, Vector3 to, TBuilder builder, TWatchdog watchdog)
-            where TBuilder : IPathBuilder<Octree.OctantCode, Vector3>
-            where TWatchdog : IWatchdog
-            => graph.CalculatePath(from, to, builder, watchdog);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CalculatePathSync(Path<Vector3> path, Vector3 from, Vector3 to)
+        {
+#if UNITY_EDITOR
+            CheckInitialize();
+#endif
+            manager.CalculatePathSync(path, from, to);
+        }
 
-        public void CalculatePath<TBuilder>(Vector3 from, Vector3 to, TBuilder builder)
-            where TBuilder : IPathBuilder<Octree.OctantCode, Vector3>
-            => graph.CalculatePath(from, to, builder);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CalculatePath(Path<Vector3> path, Vector3 from, Vector3 to)
+        {
+#if UNITY_EDITOR
+            CheckInitialize();
+#endif
+            manager.CalculatePath(path, from, to);
+        }
     }
 }

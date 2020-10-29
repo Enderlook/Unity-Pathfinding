@@ -1,4 +1,6 @@
-﻿using UnityEditor;
+﻿using Unity.Jobs;
+
+using UnityEditor;
 
 using UnityEngine;
 
@@ -13,9 +15,11 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly GUIContent DRAW_MODE_ENUM = new GUIContent("Draw Mode", "Determines how the octree is drawed by the gizmos.");
         private static readonly GUIContent OCTANS_COUNT_LABEL = new GUIContent("Octans", "Amount of stores octans.");
         private static readonly GUIContent NEIGHBOURS_COUNT_LABEL = new GUIContent("Neighbours", "Amount of stored neighbours.");
-        private static readonly GUIContent DRAW_PATH_TOGGLE = new GUIContent("Draw Path", "If true, two handles will be provided to calculate paths between them.");
+        private static readonly GUIContent DRAW_PATH_FOLDOUT = new GUIContent("Draw Path", "If true, two handles will be provided to calculate paths between them.");
         private static readonly GUIContent START_LABEL = new GUIContent("Start", "Start position of the path to show.");
         private static readonly GUIContent END_LABEL = new GUIContent("End", "End position of the path to show.");
+        private static readonly GUIContent PATH_COUNT_LABEL = new GUIContent("Count", "Amount of points it must travel.");
+        private static readonly GUIContent PATH_DISTANCE_LABEL = new GUIContent("Distance", "Distance it must travel.");
 
         private new NavigationVolume target;
 
@@ -28,21 +32,23 @@ namespace Enderlook.Unity.Pathfinding
         private Vector3 endPosition;
         private Transform endTransform;
         private Octree.OctantCode endOctant;
-        private PathBuilder<Octree.OctantCode, Vector3> pathBuilder;
         private Path<Vector3> path;
+        private bool mustRecalculate;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnEnable()
         {
             target = (NavigationVolume)base.target;
             startPosition = endPosition = target.transform.position;
-            pathBuilder = new PathBuilder<Octree.OctantCode, Vector3>();
             path = new Path<Vector3>();
         }
 
         public override void OnInspectorGUI()
         {
             DrawDefaultInspector();
+
+            if (path.IsComplete)
+                path.Complete();
 
             EditorGUILayout.BeginHorizontal();
             {
@@ -54,13 +60,17 @@ namespace Enderlook.Unity.Pathfinding
                         target.Save();
                         EditorUtility.SetDirty(target);
                         EditorUtility.SetDirty(target.bakedContent);
-                        startOctant = target.Graph.FindClosestNodeTo(startPosition);
-                        endOctant = target.Graph.FindClosestNodeTo(endPosition);
-                        if (!(startOctant.IsInvalid || endOctant.IsInvalid))
+                        if (drawPath)
                         {
-                            target.CalculatePath(startPosition, endPosition, pathBuilder);
-                            if (pathBuilder.Status == PathBuilderState.PathFound)
-                                pathBuilder.FeedPathTo(path);
+                            startOctant = target.Graph.FindClosestNodeTo(startPosition);
+                            endOctant = target.Graph.FindClosestNodeTo(endPosition);
+                            if (path.IsComplete)
+                            {
+                                target.CalculatePath(path, startPosition, endPosition);
+                                JobHandle.ScheduleBatchedJobs();
+                            }
+                            else
+                                mustRecalculate = true;
                         }
                     }
                     if (GUILayout.Button(CLEAR_BUTTON))
@@ -69,7 +79,8 @@ namespace Enderlook.Unity.Pathfinding
                         EditorUtility.SetDirty(target);
                         target.bakedContent.Clear();
                         EditorUtility.SetDirty(target.bakedContent);
-                    } }
+                    }
+                }
                 EditorGUI.EndDisabledGroup();
             }
             EditorGUILayout.EndHorizontal();
@@ -84,55 +95,116 @@ namespace Enderlook.Unity.Pathfinding
                     EditorGUI.EndDisabledGroup();
                     target.Graph.drawMode = (Octree.DrawMode)EditorGUILayout.EnumFlagsField(DRAW_MODE_ENUM, target.Graph.drawMode);
 
-                    if (drawPath = EditorGUILayout.Toggle(DRAW_PATH_TOGGLE, drawPath))
+                    if (drawPath = EditorGUILayout.Foldout(drawPath, DRAW_PATH_FOLDOUT, true))
                     {
                         EditorGUI.indentLevel++;
                         {
-                            Vector3 start = startPosition;
-                            Vector3 end = endPosition;
-                            DrawPositionPathField(START_LABEL, ref startTransform, ref startPosition, ref startOctant);
-                            DrawPositionPathField(END_LABEL, ref endTransform, ref endPosition, ref endOctant);
-                            if (start != startPosition || end != endPosition)
+                            if (DrawPositionPathField(START_LABEL, ref startTransform, ref startPosition, ref startOctant) |
+                                DrawPositionPathField(END_LABEL, ref endTransform, ref endPosition, ref endOctant))
                             {
-                                target.CalculatePath(start, end, pathBuilder);
-                                if (pathBuilder.Status == PathBuilderState.PathFound)
-                                    pathBuilder.FeedPathTo(path);
+                                if (path.IsComplete)
+                                {
+                                    target.CalculatePath(path, startPosition, endPosition);
+                                    JobHandle.ScheduleBatchedJobs();
+                                }
+                                else
+                                    mustRecalculate = true;
                             }
+                            EditorGUI.BeginDisabledGroup(true);
+                            int count = 0;
+                            float distance = 0;
+                            if (!(startOctant.IsInvalid || endOctant.IsInvalid) && path.IsComplete && path.HasPath)
+                            {
+                                path.Complete();
+                                count = path.Count;
+                                using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
+                                {
+                                    if (enumerator.MoveNext())
+                                    {
+                                        Vector3 start;
+                                        Vector3 end = enumerator.Current;
+                                        while (enumerator.MoveNext())
+                                        {
+                                            start = end;
+                                            end = enumerator.Current;
+                                            distance += Vector3.Distance(start, end);
+                                        }
+                                    }
+                                }
+                            }
+                            EditorGUILayout.IntField(PATH_COUNT_LABEL, count);
+                            EditorGUILayout.FloatField(PATH_DISTANCE_LABEL, distance);
+                            EditorGUI.EndDisabledGroup();
                         }
                         EditorGUI.indentLevel--;
                     }
                 }
                 EditorGUI.indentLevel--;
             }
+            if (mustRecalculate && path.IsComplete)
+            {
+                path.Complete();
+                target.CalculatePath(path, startPosition, endPosition);
+                JobHandle.ScheduleBatchedJobs();
+            }
         }
 
-        private void DrawPositionPathField(GUIContent label, ref Transform transform, ref Vector3 position, ref Octree.OctantCode octant)
+        private bool DrawPositionPathField(GUIContent label, ref Transform transform, ref Vector3 position, ref Octree.OctantCode octant)
         {
             EditorGUILayout.LabelField(label);
             EditorGUI.indentLevel++;
+            bool hasChanges;
             {
+                Vector3 old = position;
+
                 transform = (Transform)EditorGUILayout.ObjectField(GUIContent.none, transform, typeof(Transform), allowSceneObjects: true);
                 if (transform != null)
                     position = transform.position;
 
-                Vector3 old = position;
+                Vector3 old2 = position;
                 position = EditorGUILayout.Vector3Field(GUIContent.none, position);
                 if (transform != null)
                     transform.position = position;
 
-                if (old != position)
+                if (old != position || old2 != position)
+                {
                     octant = target.Graph.FindClosestNodeTo(position);
+                    hasChanges = true;
+                }
+                else
+                    hasChanges = false;
             }
             EditorGUI.indentLevel--;
+            return hasChanges;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnSceneGUI()
         {
+            if (path.IsComplete)
+                path.Complete();
+
             if (drawPath)
             {
-                startPosition = Handles.DoPositionHandle(startPosition, Quaternion.identity);
-                endPosition = Handles.DoPositionHandle(endPosition, Quaternion.identity);
+                if (DrawPositionHandle(ref startPosition, startTransform, ref startOctant) | DrawPositionHandle(ref endPosition, endTransform, ref endOctant))
+                {
+                    if (path.IsComplete)
+                    {
+                        target.CalculatePath(path, startPosition, endPosition);
+                        JobHandle.ScheduleBatchedJobs();
+                    }
+                    else
+                        mustRecalculate = true;
+                }
+                else
+                {
+                    if (mustRecalculate && path.IsComplete)
+                    {
+                        path.Complete();
+                        target.CalculatePath(path, startPosition, endPosition);
+                        JobHandle.ScheduleBatchedJobs();
+                    }
+                }
 
                 Handles.color = Color.blue;
 
@@ -142,8 +214,9 @@ namespace Enderlook.Unity.Pathfinding
                 if (!endOctant.IsInvalid)
                     target.Graph.DrawOctantWithHandle(endOctant);
 
-                if (!(startOctant.IsInvalid || endOctant.IsInvalid) && pathBuilder.Status == PathBuilderState.PathFound)
+                if (!(startOctant.IsInvalid || endOctant.IsInvalid) && path.IsComplete && path.HasPath)
                 {
+                    path.Complete();
                     using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
                     {
                         if (enumerator.MoveNext())
@@ -152,14 +225,30 @@ namespace Enderlook.Unity.Pathfinding
                             Vector3 end = enumerator.Current;
                             while (enumerator.MoveNext())
                             {
+                                Handles.DrawWireCube(end, Vector3.one * .1f);
                                 start = end;
                                 end = enumerator.Current;
                                 Handles.DrawLine(start, end);
                             }
+                            Handles.DrawWireCube(end, Vector3.one * .1f);
                         }
                     }
                 }
             }
+        }
+
+        private bool DrawPositionHandle(ref Vector3 position, Transform transform, ref Octree.OctantCode octant)
+        {
+            Vector3 old = position;
+            position = Handles.DoPositionHandle(position, Quaternion.identity);
+            if (old != position)
+            {
+                if (transform != null)
+                    transform.position = position;
+                octant = target.Graph.FindClosestNodeTo(position);
+                return true;
+            }
+            return false;
         }
     }
 }

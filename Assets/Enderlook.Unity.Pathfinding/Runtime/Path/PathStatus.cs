@@ -3,7 +3,7 @@
     /// <summary>
     /// Determines the state of a <see cref="Path{T}"/>.
     /// </summary>
-    public enum PathState
+    public enum PathStatus
     {
         /// <summary>
         /// The path is empty and doesn't contain anything.
@@ -11,9 +11,9 @@
         EmptyOrNotFound,
 
         /// <summary>
-        /// The path is being stored.
+        /// The path is being processed.
         /// </summary>
-        InProgress,
+        IsPending,
 
         /// <inheritdoc cref="CalculationResult.PathFound"/>
         PathFound,

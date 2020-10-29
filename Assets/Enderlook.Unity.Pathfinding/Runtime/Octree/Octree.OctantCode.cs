@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree
+    internal sealed partial class Octree
     {
         [Serializable, System.Diagnostics.DebuggerDisplay("{Code}")]
         public readonly struct OctantCode : IEquatable<OctantCode>, IComparable<OctantCode>

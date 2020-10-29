@@ -2,7 +2,7 @@
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree
+    internal sealed partial class Octree
     {
         private static class ChildrenPositions
         {

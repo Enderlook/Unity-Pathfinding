@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree
+    internal sealed partial class Octree
     {
         /* 
          * Data Layout:
@@ -192,7 +192,7 @@ namespace Enderlook.Unity.Pathfinding
                     octant.Center = center;
                     octants[code] = octant;
 
-                    float currentSize = code.GetSize(size) / 4;
+                    float currentSize = code.GetSize(this.size) / 4;
 
                     uint firstChild = code.GetChildTh(0).Code;
                     stack[stackPointer++] = new OnAfterDeserialize(new OctantCode(firstChild++), center + (ChildrenPositions.Child0 * currentSize));

@@ -1,11 +1,11 @@
 ﻿namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
-    /// Interface to extract closes node of a graph to a certain position.
+    /// Interface to extract closest node of a graph to a certain position.
     /// </summary>
     /// <typeparam name="TNode">Type of node.</typeparam>
     /// <typeparam name="TCoord">Type of coordinate.</typeparam>
-    public interface IGraphLocation<TNode, TCoord>
+    internal interface IGraphLocation<TNode, TCoord>
     {
         /// <summary>
         /// Calculates the closest node to <paramref name="position"/> or the node which has in range <paramref name="position"/>.

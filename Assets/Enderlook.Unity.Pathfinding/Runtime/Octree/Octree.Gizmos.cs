@@ -5,13 +5,13 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree
+    internal sealed partial class Octree
     {
 #if UNITY_EDITOR
         /// <summary>
         /// Only use in Editor.
         /// </summary>
-        internal DrawMode drawMode = DrawMode.Intransitable | DrawMode.Transitable;
+        internal DrawMode drawMode;
 
         /// <summary>
         /// Only use in Editor.

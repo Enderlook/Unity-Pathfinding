@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree
+    internal sealed partial class Octree
     {
         /* Octree Representation Data Structures
          *  https://geidav.wordpress.com/2014/08/18/advanced-octrees-2-node-representations/

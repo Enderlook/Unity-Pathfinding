@@ -9,258 +9,133 @@
 //====================================================================================================
 
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
-namespace Enderlook.Unity.Pathfinding
+namespace Enderlook.Unity.Pathfinding.Algorithms
 {
     /// <summary>
     /// A pathfinder that uses the A* algorithm.
     /// </summary>
     internal static class AStar
     {
-
 <#
-    foreach (bool hasTNodes in new bool[] { false, true })
+    foreach (Variation variation in new Variation[] {
+        new Variation() { HasWatchdog = true , HasSearcher = true  },
+        new Variation() { HasWatchdog = true , HasSearcher = false },
+        new Variation() { HasWatchdog = false, HasSearcher = true  },
+        new Variation() { HasWatchdog = false, HasSearcher = false },
+    })
     {
-        string IfHasTNodes(string write) => hasTNodes ? write : "";
-#>
-        private struct Adapter<TGraph, TNode, TCoord<#= IfHasTNodes(", TNodes") #>> : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinderSatisfy<TNode>, IPathTargetFinderHeuristic<TNode>
-             where TGraph : IGraphIntrinsic<TNode<#= IfHasTNodes(", TNodes") #>>
-<#
-            if (hasTNodes)
-            {
-#>
-             where TNodes : IEnumerable<TNode>
-<#
-            }
-#>
-        {
-            private TGraph graph;
-            private TNode end;
+        bool hasWatchdog = variation.HasWatchdog;
+        bool hasSearcher = variation.HasSearcher;
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Adapter(TGraph graph, TNode end)
-            {
-                this.graph = graph;
-                this.end = end;
-            }
+        string IfHasWatchdog(string input) => hasWatchdog ? input : "";
+        string IfHasSearcher(string input) => hasSearcher ? input : "";
+        string IfElseHasSearcher(string input, string otherwise) => hasSearcher ? input : otherwise;
+        string IfHasntSearcher(string input) => !hasSearcher ? input : "";
+#>
+        <#= variation.ToString() #>
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool DoesSatisfy(TNode node) => EqualityComparer<TNode>.Default.Equals(node, end);
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public float GetCost(TNode from, TNode to) => graph.GetCost(from, to);
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public float GetHeuristicCost(TNode from) => graph.GetCost(from, end);
-<#
-            if (hasTNodes)
-            {
-#>
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public TNodes GetNeighbours(TNode node) => graph.GetNeighbours(node);
-<#
-            }
-#>
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            IEnumerable<TNode> IGraphIntrinsic<TNode>.GetNeighbours(TNode node) => graph.GetNeighbours(node);
-        }
-
-<#
-        foreach (bool hasWatchdog in new bool[] { false, true })
-        {
-            string IfHasWatchdog(string write) => hasWatchdog ? write : "";
-#>
-        /// <summary>
-        /// Calculates a path from <paramref name="from"/> node to some node which satisfy <paramref name="finder"/>.<br/>
-<#
-        if (hasWatchdog)
-        {
-#>
-        /// This methods accepts a <paramref name="watchDog"/> to prematurely stop the calculation.
-<#
-        }
-#>
-        /// </summary>
-        /// <typeparam name="TNode">Type of node.</typeparam>
-        /// <typeparam name="TFinder">Type of finder.</typeparam>
-        /// <typeparam name="TBuilder">Type of path builder.</typeparam>
-<#
-        if (hasWatchdog)
-        {
-#>
-        /// <typeparam name="TWatchdog">Type of watchdog.</typeparam>
-<#
-        }
-#>
-<#
-        if (hasTNodes)
-        {
-#>
-        /// <typeparam name="TNodes">Type of node enumeration.</typeparam>
-<#
-        }
-#>
-        /// <param name="from">Node where path start.</param>
-        /// <param name="finder">Fetchs the traversable graph and the cost of traversing nodes.</param>
-        /// <param name="builder">Manages the building of the path by storing intermediate results.</param>
-<#
-        if (hasWatchdog)
-        {
-#>
-        /// <param name="watchdog">Watchdog which determines if prematurely stop the calculation.</param>
-<#
-        }
-#>
-        public static void CalculatePath<TNode, TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(
-             TNode from, TFinder finder, TBuilder builder <#= IfHasWatchdog(", TWatchdog watchdog") #>
-             )
-             where TFinder : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinderSatisfy<TNode>, IPathTargetFinderHeuristic<TNode>
-             where TBuilder : IPathBuilder<TNode>
-             <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
-             <#= IfHasTNodes("where TNodes : IEnumerable<TNode>") #>
-        {
-             builder.InitializeBuilderSession();
-
-             CalculationResult result = CalculatePathInner<TNode, TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(from, finder, builder <#= IfHasWatchdog(", watchdog") #>);
-
-             builder.FinalizeBuilderSession(result);
-        }
-
-
-        /// <summary>
-        /// Calculates a path from <paramref name="from"/> position to <paramref name="to"/> position.<br/>
-<#
-        if (hasWatchdog)
-        {
-#>
-        /// This methods accepts a <paramref name="watchDog"/> to prematurely stop the calculation.
-<#
-        }
-#>
-        /// </summary>
-        /// <typeparam name="TNode">Type of node.</typeparam>
-        /// <typeparam name="TFinder">Type of finder.</typeparam>
-        /// <typeparam name="TBuilder">Type of path builder.</typeparam>
-<#
-        if (hasWatchdog)
-        {
-#>
-        /// <typeparam name="TWatchdog">Type of watchdog.</typeparam>
-<#
-        }
-#>
-<#
-        if (hasTNodes)
-        {
-#>
-        /// <typeparam name="TNodes">Type of node enumeration.</typeparam>
-<#
-        }
-#>
-        /// <param name="from">Node where path start.</param>
-        /// <param name="graph">Fetchs the traversable graph and the cost of traversing nodes.</param>
-        /// <param name="builder">Manages the building of the path by storing intermediate results.</param>
-<#
-        if (hasWatchdog)
-        {
-#>
-        /// <param name="watchdog">Watchdog which determines if prematurely stop the calculation.</param>
-<#
-        }
-#>
-        public static void CalculatePath<TNode, TCoord, TGraph, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(
-             TCoord from, TCoord to, TGraph graph, TBuilder builder <#= IfHasWatchdog(", TWatchdog watchdog") #>
-             )
-             where TGraph : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IGraphLocation<TNode, TCoord>
+        public static void CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher ") #> <#= IfHasWatchdog(", TWatchdog") #>>(
+             TGraph graph,
+             TBuilder builder,
+             TCoord from
+             <#= IfHasntSearcher(", TCoord to") #>
+             <#= IfHasSearcher(", TSearcher searcher") #>
+             <#= IfHasWatchdog(", TWatchdog watchdog") #>
+        )
+             where TNodes : IEnumerator<TNode>
+             where TGraph : class, IGraphIntrinsic<TNode, TNodes> <#= IfHasntSearcher(", IGraphHeuristic<TNode>") #>, IGraphLocation<TNode, TCoord>
              where TBuilder : IPathBuilder<TNode, TCoord>
+             <#= IfHasSearcher("where TSearcher :  ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
              <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
-             <#= IfHasTNodes("where TNodes : IEnumerable<TNode>") #>
         {
-             builder.InitializeBuilderSession();
-             builder.SetNodeToPositionConverter(graph);
-             builder.SetStart(from);
+            builder.InitializeBuilderSession();
+            builder.SetNodeToPositionConverter(graph);
+            TNode from_ = graph.FindClosestNodeTo(from);
+            builder.SetStart(from, from_);
 
-             TNode start = graph.FindClosestNodeTo(from);
-             TNode end = graph.FindClosestNodeTo(to);
-
-             var adapter = new Adapter<TGraph, TNode, TCoord <#= IfHasTNodes(", TNodes") #>>(graph, end);
-
-             CalculationResult result = CalculatePathInner<TNode, Adapter<TGraph, TNode, TCoord <#= IfHasTNodes(", TNodes") #>>, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(start, adapter, builder <#= IfHasWatchdog(", watchdog") #>);
-             
-             builder.SetEnd(to);
-             builder.FinalizeBuilderSession(result);
-        }
-
-
-        private static CalculationResult CalculatePathInner<TNode, TFinder, TBuilder <#= IfHasWatchdog(", TWatchdog") #> <#= IfHasTNodes(", TNodes") #>>(
-             TNode from, TFinder finder, TBuilder builder <#= IfHasWatchdog(", TWatchdog watchdog") #>
-             )
-             where TFinder : IGraphIntrinsic<TNode <#= IfHasTNodes(", TNodes") #>>, IPathTargetFinderSatisfy<TNode>, IPathTargetFinderHeuristic<TNode>
-             where TBuilder : IPathBuilder<TNode>
-             <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
-             <#= IfHasTNodes("where TNodes : IEnumerable<TNode>") #>
-         {
-             builder.SetStart(from);
-
-             if (finder.DoesSatisfy(from))
-             {
-                 builder.SetEnd(from);
-                 return CalculationResult.PathFound;
-             }
-
-             builder.SetCost(from, 0);
-             builder.EnqueueToVisit(from, 0);
-
-             while (builder.TryDequeueToVisit(out TNode node))
-             {
-<#
-            if (hasWatchdog)
+<#      if (hasSearcher) { #>
+            if (searcher.DoesSatisfy(from_))
+<#      } else { #>
+            TNode to_ = graph.FindClosestNodeTo(to);
+            if (EqualityComparer<TNode>.Default.Equals(from_, to_))
+<#      } #>
             {
-#>
-                 if (!watchdog.CanContinue())
-                 {
-                     builder.SetEnd(default);
-                     return CalculationResult.Timedout;
-                 }
-<#
+                builder.SetEnd(from, from_);
+                builder.FinalizeBuilderSession(CalculationResult.PathFound);
+                return;
             }
-#>
 
-                 if (builder.WasVisited(node))
-                     continue;
-                 builder.Visit(node);
+            builder.SetCost(from_, 0);
+            builder.EnqueueToVisit(from_, 0);
 
-                 if (!builder.TryGetCost(node, out float costFromSource))
-                     costFromSource = float.PositiveInfinity;
+            while (builder.TryDequeueToVisit(out TNode node))
+            {
+<#      if (hasWatchdog) { #>
+                if (!watchdog.CanContinue())
+                {
+                    builder.SetEnd(default, default);
+                    builder.FinalizeBuilderSession(CalculationResult.Timedout);
+                    return;
+                }
+<#      } #>
 
-                 foreach (TNode neighbour in finder.GetNeighbours(node))
-                 {
-                     float cost = finder.GetCost(node, neighbour) + costFromSource;
-                     if (!builder.TryGetCost(node, out float oldCost) || cost < oldCost)
-                     {
-                         builder.SetCost(neighbour, cost);
-                         builder.SetEdge(node, neighbour);
-                     }
+                if (builder.WasVisited(node))
+                    continue;
+                builder.Visit(node);
 
-                     builder.EnqueueToVisit(neighbour, cost + finder.GetHeuristicCost(neighbour));
+                if (!builder.TryGetCost(node, out float costFromSource))
+                    costFromSource = float.PositiveInfinity;
 
-                     if (finder.DoesSatisfy(neighbour))
-                     {
-                         builder.SetEnd(neighbour);
-                         return CalculationResult.PathFound;
-                     }
-                 }
-             }
+                TNodes neighbours = graph.GetNeighbours(node);
+                try
+                {
+                    TNode neighbour;
+                    while (neighbours.MoveNext())
+                    {
+                        neighbour = neighbours.Current;
 
-             builder.SetEnd(default);
-             return CalculationResult.PathNotFound;
-         }
+                        float cost = graph.GetCost(node, neighbour) + costFromSource;
+                        if (!builder.TryGetCost(neighbour, out float oldCost) || cost < oldCost)
+                        {
+                            builder.SetCost(neighbour, cost);
+                            builder.SetEdge(node, neighbour);
+                        }
 
-<#
+                        float costWithHeuristic = cost + <#= IfElseHasSearcher("searcher.GetHeuristicCost(neighbour)", "graph.GetHeuristicCost(neighbour, to_)") #>;
+                        builder.EnqueueToVisit(neighbour, costWithHeuristic);
+
+<#      if (hasSearcher) { #>
+                        if (searcher.DoesSatisfy(neighbour))
+<#      } else { #>
+                        if (EqualityComparer<TNode>.Default.Equals(to_, neighbour))
+<#      } #>
+                        {
+                            builder.SetEnd(<#= IfElseHasSearcher("graph.ToPosition(neighbour)", "to") #>, neighbour);
+                            builder.FinalizeBuilderSession(CalculationResult.PathFound);
+                            return;
+                        }
+                    }
+                }
+                finally
+                {
+                   neighbours.Dispose();
+                }
+            }
+
+            builder.SetEnd(default, default);
+            builder.FinalizeBuilderSession(CalculationResult.PathNotFound);
         }
-    }
-#>
+
+<#  } #>
     }
 }
+<#+
+struct Variation
+{
+    public bool HasWatchdog;
+    public bool HasSearcher;
+
+    public string ToString() => String.Format("// HasWatchdog: {0} HasSearcher: {1}", HasWatchdog, HasSearcher);
+}
+#>

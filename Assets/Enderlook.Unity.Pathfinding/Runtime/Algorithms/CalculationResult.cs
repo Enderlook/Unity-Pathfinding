@@ -3,7 +3,7 @@
     /// <summary>
     /// Determines the result of a path calculation.
     /// </summary>
-    public enum CalculationResult
+    internal enum CalculationResult
     {
         /// <summary>
         /// The path was found successfully.

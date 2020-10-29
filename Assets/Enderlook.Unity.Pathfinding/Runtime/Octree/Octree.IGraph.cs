@@ -1,12 +1,16 @@
 ﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    public sealed partial class Octree : IGraphIntrinsic<Octree.OctantCode, IReadOnlyCollection<Octree.OctantCode>>, IGraphLocation<Octree.OctantCode, Vector3>
+    internal sealed partial class Octree : IGraphIntrinsic<Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator>, IGraphLocation<Octree.OctantCode, Vector3>, IGraphHeuristic<Octree.OctantCode>
     {
+        private static readonly HashSet<OctantCode> EmptyHashset =  new HashSet<OctantCode>();
+
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.ToPosition(TNode)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
         public Vector3 ToPosition(OctantCode code) => octants[code].Center;
 
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.FindClosestNodeTo(TCoord)"/>
@@ -74,18 +78,16 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         /// <inheritdoc cref="IGraphIntrinsic{TNode, TNodes}.GetNeighbours(TNode)"/>
-        public IReadOnlyCollection<OctantCode> GetNeighbours(OctantCode node) => connections[node];
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public HashSet<OctantCode>.Enumerator GetNeighbours(OctantCode node)
+        {
+            if (connections.TryGetValue(node, out HashSet<OctantCode> neighbours))
+                return neighbours.GetEnumerator();
+            return EmptyHashset.GetEnumerator();
+        }
 
-        /// <inheritdoc cref="IGraphIntrinsic{TNode}.GetNeighbours(TNode)"/>
-        IEnumerable<OctantCode> IGraphIntrinsic<OctantCode>.GetNeighbours(OctantCode node) => GetNeighbours(node);
-
-        public void CalculatePath<TBuilder, TWatchdog>(Vector3 from, Vector3 to, TBuilder builder, TWatchdog watchdog)
-            where TBuilder : IPathBuilder<OctantCode, Vector3>
-            where TWatchdog : IWatchdog
-            => AStar.CalculatePath<OctantCode, Vector3, Octree, TBuilder, TWatchdog, IReadOnlyCollection<OctantCode>>(from, to, this, builder, watchdog);
-
-        public void CalculatePath<TBuilder>(Vector3 from, Vector3 to, TBuilder builder)
-            where TBuilder : IPathBuilder<OctantCode, Vector3>
-            => AStar.CalculatePath<OctantCode, Vector3, Octree, TBuilder, IReadOnlyCollection<OctantCode>>(from, to, this, builder);
+        /// <inheritdoc cref="IGraphHeuristic{TNode}.GetHeuristicCost(TNode, TNode)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public float GetHeuristicCost(OctantCode from, OctantCode to) => GetCost(from, to);
     }
 }
