@@ -12,7 +12,7 @@ namespace Enderlook.Unity.Pathfinding
                 return points;
 
             Vector2 c = points[FindBottomostPoint(points)];
-            points.Sort((a, b) => Compare(c, a, b));
+            points.Sort(new Comparer(c));
             List<Vector2> lowerHull = new List<Vector2>();
             for (int i = 0; i < points.Count; ++i)
             {
@@ -53,15 +53,19 @@ namespace Enderlook.Unity.Pathfinding
             return min;
         }
 
-
-        private static int Compare(Vector2 p0, Vector2 p1, Vector2 p2)
+        private struct Comparer : IComparer<Vector2>
         {
-            OrientationType orientation = GetOrientation(p0, p1, p2);
-            if (orientation == OrientationType.Collinear)
-                return (Vector2.Distance(p0, p2) >= Vector2.Distance(p0, p1)) ? -1 : 1;
-            if (orientation == OrientationType.CounterClockwise)
-                return -1;
-            return 1;
+            private readonly Vector2 p0;
+
+            public Comparer(Vector2 p0) => this.p0 = p0;
+
+            public int Compare(Vector2 p1, Vector2 p2)
+            {
+                OrientationType orientation = GetOrientation(p0, p1, p2);
+                if (orientation == OrientationType.Collinear)
+                    return (Vector2.Distance(p0, p2) >= Vector2.Distance(p0, p1)) ? -1 : 1;
+                return (orientation == OrientationType.CounterClockwise) ? -1 : 1;
+            }
         }
 
         private static List<Vector2> KeepLeft(List<Vector2> v, Vector2 p)
