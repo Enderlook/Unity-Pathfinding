@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using NET5.System;
+
+using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -6,34 +9,34 @@ namespace Enderlook.Unity.Pathfinding
 {
     internal static partial class ConvexHull
     {
-        public static List<Vector2> GrahamScan(List<Vector2> points)
+        public static void GrahamScan(Span<Vector2> points, List<Vector2> output)
         {
-            if (points.Count <= 1)
-                return points;
+            if (output is null)
+                throw new ArgumentNullException(nameof(output));
+
+            output.Clear();
+
+            int n = points.Length;
+            if (n <= 1)
+                return;
 
             Vector2 c = points[FindBottomostPoint(points)];
             points.Sort(new Comparer(c));
-            List<Vector2> lowerHull = new List<Vector2>();
-            for (int i = 0; i < points.Count; ++i)
-            {
-                lowerHull = KeepLeft(lowerHull, points[i]);
-            }
+
+            int j = 0;
+            for (int i = 0; i < n; ++i)
+                KeepLeft(output, 0, ref j, points[i]);
+
             points.Reverse();
-            List<Vector2> upperHull = new List<Vector2>();
-            for (int i = 0; i < points.Count; ++i)
-            {
-                upperHull = KeepLeft(upperHull, points[i]);
-            }
-            for (int i = 1; i < upperHull.Count; ++i)
-            {
-                lowerHull.Add(upperHull[i]);
-            }
-            return lowerHull;
+
+            int k = 0;
+            for (int i = 0; i < n; ++i)
+                KeepLeft(output, j, ref k, points[i]);
         }
 
-        internal static int FindBottomostPoint(List<Vector2> P)
+        internal static int FindBottomostPoint(Span<Vector2> P)
         {
-            int n = P.Count;
+            int n = P.Length;
             int min = 0;
             float yMin = P[0].y;
             float xMin = P[0].x;
@@ -68,13 +71,15 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        private static List<Vector2> KeepLeft(List<Vector2> v, Vector2 p)
+        private static void KeepLeft(List<Vector2> v, int start, ref int index, Vector2 p)
         {
-            while (v.Count > 1 && GetOrientation(v[v.Count - 2], v[v.Count - 1], p) != OrientationType.LeftTurn)
-                v.RemoveAt(v.Count - 1);
-            if (v.Count == 0 || v[v.Count - 1] != p)
+            while (index > 1 && GetOrientation(v[start + index - 2], v[start + index - 1], p) != OrientationType.LeftTurn)
+                v.RemoveAt(start + index-- - 1);
+            if (index == 0 || v[start + index - 1] != p)
+            {
                 v.Add(p);
-            return v;
+                index++;
+            }
         }
 
         private static OrientationType GetOrientation(Vector2 p0, Vector2 p1, Vector2 p2)
