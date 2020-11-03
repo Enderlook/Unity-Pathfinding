@@ -7,6 +7,21 @@ namespace Enderlook.Unity.Pathfinding
 {
     internal static partial class ConvexHull
     {
+        /*
+        * https://en.wikipedia.org/wiki/Chan%27s_algorithm
+        * https://github.com/ypranay/Convex-Hull/blob/master/ChansAlgorithmForConvexHull.cpp
+        * https://iq.opengenus.org/chans-algorithm-convex-hull/
+        * 
+        * https://sites.cs.ucsb.edu/~suri/cs235/ChanCH.pdf
+        * https://github.com/AntonioNoack/ChansAlgorithm/blob/master/chan/ChansAlgorithm.java
+        * https://es.slideshare.net/AlbertoParravicini1/convex-hulls-chans-algorithm
+        * 
+        * https://en.wikipedia.org/wiki/Graham_scan
+        * https://www.geeksforgeeks.org/convex-hull-set-2-graham-scan/
+        * 
+        * https://en.wikipedia.org/wiki/Gift_wrapping_algorithm
+        */
+
         public static void CalculateConvexHull(Span<Vector2> points, List<Vector2> output)
             => GrahamScan.CalculateConvexHull(points, output);
 

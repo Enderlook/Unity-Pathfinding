@@ -9,6 +9,13 @@ namespace Enderlook.Unity.Pathfinding
     {
         private static class GrahamScan
         {
+            public static List<Vector2> CalculateConvexHull(Span<Vector2> points)
+            {
+                List<Vector2> result = new List<Vector2>();
+                CalculateConvexHull(points, result);
+                return result;
+            }
+
             public static void CalculateConvexHull(Span<Vector2> points, List<Vector2> output)
             {
                 if (output is null)
