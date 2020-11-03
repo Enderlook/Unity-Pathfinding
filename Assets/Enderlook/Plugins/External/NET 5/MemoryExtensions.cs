@@ -1,7 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace NET5.System
+namespace System
 {
     public static class MemoryExtensions
     {
