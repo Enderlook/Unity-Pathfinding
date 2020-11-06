@@ -45,14 +45,14 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
              <#= IfHasSearcher("where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
              <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
         {
-            ((IProcessHandleProducer)path).StartFromSync();
+            ((IProcessHandleSourceCompletition)path).StartFromSync();
 
             AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
                 (graph, builderSync, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>);
 
             builderSync.FeedPathTo(path);
 
-            ((IProcessHandleProducer)path).EndFromSync();
+            ((IProcessHandleSourceCompletition)path).EndFromSync();
         }
 
         public void CalculatePath<<#= IfHasSearcher("TSearcher, ") #> TPath <#= IfHasWatchdog(", TWatchdog") #>>(
@@ -69,7 +69,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 this, path, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>
             );
             JobHandle jobHandle = job.Schedule();
-            ((IProcessHandleProducer)path).StartFromJobHandle(jobHandle);
+            ((IProcessHandleSourceCompletition)path).StartFromJobHandle(jobHandle);
         }
 
         private readonly struct Job<#= variation.Code() #>
@@ -134,7 +134,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 manager.StoreBuilder(builder);
                 managerHandle.Free();
                 <#= IfHasSearcher("searcherHandle.Free();") #>
-                ((IProcessHandleProducer)path).EndFromJobHandle();
+                ((IProcessHandleSourceCompletition)path).EndFromJobHandle();
                 pathHandle.Free();
             }
         }
