@@ -95,16 +95,23 @@ namespace Enderlook.Unity.Pathfinding
         /// Only use in Editor.
         /// </summary>
         internal void LoadBakedContent() => graph = new Octree(bakedContent.content);
+
+        internal void CheckAndBake()
+        {
+            if (graph is null)
+                graph = new Octree(transform.position, collectionSize, subdivisions);
+
+            Bake();
+
+            if (manager is null)
+                manager = new Manager<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>>(graph);
+        }
 #endif
 
         internal void Save() => bakedContent.content = graph.SaveAs();
 
         internal void Bake()
         {
-#if UNITY_EDITOR
-            CheckInitialize();
-#endif
-
             if (geometryType == GeometryType.RenderMeshes)
                 throw new NotImplementedException();
 
