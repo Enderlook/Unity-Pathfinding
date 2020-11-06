@@ -100,14 +100,12 @@ namespace Enderlook.Unity.Pathfinding
                 status = Status.Timedout;
         }
 
-#if UNITY_EDITOR || DEBUG || CHECKED
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void GuardVersion(int version)
         {
             if (version != this.version)
                 throw new InvalidOperationException(PATH_WAS_MODIFIED_OUTDATED_ENUMERATOR);
         }
-#endif
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
