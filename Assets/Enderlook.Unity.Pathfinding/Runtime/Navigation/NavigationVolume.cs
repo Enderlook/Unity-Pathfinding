@@ -37,8 +37,6 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("If present, this content will be read as navigation information. Otherwise it's produced at runtime.")]
         internal NavigationBaked bakedContent;
 
-        private Manager<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>> manager;
-
         private Octree graph;
 #pragma warning restore CS0649
 
@@ -55,7 +53,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private void CheckInitialize()
         {
-            if (graph is null || manager is null)
+            if (graph is null)
                 Initialize();
         }
 #endif
@@ -72,7 +70,6 @@ namespace Enderlook.Unity.Pathfinding
                 graph = new Octree(transform.position, collectionSize, subdivisions);
                 Bake();
             }
-            manager = new Manager<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>>(graph);
         }
 
 #if UNITY_EDITOR
@@ -102,9 +99,6 @@ namespace Enderlook.Unity.Pathfinding
                 graph = new Octree(transform.position, collectionSize, subdivisions);
 
             Bake();
-
-            if (manager is null)
-                manager = new Manager<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>>(graph);
         }
 #endif
 
@@ -131,7 +125,7 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR
             CheckInitialize();
 #endif
-            manager.CalculatePathSync(path, from, to);
+            PathCalculator<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>.CalculatePathSingleThread(Graph, path, from, to);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -140,7 +134,7 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR
             CheckInitialize();
 #endif
-            manager.CalculatePath(path, from, to);
+            PathCalculator<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>.CalculatePathJobAlloc(Graph, path, from, to);
         }
     }
 }
