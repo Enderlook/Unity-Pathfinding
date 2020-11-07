@@ -16,16 +16,8 @@ using Unity.Jobs;
 
 namespace Enderlook.Unity.Pathfinding.Algorithms
 {
-    internal static partial class PathCalculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath>
-        where TCoord : unmanaged
-        where TNode : unmanaged
-        where TNodes : IEnumerator<TNode>
-        where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>
-        where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-        where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
+    internal static partial class PathCalculator
     {
-         private static readonly TBuilder builderSingleThread = new TBuilder();
-
 <#
     foreach (Variation variation in new Variation[] {
         new Variation() { HasWatchdog = true , HasSearcher = true  },
@@ -43,11 +35,19 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
         string IfElseHasSearcher(string input, string otherwise) => hasSearcher ? input : otherwise;
         string IfHasntSearcher(string input) => !hasSearcher ? input : "";
         string IfHasWatchdogOrSearcher(string input) => hasWatchdogOrSearcher ? input : "";
+
+        string genericDeclaration = "<TCoord, TNode, TNodes, TGraph, TBuilder, TPath " + IfHasSearcher(", TSearcher") + IfHasWatchdog(", TWatchdog") + ">";
+        string genericConstrains =
+            "where TNodes : IEnumerator<TNode>" +
+            "\r\n            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>" +
+            "\r\n            where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()" +
+            "\r\n            where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>" +
+            IfHasSearcher("\r\n            where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") +
+            IfHasWatchdog("\r\n            where TWatchdog : IWatchdog");
 #>
         <#= variation.ToString() #>
 
-        public static void CalculatePathSingleThread
-            <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>
+        public static void CalculatePathSingleThread<#= genericDeclaration #>
         (
             TGraph graph,
             TPath path,
@@ -55,27 +55,25 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             <#= IfElseHasSearcher(", TSearcher searcher", ", TCoord to") #>
             <#= IfHasWatchdog(", TWatchdog watchdog") #>
         )
-            <#= IfHasSearcher("where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
-            <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
+            <#= genericConstrains #>
         {
-            lock (builderSingleThread) // Actually, we don't need the lock because we explictly state that it is not thread-safe
-            {
-                ((IProcessHandleSourceCompletition)path).StartFromSync();
+            ((IProcessHandleSourceCompletition)path).StartFromSync();
 
-                AStar.CalculatePath
-                    <TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
-                    (graph, builderSingleThread, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>);
+            var builder = ConcurrentPool<TBuilder>.Rent();
 
-                builderSingleThread.FeedPathTo(path);
+            AStar.CalculatePath
+                <TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
+                (graph, builder, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>);
 
-                ((IProcessHandleSourceCompletition)path).EndFromSync();
-            }
+            builder.FeedPathTo(path);
+
+            ConcurrentPool<TBuilder>.Return(builder);
+
+            ((IProcessHandleSourceCompletition)path).EndFromSync();
         }
 
-        private struct Handle<#= variation.Code() #>
-            <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>
-            <#= IfHasSearcher("where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
-            <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
+        private struct Handle<#= variation.Code() #><#= genericDeclaration #>
+            <#= genericConstrains #>
         {
             internal TGraph graph;
             internal TPath path;
@@ -103,8 +101,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             }
         }
 
-        public static void CalculatePathJobAlloc
-            <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>
+        public static void CalculatePathJobAlloc<#= genericDeclaration #>
         (
             TGraph graph,
             TPath path,
@@ -112,38 +109,30 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             <#= IfElseHasSearcher("TSearcher searcher", "TCoord to") #>
             <#= IfHasWatchdog(", TWatchdog watchdog") #>
         )
-            <#= IfHasSearcher("where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
-            <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
+            <#= genericConstrains #>
         {
-            var boxedHandle = ConcurrentPool<StrongBox<Handle<#= variation.Code() #>
-                <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>
-            >>.Rent();
+            var boxedHandle = ConcurrentPool<StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>>.Rent();
             boxedHandle.Value.Set(graph, ConcurrentPool<TBuilder>.Rent(), path, from <#= IfElseHasSearcher(", searcher", ", to") #> <#= IfHasWatchdog(", watchdog") #>);
 
-            var job = new Job<#= variation.Code() #>
-                <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>
-                (boxedHandle);
+            var job = new Job<#= variation.Code() #><#= genericDeclaration #>(boxedHandle);
             JobHandle jobHandle = job.Schedule();
 
             ((IProcessHandleSourceCompletition)path).StartFromJobHandle(jobHandle);
         }
 
-        private readonly struct Job<#= variation.Code() #>
-            <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>
-            : IJob
-            <#= IfHasSearcher("where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
-            <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
+        private readonly struct Job<#= variation.Code() #><#= genericDeclaration #> : IJob
+            <#= genericConstrains #>
         {
             private readonly GCHandle handle;
 
             public Job<#= variation.Code() #>(
-                StrongBox<Handle<#= variation.Code() #><#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>> handle
+                StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>> handle
             )
                 => this.handle = GCHandle.Alloc(handle, GCHandleType.Pinned);
 
             public void Execute()
             {
-                var boxedHandle = ((StrongBox<Handle<#= variation.Code() #><#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>>)this.handle.Target);
+                var boxedHandle = ((StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>)this.handle.Target);
                 var handle = boxedHandle.Value;
 
                 AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
@@ -153,9 +142,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
                 ((IProcessHandleSourceCompletition)handle.path).EndFromJobHandle();
 
-                ConcurrentPool<StrongBox<Handle<#= variation.Code() #>
-                    <#= IfHasWatchdogOrSearcher("<" + IfHasSearcher("TSearcher" + IfHasWatchdog(", ")) + IfHasWatchdog("TWatchdog") + ">") #>>>
-                    .Return(boxedHandle);
+                ConcurrentPool<StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>>.Return(boxedHandle);
 
                 this.handle.Free();
             }

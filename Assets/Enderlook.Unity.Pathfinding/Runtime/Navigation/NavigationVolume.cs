@@ -125,7 +125,7 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR
             CheckInitialize();
 #endif
-            PathCalculator<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>.CalculatePathSingleThread(Graph, path, from, to);
+            PathCalculator.CalculatePathSingleThread<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>(graph, path, from, to);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -134,7 +134,7 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR
             CheckInitialize();
 #endif
-            PathCalculator<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>.CalculatePathJobAlloc(Graph, path, from, to);
+            PathCalculator.CalculatePathJobAlloc<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>(graph, path, from, to);
         }
     }
 }
