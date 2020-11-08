@@ -6,103 +6,92 @@ using Unity.Jobs;
 namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
-    /// Represents a handle for operations that can be run with multithreading.<br/>
-    /// Despite this object accepting a <see cref="JobHandle"/> it's necessary to manualy mark it as completed.
+    /// Represents a handle for operations that can be run with multithreading techniques.
     /// </summary>
     internal struct ProcessHandle : IProcessHandle, IProcessHandleSourceCompletition
     {
-        private const string CAN_NOT_COMPLETE_SINGLE_THREAD = "Can't force completition of a single thread task. This method can only be call if " + nameof(IsComplete) + "is true. Use " + nameof(EndFromSync) + " instead.";
-        private const string CAN_NOT_END_IF_IS_EMPTY_COMPLETED_OR_IS_NOT_SINGLE_THREAD = "Can not execute" + nameof(EndFromSync) + " if process is empty, completed, or is not single thread.";
-        private const string CAN_NOT_END_IF_IS_EMPTY_COMPLETED_OR_IS_NOT_JOB_HANDLE = "Can not execute" + nameof(EndFromJobHandle) + " if process is empty, completed, or is not a job handle.";
-        private const string IS_ALREADY_COMPLETED = "Can't complete an already completed process.";
-        private const string IS_BEING_USED = "Process handle is not empty. It has a process in progress.";
-        private const string JOB_HANDLE_COMPLETED_BUt_IS_COMPLETE_IS_FALSE = "The JobHandle was completed but the completed flag wasn't true.";
-
         private Mode mode;
-        private JobHandle jobHandle;
+        private JobHandle? jobHandle;
 
         /// <inheritdoc cref="IProcessHandle.IsComplete"/>
         public bool IsComplete {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => !IsPending;
+            get => mode == Mode.ManualComplete || mode == Mode.Default || mode == Mode.TrulyComplete;
         }
 
         /// <inheritdoc cref="IProcessHandle.IsPending"/>
         public bool IsPending {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private set;
+            get => !IsComplete;
         }
 
         /// <inheritdoc cref="IProcessHandle.Complete"/>
-        /// <exception cref="InvalidOperationException">Thrown when <see cref="mode"/> is <see cref="Mode.SingleThread"/>.</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Complete()
         {
-            switch (mode)
+            if (IsPending)
+                throw new InvalidOperationException("Can't complete if is pending.");
+
+            if (jobHandle is JobHandle handle)
             {
-                case Mode.JobHandle:
-                    jobHandle.Complete();
-                    if (IsPending)
-                        throw new InvalidOperationException(JOB_HANDLE_COMPLETED_BUt_IS_COMPLETE_IS_FALSE);
-                    break;
-                case Mode.SingleThread:
-                    if (IsPending)
-                        throw new InvalidOperationException(CAN_NOT_COMPLETE_SINGLE_THREAD);
-                    break;
+                handle.Complete();
+                jobHandle = null;
             }
-            mode = Mode.Empty;
+
+            mode = Mode.TrulyComplete;
         }
 
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.EndFromSync"/>
-        /// <exception cref="InvalidOperationException">Thrown when <see cref="mode"/> is not <see cref="Mode.SingleThread"/> or <see cref="IsPending"/> is <see langword="false"/>.</exception>
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.Start"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EndFromSync()
+        public void Start()
         {
-            if (mode != Mode.SingleThread)
-                throw new InvalidOperationException(CAN_NOT_END_IF_IS_EMPTY_COMPLETED_OR_IS_NOT_SINGLE_THREAD);
-            IsPending = false;
+            if (mode != Mode.Default && mode != Mode.TrulyComplete)
+                throw new InvalidOperationException("Can't start process handle if is not default nor is truly complete.");
+            mode = Mode.Working;
         }
 
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.EndFromJobHandle"/>
-        /// <exception cref="InvalidOperationException">Thrown when <see cref="mode"/> is not <see cref="Mode.JobHandle"/> or <see cref="IsPending"/> is <see langword="false"/>.</exception>
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.SetJobHandle(JobHandle)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EndFromJobHandle()
+        public void SetJobHandle(JobHandle jobHandle)
         {
-            if (mode != Mode.JobHandle)
-                throw new InvalidOperationException(CAN_NOT_END_IF_IS_EMPTY_COMPLETED_OR_IS_NOT_JOB_HANDLE);
-            IsPending = false;
-        }
+            if (this.jobHandle.HasValue)
+                throw new InvalidOperationException("Can't set job handle if already has one.");
 
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.StartFromSync"/>
-        /// <exception cref="InvalidOperationException">Thrown when <see cref="mode"/> is not <see cref="Mode.Empty"/>.</exception>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StartFromSync()
-        {
-            if (mode != Mode.Empty)
-                throw new InvalidOperationException(IS_BEING_USED);
-            mode = Mode.SingleThread;
-            IsPending = true;
-        }
-
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.StartFromJobHandle(JobHandle)"/>
-        /// <exception cref="InvalidOperationException">Thrown when <see cref="mode"/> is not <see cref="Mode.Empty"/>.</exception
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StartFromJobHandle(JobHandle jobHandle)
-        {
-            if (mode != Mode.Empty)
-                throw new InvalidOperationException(IS_BEING_USED);
-            mode = Mode.JobHandle;
             this.jobHandle = jobHandle;
-            IsPending = true;
+        }
+
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.CompleteJobHandle"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CompleteJobHandle()
+        {
+            if (mode != Mode.Working)
+                throw new InvalidOperationException("Can't complete job handle if is not working.");
+
+            if (jobHandle is JobHandle handle)
+            {
+                handle.Complete();
+                jobHandle = null;
+            }
+            else
+                throw new InvalidOperationException("Can't complete job handle if doesn't have one.");
+        }
+
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.End"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void End()
+        {
+            if (mode != Mode.Working)
+                throw new InvalidOperationException("Can't complete process handle if is not working.");
+
+            mode = Mode.ManualComplete;
         }
 
         private enum Mode
         {
-            Empty,
-            SingleThread,
-            JobHandle,
+            Default = 0,
+            Working,
+            ManualComplete,
+            TrulyComplete,
         }
     }
 }

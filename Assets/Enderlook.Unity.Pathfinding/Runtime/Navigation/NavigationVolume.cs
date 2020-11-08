@@ -134,7 +134,21 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR
             CheckInitialize();
 #endif
-            PathCalculator.CalculatePathJobAlloc<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>(graph, path, from, to);
+            PathCalculator.CalculatePathJob<Vector3, Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator, Octree, PathBuilder<Octree.OctantCode, Vector3>, Path<Vector3>>(graph, path, from, to);
         }
+
+#if !UNITY_EDITOR
+        internal void DO_NOT_EXECUTE_ME()
+        {
+            // Unity's IL2CPP doesn't generate AOT code for
+            // generic virtual methods nor reflection instance activators (new() generic constrain),
+            // so we must to explictly show to the compiler that we actually need them
+            // when using that backend.
+
+            PathBuilder<Octree.OctantCode, Vector3> builder = new PathBuilder<Octree.OctantCode, Vector3>();
+
+            throw new InvalidOperationException("Don't execute this!!!");
+        }
+#endif
     }
 }

@@ -38,6 +38,10 @@ namespace Enderlook.Unity.Pathfinding
             get => processHandle.IsComplete;
         }
 
+        /// <inheritdoc cref="IProcessHandle.Complete"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Complete() => processHandle.Complete();
+
         /// <summary>
         /// Determines if this path contains an actual path.<br/>
         /// This will return <see langword="false"/> if it's empty, hasn't found a path, or <see cref="IsPending"/> is <see langword="true"/>.
@@ -119,25 +123,21 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
         IEnumerator<TInfo> IEnumerable<TInfo>.GetEnumerator() => GetEnumerator();
 
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.StartFromSync"/>
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.Start"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        void IProcessHandleSourceCompletition.StartFromSync() => processHandle.StartFromSync();
+        void IProcessHandleSourceCompletition.Start() => processHandle.Start();
 
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.StartFromJobHandle(JobHandle)"/>
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.SetJobHandle(JobHandle)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        void IProcessHandleSourceCompletition.StartFromJobHandle(JobHandle jobHandle) => processHandle.StartFromJobHandle(jobHandle);
+        void IProcessHandleSourceCompletition.SetJobHandle(JobHandle jobHandle) => processHandle.SetJobHandle(jobHandle);
 
-        /// <inheritdoc cref="IProcessHandle.Complete"/>
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.CompleteJobHandle"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
-        public void Complete() => processHandle.Complete();
+        void IProcessHandleSourceCompletition.CompleteJobHandle() => processHandle.CompleteJobHandle();
 
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.EndFromSync"/>
+        /// <inheritdoc cref="IProcessHandleSourceCompletition.End"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IProcessHandleSourceCompletition.EndFromSync() => processHandle.EndFromSync();
-
-        /// <inheritdoc cref="IProcessHandleSourceCompletition.EndFromSync"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IProcessHandleSourceCompletition.EndFromJobHandle() => processHandle.EndFromJobHandle();
+        void IProcessHandleSourceCompletition.End() => processHandle.End();
 
         public struct Enumerator : IEnumerator<TInfo>
         {

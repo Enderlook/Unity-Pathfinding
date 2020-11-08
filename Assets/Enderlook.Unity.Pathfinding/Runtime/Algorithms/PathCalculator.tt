@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using UnityEngine;
 using Unity.Jobs;
 
 namespace Enderlook.Unity.Pathfinding.Algorithms
@@ -57,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
         )
             <#= genericConstrains #>
         {
-            ((IProcessHandleSourceCompletition)path).StartFromSync();
+            ((IProcessHandleSourceCompletition)path).Start();
 
             var builder = ConcurrentPool<TBuilder>.Rent();
 
@@ -69,7 +70,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             ConcurrentPool<TBuilder>.Return(builder);
 
-            ((IProcessHandleSourceCompletition)path).EndFromSync();
+            ((IProcessHandleSourceCompletition)path).End();
         }
 
         private struct Handle<#= variation.Code() #><#= genericDeclaration #>
@@ -99,9 +100,39 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 <#= IfElseHasSearcher("this.searcher = searcher;", "this.to = to;") #>
                 <#= IfHasWatchdog("this.watchdog = watchdog;") #>
             }
+
+            public static void Execute(GCHandle handleHandle)
+            {
+                var boxedHandle = ((StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>)handleHandle.Target);
+
+                Execute(boxedHandle);
+
+                handleHandle.Free();
+            }
+
+            public static void Execute(StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>> boxedHandle)
+            {
+                var handle = boxedHandle.Value;
+
+                handle.Execute();
+
+                ConcurrentPool<StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>>.Return(boxedHandle);
+            }
+
+            public void Execute()
+            {
+                AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
+                    (graph, builder, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>);
+
+                ((IPathFeeder<TCoord>)builder).FeedPathTo(path);
+
+                ((IProcessHandleSourceCompletition)path).End();
+
+                ConcurrentPool<TBuilder>.Return(builder);
+            }
         }
 
-        public static void CalculatePathJobAlloc<#= genericDeclaration #>
+        public static void CalculatePathJob<#= genericDeclaration #>
         (
             TGraph graph,
             TPath path,
@@ -111,40 +142,84 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
         )
             <#= genericConstrains #>
         {
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+                CalculatePathJobNoAlloc<#= genericDeclaration #>(graph, path, from <#= IfElseHasSearcher(", searcher", ", to") #> <#= IfHasWatchdog(", watchdog") #>);
+            else
+                CalculatePathJobAlloc<#= genericDeclaration #>(graph, path, from <#= IfElseHasSearcher(", searcher", ", to") #> <#= IfHasWatchdog(", watchdog") #>);
+        }
+
+        private static void CalculatePathJobAlloc<#= genericDeclaration #>
+        (
+            TGraph graph,
+            TPath path,
+            TCoord from,
+            <#= IfElseHasSearcher("TSearcher searcher", "TCoord to") #>
+            <#= IfHasWatchdog(", TWatchdog watchdog") #>
+        )
+            <#= genericConstrains #>
+        {
+            ((IProcessHandleSourceCompletition)path).Start();
+
             var boxedHandle = ConcurrentPool<StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>>.Rent();
             boxedHandle.Value.Set(graph, ConcurrentPool<TBuilder>.Rent(), path, from <#= IfElseHasSearcher(", searcher", ", to") #> <#= IfHasWatchdog(", watchdog") #>);
 
-            var job = new Job<#= variation.Code() #><#= genericDeclaration #>(boxedHandle);
+            var job = new Job<#= variation.Code() #>Handle<#= genericDeclaration #>(boxedHandle);
             JobHandle jobHandle = job.Schedule();
 
-            ((IProcessHandleSourceCompletition)path).StartFromJobHandle(jobHandle);
+            ((IProcessHandleSourceCompletition)path).SetJobHandle(jobHandle);
         }
 
-        private readonly struct Job<#= variation.Code() #><#= genericDeclaration #> : IJob
+        private readonly struct Job<#= variation.Code() #>Handle<#= genericDeclaration #> : IJob
             <#= genericConstrains #>
         {
             private readonly GCHandle handle;
 
-            public Job<#= variation.Code() #>(
+            public Job<#= variation.Code() #>Handle(
                 StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>> handle
             )
                 => this.handle = GCHandle.Alloc(handle, GCHandleType.Pinned);
 
             public void Execute()
+                => Handle<#= variation.Code() #><#= genericDeclaration #>.Execute(handle);
+        }
+
+        private static void CalculatePathJobNoAlloc<#= genericDeclaration #>
+        (
+            TGraph graph,
+            TPath path,
+            TCoord from,
+            <#= IfElseHasSearcher("TSearcher searcher", "TCoord to") #>
+            <#= IfHasWatchdog(", TWatchdog watchdog") #>
+        )
+            <#= genericConstrains #>
+        {
+            ((IProcessHandleSourceCompletition)path).Start();
+
+            var handle = new Handle<#= variation.Code() #><#= genericDeclaration #>();
+            handle.Set(graph, ConcurrentPool<TBuilder>.Rent(), path, from <#= IfElseHasSearcher(", searcher", ", to") #> <#= IfHasWatchdog(", watchdog") #>);
+
+            long key = GlobalDictionary<Handle<#= variation.Code() #><#= genericDeclaration #>>.Store(handle);
+
+            var job = new Job<#= variation.Code() #>Key<#= genericDeclaration #>(key);
+            JobHandle jobHandle = job.Schedule();
+
+            ((IProcessHandleSourceCompletition)path).SetJobHandle(jobHandle);
+        }
+
+        private readonly struct Job<#= variation.Code() #>Key<#= genericDeclaration #> : IJob
+            <#= genericConstrains #>
+        {
+            private readonly long key;
+
+            public Job<#= variation.Code() #>Key(
+                long key
+            )
+                => this.key = key;
+
+            public void Execute()
             {
-                var boxedHandle = ((StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>)this.handle.Target);
-                var handle = boxedHandle.Value;
-
-                AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
-                    (handle.graph, handle.builder, handle.from, <#= IfElseHasSearcher("handle.searcher", "handle.to") #> <#= IfHasWatchdog(", handle.watchdog") #>);
-
-                ((IPathFeeder<TCoord>)handle.builder).FeedPathTo(handle.path);
-
-                ((IProcessHandleSourceCompletition)handle.path).EndFromJobHandle();
-
-                ConcurrentPool<StrongBox<Handle<#= variation.Code() #><#= genericDeclaration #>>>.Return(boxedHandle);
-
-                this.handle.Free();
+                var handle = GlobalDictionary<Handle<#= variation.Code() #><#= genericDeclaration #>>.Drain(key);
+                handle.Execute();
             }
         }
 

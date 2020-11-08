@@ -1,21 +1,32 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Enderlook.Unity.Pathfinding.Algorithms
 {
     internal static class ConcurrentPool<T> where T : class, new()
     {
-        private static readonly ConcurrentBag<T> pool = new ConcurrentBag<T>();
+        // Not use ConcurrentStack because it produces a runtime error in WebGL even if not used
+
+        private static readonly Stack<T> pool = new Stack<T>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T Rent()
         {
-            if (pool.TryTake(out T result))
-                return result;
-            return new T();
+            lock (pool)
+            {
+                if (pool.TryPop(out T result))
+                    return result;
+                return new T();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Return(T value) => pool.Add(value);
+        public static void Return(T value)
+        {
+            lock (pool)
+            {
+                pool.Push(value);
+            }
+        }
     }
 }

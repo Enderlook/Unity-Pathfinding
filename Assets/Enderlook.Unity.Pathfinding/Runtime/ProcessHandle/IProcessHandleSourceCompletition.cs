@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Runtime.CompilerServices;
 
 using Unity.Jobs;
 
@@ -7,27 +7,24 @@ namespace Enderlook.Unity.Pathfinding
     internal interface IProcessHandleSourceCompletition
     {
         /// <summary>
-        /// Mark a job handle task as completed.
+        /// Starts a process.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if this handler is empty, is already completed, or is not from a job handle.</exception>
-        void EndFromJobHandle();
+        void Start();
 
         /// <summary>
-        /// Mark a sync task as completed.
+        /// Attach a <see cref="JobHandle"/> to a process.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if this handler is empty, is already completed, or is not sync.</exception>
-        void EndFromSync();
+        /// <param name="jobHandle">Job handle to attach.</param>
+        void SetJobHandle(JobHandle jobHandle);
 
         /// <summary>
-        /// Initializes the handle from a <see cref="JobHandle"/>.
+        /// Forces the completition of an attached job handle.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if this handler is not empty or is in progress.</exception>
-        void StartFromJobHandle(JobHandle jobHandle);
+        void CompleteJobHandle();
 
         /// <summary>
-        /// Initializes the handle as sync.
+        /// Mark a process as complete.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if this handler is not empty or is in progress.</exception>
-        void StartFromSync();
+        void End();
     }
 }
