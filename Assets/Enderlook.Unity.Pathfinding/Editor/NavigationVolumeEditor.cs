@@ -143,6 +143,7 @@ namespace Enderlook.Unity.Pathfinding
             }
             if (mustRecalculate && path.IsComplete)
             {
+                mustRecalculate = false;
                 path.Complete();
                 target.CalculatePath(path, startPosition, endPosition);
                 JobHandle.ScheduleBatchedJobs();
@@ -200,6 +201,7 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     if (mustRecalculate && path.IsComplete)
                     {
+                        mustRecalculate = false;
                         path.Complete();
                         target.CalculatePath(path, startPosition, endPosition);
                         JobHandle.ScheduleBatchedJobs();
