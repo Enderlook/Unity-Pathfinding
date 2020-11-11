@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Enderlook.Collections;
+
+using System;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -57,6 +59,7 @@ namespace Enderlook.Unity.Pathfinding
             this.connectionType = connectionType;            
             distances = new Dictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
+            kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
         }
 
         internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, bool includeTriggerColliders, ConnectionType connectionType)
@@ -95,6 +98,11 @@ namespace Enderlook.Unity.Pathfinding
                 lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
             else
                 lineOfSigths.Clear();
+
+            if (kdTree.IsDefault)
+                kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
+            else
+                kdTree.Clear();
         }
     }
 }

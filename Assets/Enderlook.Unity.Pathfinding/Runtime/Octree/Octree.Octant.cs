@@ -15,6 +15,11 @@ namespace Enderlook.Unity.Pathfinding
 
             public Vector3 Center;
 
+            public bool HasInvalidCode {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => Code.IsInvalid;
+            }
+
             public bool IsIntransitable {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => (Flags & StatusFlags.IsIntransitable) != 0;

@@ -13,8 +13,23 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
         public Vector3 ToPosition(OctantCode code) => octants[code].Center;
 
+        private Vector3Tree<OctantCode> kdTree;
+
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.FindClosestNodeTo(TCoord)"/>
         public OctantCode FindClosestNodeTo(Vector3 position)
+        {
+            Octant octant = FindBoundingOctant(position);
+            if (!octant.HasInvalidCode && !octant.IsIntransitable && octant.HasGround)
+                return octant.Code;
+
+            if (kdTree.IsEmpty)
+                return octant.Code;
+
+            (Vector3 key, OctantCode value, double distance) nearest = kdTree.FindNearestNeighbour(position);
+            return nearest.value;
+        }
+
+        private Octant FindBoundingOctant(Vector3 position)
         {
             Octant octant = octants[OctantCode.Root];
 
@@ -36,13 +51,13 @@ namespace Enderlook.Unity.Pathfinding
                             goto loop;
                         }
 
-                        return octant.Code;
+                        return octant;
                     }
                 }
-                return octant.Code;
+                return octant;
             }
 
-            return OctantCode.Invalid;
+            return default;
 
             /*  This could be useful later. It allows to calculate the center of a leaf octant which contains this position
                int maxDepth = MaxDepth + 1;

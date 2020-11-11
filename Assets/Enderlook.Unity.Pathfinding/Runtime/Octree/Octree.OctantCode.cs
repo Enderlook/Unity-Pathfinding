@@ -22,9 +22,16 @@ namespace Enderlook.Unity.Pathfinding
             // A Morton 3D Code which also includes depth
             internal readonly uint Code;
 
-            internal static OctantCode Root => new OctantCode(1);
+            internal readonly static OctantCode Root;
 
-            internal static OctantCode Invalid => new OctantCode(0);
+            internal readonly static OctantCode Invalid;
+
+            static OctantCode()
+            {
+                Root = new OctantCode(1);
+                Invalid = new OctantCode(0);
+                Debug.Assert(Invalid == default);
+            }
 
             internal bool IsInvalid => Code == 0;
 

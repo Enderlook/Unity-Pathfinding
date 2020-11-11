@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Enderlook.Collections;
+
+using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -151,6 +153,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             distances = new Dictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
+            kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
 
             if (serialized.Length == 0)
             {
@@ -240,6 +243,9 @@ namespace Enderlook.Unity.Pathfinding
                     Vector3 center = frame.Center;
                     octant.Center = center;
                     octants[code] = octant;
+
+                    if (octant.HasGround && !octant.IsIntransitable)
+                        kdTree.Insert(center, code);
 
                     float currentSize = code.GetSize(this.size) / 4;
 
