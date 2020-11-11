@@ -109,8 +109,8 @@ namespace Enderlook.Unity.Pathfinding
 
         private new Rigidbody rigidbody;
 
-        private Path<Vector3> innerPath;
-        private Path<Vector3>.Enumerator enumerator;
+        private DynamicArray<Vector3> innerPath;
+        private DynamicArray<Vector3>.Enumerator enumerator;
         private bool hasPath;
 
         private static Collider[] colliders = new Collider[100];
@@ -120,7 +120,7 @@ namespace Enderlook.Unity.Pathfinding
         private void Awake()
         {
             rigidbody = GetComponent<Rigidbody>();
-            innerPath = new Path<Vector3>();
+            innerPath = DynamicArray<Vector3>.Create();
 
             rigidbody.constraints |= RigidbodyConstraints.FreezeRotation;
         }
@@ -255,7 +255,8 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="path"></param>
         public void SetPath(Path<Vector3> path)
         {
-            innerPath.Feed(path);
+            innerPath.Clear();
+            innerPath.AddRange(path.AsSpan);
             enumerator = innerPath.GetEnumerator();
             enumerator.MoveNext();
             hasPath = true;

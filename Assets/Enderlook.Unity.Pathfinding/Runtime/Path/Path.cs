@@ -25,6 +25,14 @@ namespace Enderlook.Unity.Pathfinding
         private ProcessHandle processHandle;
 
         /// <summary>
+        /// Extract the underlying span of this path.
+        /// </summary>
+        internal Span<TInfo> AsSpan {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => list.AsSpan;
+        }
+
+        /// <summary>
         /// Determines if this path is being calculated.
         /// </summary>
         public bool IsPending {
@@ -102,19 +110,6 @@ namespace Enderlook.Unity.Pathfinding
                 status = Status.Found;
             else if (feeder.HasTimedout)
                 status = Status.Timedout;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void Feed(Path<TInfo> path)
-        {
-            if (IsPending)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
-
-            if (!path.processHandle.IsCompleteThreadSafe)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
-
-            list.Clear();
-            list.AddRange(path.list);
         }
 
         /// <summary>
