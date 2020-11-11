@@ -25,7 +25,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 #endif
 
-        internal void CalculateConnections(ConnectionType connectionType)
+        internal void CalculateConnections()
         {
             // TODO: replace this with http://www.cs.jhu.edu/~misha/ReadingSeminar/Papers/Lewiner10.pdf
 

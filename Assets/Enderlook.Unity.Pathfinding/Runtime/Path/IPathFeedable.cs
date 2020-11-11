@@ -1,7 +1,5 @@
 ﻿using System;
 
-using Unity.Jobs;
-
 namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>

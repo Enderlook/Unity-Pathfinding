@@ -26,20 +26,18 @@ namespace Enderlook.Unity.Pathfinding
         internal int OctantsCount => (octants?.Count) ?? 0;
 #endif
 
-        internal void SubdivideFromObstacles(LayerMask filterInclude, bool includeTriggerColliders)
+        internal void SubdivideFromObstacles()
         {
             if (octants is null)
                 octants = new Dictionary<OctantCode, Octant>();
             else
                 octants.Clear();
 
-            QueryTriggerInteraction query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             Collider[] test = new Collider[1];
 
             octants[OctantCode.Root] = new Octant(OctantCode.Root);
 
-            (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple = (filterInclude, query, test);
-            if (CheckChild(OctantCode.Root, center, ref tuple))
+            if (CheckChild(OctantCode.Root, center, test))
                 octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
 
             FilterFloor();
@@ -76,7 +74,7 @@ namespace Enderlook.Unity.Pathfinding
         private bool CheckChild(
             OctantCode code,
             Vector3 center,
-            ref (LayerMask filterInclude, QueryTriggerInteraction query, Collider[] test) tuple)
+            Collider[] test)
         {
             Octant octant = new Octant(code, center)
             {
@@ -85,7 +83,7 @@ namespace Enderlook.Unity.Pathfinding
 
             float currentSize = octant.GetSize(size) * .5f;
 
-            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * currentSize, tuple.test, Quaternion.identity, tuple.filterInclude, tuple.query);
+            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * currentSize, test, Quaternion.identity, filterInclude, query);
             if (count == 0)
             {
                 octants[code] = octant;
@@ -115,14 +113,14 @@ namespace Enderlook.Unity.Pathfinding
             OctantCode code6 = new OctantCode(firstChild++);
             OctantCode code7 = new OctantCode(firstChild);
             if (
-                CheckChild(code0, center + (ChildrenPositions.Child0 * currentSize), ref tuple) &
-                CheckChild(code1, center + (ChildrenPositions.Child1 * currentSize), ref tuple) &
-                CheckChild(code2, center + (ChildrenPositions.Child2 * currentSize), ref tuple) &
-                CheckChild(code3, center + (ChildrenPositions.Child3 * currentSize), ref tuple) &
-                CheckChild(code4, center + (ChildrenPositions.Child4 * currentSize), ref tuple) &
-                CheckChild(code5, center + (ChildrenPositions.Child5 * currentSize), ref tuple) &
-                CheckChild(code6, center + (ChildrenPositions.Child6 * currentSize), ref tuple) &
-                CheckChild(code7, center + (ChildrenPositions.Child7 * currentSize), ref tuple)
+                CheckChild(code0, center + (ChildrenPositions.Child0 * currentSize), test) &
+                CheckChild(code1, center + (ChildrenPositions.Child1 * currentSize), test) &
+                CheckChild(code2, center + (ChildrenPositions.Child2 * currentSize), test) &
+                CheckChild(code3, center + (ChildrenPositions.Child3 * currentSize), test) &
+                CheckChild(code4, center + (ChildrenPositions.Child4 * currentSize), test) &
+                CheckChild(code5, center + (ChildrenPositions.Child5 * currentSize), test) &
+                CheckChild(code6, center + (ChildrenPositions.Child6 * currentSize), test) &
+                CheckChild(code7, center + (ChildrenPositions.Child7 * currentSize), test)
                 )
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space

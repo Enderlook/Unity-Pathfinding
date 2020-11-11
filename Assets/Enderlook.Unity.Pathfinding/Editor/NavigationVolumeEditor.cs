@@ -47,6 +47,14 @@ namespace Enderlook.Unity.Pathfinding
         {
             DrawDefaultInspector();
 
+            if (Application.isPlaying)
+                EditorGUILayout.HelpBox(
+                    "Modifying any of this values at runtime has undefined behaviour.\n" +
+                    "Don't touch anything unless you know what you are doing.",
+                    MessageType.Warning
+                );
+            EditorGUILayout.HelpBox("If you have baked results and have modified a value, you shall re-bake this.", MessageType.Warning);
+
             if (path.IsComplete)
                 path.Complete();
 

@@ -40,7 +40,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
         string genericDeclaration = "<TCoord, TNode, TNodes, TGraph, TBuilder, TPath " + IfHasSearcher(", TSearcher") + IfHasWatchdog(", TWatchdog") + ">";
         string genericConstrains =
             "where TNodes : IEnumerator<TNode>" +
-            "\r\n            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>" +
+            "\r\n            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>" +
             "\r\n            where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()" +
             "\r\n            where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>" +
             IfHasSearcher("\r\n            where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") +

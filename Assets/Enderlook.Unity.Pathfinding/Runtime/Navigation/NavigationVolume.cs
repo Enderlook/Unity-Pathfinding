@@ -67,7 +67,7 @@ namespace Enderlook.Unity.Pathfinding
                 graph = new Octree(bakedContent.content);
             else
             {
-                graph = new Octree(transform.position, collectionSize, subdivisions);
+                graph = new Octree(transform.position, collectionSize, subdivisions, filterInclude, includeTriggerColliders, connectionType);
                 Bake();
             }
         }
@@ -96,7 +96,7 @@ namespace Enderlook.Unity.Pathfinding
         internal void CheckAndBake()
         {
             if (graph is null)
-                graph = new Octree(transform.position, collectionSize, subdivisions);
+                graph = new Octree(transform.position, collectionSize, subdivisions, filterInclude, includeTriggerColliders, connectionType);
 
             Bake();
         }
@@ -113,11 +113,11 @@ namespace Enderlook.Unity.Pathfinding
                 throw new NotImplementedException();
 
             Clear();
-            graph.SubdivideFromObstacles(filterInclude, includeTriggerColliders);
-            graph.CalculateConnections(connectionType);
+            graph.SubdivideFromObstacles();
+            graph.CalculateConnections();
         }
 
-        internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions);
+        internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions, filterInclude, includeTriggerColliders, connectionType);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CalculatePathSync(Path<Vector3> path, Vector3 from, Vector3 to)

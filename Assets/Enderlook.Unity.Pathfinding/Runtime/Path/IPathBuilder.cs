@@ -10,7 +10,7 @@ namespace Enderlook.Unity.Pathfinding
     /// <remarks>Execution order of methods is:<br/>
     /// <list type="number">
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession()"/></term></item>
-    ///     <item><term><see cref="SetNodeToPositionConverter(IGraphLocation{TNode, TCoord})"/></term></item>
+    ///     <item><term><see cref="SetGraphLocation(IGraphLocation{TNode, TCoord})"/></term></item>
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/></term></item>
     ///     <item><term>Others.</term></item>
     ///     <item><term><see cref="SetEnd(TCoord)"/> and <see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/></term></item>
@@ -84,7 +84,14 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         /// <param name="converter">Converter which converts nodes into positions.</param>
         /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>, the <paramref name="converter"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
-        void SetNodeToPositionConverter(IGraphLocation<TNode, TCoord> converter);
+        void SetGraphLocation(IGraphLocation<TNode, TCoord> converter);
+
+        /// <summary>
+        /// Set the line of sight checker.
+        /// </summary>
+        /// <param name="lineOfSight">Line of sight checker.</param>
+        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>, the <paramref name="lineOfSight"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
+        void SetLineOfSight(IGraphLineOfSight<TCoord> lineOfSight);
 
         /// <summary>
         /// Set the start node of this path.

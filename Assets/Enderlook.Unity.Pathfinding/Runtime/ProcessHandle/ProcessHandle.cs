@@ -16,6 +16,14 @@ namespace Enderlook.Unity.Pathfinding
         /// <inheritdoc cref="IProcessHandle.IsComplete"/>
         public bool IsComplete {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get {
+                bool _ = jobHandle is JobHandle handle && handle.IsCompleted; // If we don't add this, it seems that Unity doesn't start the job
+                return mode == Mode.ManualComplete || mode == Mode.Default || mode == Mode.TrulyComplete;
+            }
+        }
+
+        public bool IsCompleteThreadSafe {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => mode == Mode.ManualComplete || mode == Mode.Default || mode == Mode.TrulyComplete;
         }
 

@@ -44,13 +44,14 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
              <#= IfHasWatchdog(", TWatchdog watchdog") #>
         )
              where TNodes : IEnumerator<TNode>
-             where TGraph : class, IGraphIntrinsic<TNode, TNodes> <#= IfHasntSearcher(", IGraphHeuristic<TNode>") #>, IGraphLocation<TNode, TCoord>
+             where TGraph : class, IGraphIntrinsic<TNode, TNodes> <#= IfHasntSearcher(", IGraphHeuristic<TNode>") #>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
              where TBuilder : IPathBuilder<TNode, TCoord>
              <#= IfHasSearcher("where TSearcher :  ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>") #>
              <#= IfHasWatchdog("where TWatchdog : IWatchdog") #>
         {
             builder.InitializeBuilderSession();
-            builder.SetNodeToPositionConverter(graph);
+            builder.SetGraphLocation(graph);
+            builder.SetLineOfSight(graph);
             TNode from_ = graph.FindClosestNodeTo(from);
             builder.SetStart(from, from_);
 

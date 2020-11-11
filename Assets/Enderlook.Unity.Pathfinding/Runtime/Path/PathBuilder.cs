@@ -1,8 +1,12 @@
 ﻿using Enderlook.Collections;
+using Enderlook.Unity.Threading;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace Enderlook.Unity.Pathfinding
 {
@@ -22,9 +26,12 @@ namespace Enderlook.Unity.Pathfinding
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
         private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
-        private readonly List<TCoord> path = new List<TCoord>();
+        private readonly List<TCoord> pathRaw = new List<TCoord>();
+        private readonly List<TCoord> pathOptimized = new List<TCoord>();
 
         private IGraphLocation<TNode, TCoord> converter;
+        private IGraphLineOfSight<TCoord> lineOfsight;
+
         private TCoord startPosition;
         private TCoord endPosition;
         private TNode endNode;
@@ -77,51 +84,95 @@ namespace Enderlook.Unity.Pathfinding
 
             if (result == CalculationResult.PathFound)
             {
-                path.Clear();
-                if (edges.Count == 0)
-                {
-                    path.Add(startPosition);
-
-                    TCoord start2 = converter.ToPosition(startNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
-                        path.Add(start2);
-
-                    TCoord end2 = converter.ToPosition(endNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
-                        path.Add(end2);
-
-                    path.Add(endPosition);
-                }
-                else
-                {
-                    path.Add(endPosition);
-
-                    TNode to = endNode;
-                    TCoord end2 = converter.ToPosition(to);
-                    if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
-                        path.Add(end2);
-
-                    while (edges.TryGetValue(to, out TNode from))
-                    {
-                        to = from;
-                        path.Add(converter.ToPosition(from));
-                    }
-
-                    TCoord start2 = converter.ToPosition(startNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1]))
-                        path.Add(start2);
-
-                    if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
-                        path.Add(startPosition);
-
-                    path.Reverse();
-                }
+                ProducePath();
+                OptimizePath().GetAwaiter().GetResult();
                 status = Status.Found;
             }
             else if (result == CalculationResult.Timedout)
                 status = Status.Timedout;
             else
                 status = Status.Finalized;
+        }
+
+        private void ProducePath()
+        {
+            pathRaw.Clear();
+            if (edges.Count == 0)
+            {
+                pathRaw.Add(startPosition);
+
+                TCoord start2 = converter.ToPosition(startNode);
+                if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
+                    pathRaw.Add(start2);
+
+                TCoord end2 = converter.ToPosition(endNode);
+                if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                    pathRaw.Add(end2);
+
+                pathRaw.Add(endPosition);
+            }
+            else
+            {
+                pathRaw.Add(endPosition);
+
+                TNode to = endNode;
+                TCoord end2 = converter.ToPosition(to);
+                if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                    pathRaw.Add(end2);
+
+                while (edges.TryGetValue(to, out TNode from))
+                {
+                    to = from;
+                    pathRaw.Add(converter.ToPosition(from));
+                }
+
+                TCoord start2 = converter.ToPosition(startNode);
+                if (!EqualityComparer<TCoord>.Default.Equals(start2, pathRaw[pathRaw.Count - 1]))
+                    pathRaw.Add(start2);
+
+                if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
+                    pathRaw.Add(startPosition);
+
+                pathRaw.Reverse();
+            }
+        }
+
+        private async ValueTask OptimizePath()
+        {
+            Debug.Assert(pathRaw.Count >= 2);
+
+            pathOptimized.Clear();
+
+            if (pathRaw.Count == 2)
+            {
+                pathOptimized.Add(pathRaw[0]);
+                pathOptimized.Add(pathRaw[1]);
+                return;
+            }
+
+            pathOptimized.Add(pathRaw[0]);
+
+            bool isTask = !ThreadSwitcher.IsExecutingMainThread;
+            if (isTask)
+                await ThreadSwitcher.ResumeUnityAsync;
+
+            TCoord previous;
+            TCoord current = pathRaw[0];
+            TCoord lastOptimized = current;
+            for (int i = 1; i < pathRaw.Count; i++)
+            {
+                previous = current;
+                current = pathRaw[i];
+                if (lineOfsight.HasLineOfSight(lastOptimized, current))
+                    continue;
+                pathOptimized.Add(previous);
+                lastOptimized = previous;
+            }
+
+            if (isTask)
+                await ThreadSwitcher.ResumeTaskAsync;
+
+            pathOptimized.Add(pathRaw[pathRaw.Count - 1]);
         }
 
         /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
@@ -131,7 +182,7 @@ namespace Enderlook.Unity.Pathfinding
             if ((status & Status.Finalized) == 0)
                 throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_NOT_FINALIZED);
 
-            return path;
+            return pathOptimized;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession(TNode)"/>
@@ -185,9 +236,9 @@ namespace Enderlook.Unity.Pathfinding
             this.endPosition = endPosition;
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetNodeToPositionConverter(IGraphLocation{TNode, TCoord})"/>
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetGraphLocation(IGraphLocation{TNode, TCoord})"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetNodeToPositionConverter(IGraphLocation<TNode, TCoord> converter)
+        public void SetGraphLocation(IGraphLocation<TNode, TCoord> converter)
         {
 #if UNITY_EDITOR || DEBUG
             if ((status & Status.Initialized) == 0)
@@ -195,6 +246,18 @@ namespace Enderlook.Unity.Pathfinding
 #endif
 
             this.converter = converter;
+        }
+
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetLineOfSight(IGraphLineOfSight{TCoord})"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetLineOfSight(IGraphLineOfSight<TCoord> lineOfSight)
+        {
+#if UNITY_EDITOR || DEBUG
+            if ((status & Status.Initialized) == 0)
+                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
+#endif
+
+            lineOfsight = lineOfSight;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetStart(TNode)(TNode)(TNode)"/>

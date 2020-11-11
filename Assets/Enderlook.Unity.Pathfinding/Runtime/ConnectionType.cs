@@ -6,7 +6,7 @@ namespace Enderlook.Unity.Pathfinding
     /// Determines to which types of nodes are connections allowed.
     /// </summary>
     [Flags]
-    public enum ConnectionType
+    public enum ConnectionType : byte
     {
         /// <summary>
         /// Allow connection between transitable nodes.

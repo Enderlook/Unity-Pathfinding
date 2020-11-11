@@ -2,6 +2,7 @@
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using UnityEngine;
 
@@ -16,6 +17,9 @@ namespace Enderlook.Unity.Pathfinding
          * - (Vetor3 (float x 3): center. Center of this octree.)
          * - (float: size. Size of this octree.)
          * - (byte: subdivisions. Amount of subdivisions of this octree.)
+         * - (LayerMaks (int): filterInclude. Layers included.)
+         * - (QueryTriggerInteraction (int): query. How raycast is queried.)
+         * - (ConnectionType (byte): connection type. Type of connections calculated.)
          * - (int: octants.Count. Amount of stored octants and body.)
          * - (int: connections.Count. Amount of stored connections.)
          * 
@@ -44,15 +48,25 @@ namespace Enderlook.Unity.Pathfinding
                 (sizeof(int) * 3) + // Center
                 sizeof(int) + // Size
                 sizeof(byte) + // Subdivisions
+                sizeof(int) + // Filter Include
+                sizeof(int) + // Query
+                sizeof(byte) + // Connection Type
                 (sizeof(int) * 2) + // Number of octants and number of connections
                 ((OctantCode.SIZE + sizeof(byte)) * octants.Count) + // Space for octant information
                 (OctantCode.SIZE * edgesCount) + // Space for neighbour information
                 (sizeof(int) * octants.Count) // Space to say if an octant has or not neighbours
             ];
 
+            Debug.Assert(Marshal.SizeOf<Vector3>() == sizeof(int) * 3);
+            Debug.Assert(Marshal.SizeOf<LayerMask>() == sizeof(int));
+            Debug.Assert(Marshal.SizeOf(filterInclude.value.GetType()) == sizeof(int));
+            Debug.Assert(Enum.GetUnderlyingType(typeof(QueryTriggerInteraction)) == typeof(int));
+            Debug.Assert(Enum.GetUnderlyingType(typeof(ConnectionType)) == typeof(byte));
+
             int index = 0;
             // TODO: use BitOperations.SingleToInt32Bits(float)
 
+            // center
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref center.x));
             index += sizeof(int);
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref center.y));
@@ -60,14 +74,29 @@ namespace Enderlook.Unity.Pathfinding
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref center.z));
             index += sizeof(int);
 
+            // size
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), Unsafe.As<float, int>(ref size));
             index += sizeof(int);
 
+            // subdivisions
             serialized[index++] = subdivisions;
 
+            // filterInclude
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), filterInclude.value);
+            index += sizeof(int);
+
+            // query
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), (int)query);
+            index += sizeof(int);
+
+            // connectionType
+            serialized[index++] = (byte)connectionType;
+
+            // octants.Count
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), octants.Count);
             index += sizeof(int);
 
+            // connections.Count
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), connections.Count);
             index += sizeof(int);
 
@@ -121,6 +150,7 @@ namespace Enderlook.Unity.Pathfinding
         internal void LoadFrom(Span<byte> serialized)
         {
             distances = new Dictionary<(OctantCode, OctantCode), float>();
+            lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
 
             if (serialized.Length == 0)
             {
@@ -131,6 +161,7 @@ namespace Enderlook.Unity.Pathfinding
             {
                 int index = 0;
 
+                // center
                 int centerX = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
                 index += sizeof(int);
                 int centerY = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
@@ -139,16 +170,34 @@ namespace Enderlook.Unity.Pathfinding
                 index += sizeof(int);
                 center = new Vector3(Unsafe.As<int, float>(ref centerX), Unsafe.As<int, float>(ref centerY), Unsafe.As<int, float>(ref centerZ));
 
+                // size
                 int size = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
                 index += sizeof(int);
                 this.size = Unsafe.As<int, float>(ref size);
 
+                // subdivisions
                 subdivisions = serialized[index++];
 
+                // filterInclude
+                filterInclude = new LayerMask
+                {
+                    value = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)))
+                };
+                index += sizeof(int);
+
+                // query
+                query = (QueryTriggerInteraction)BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
+                index += sizeof(int);
+
+                // connectionType
+                connectionType = (ConnectionType)serialized[index++];
+
+                // octants.Count
                 int octantsCount = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)));
                 octants = new Dictionary<OctantCode, Octant>(octantsCount);
                 index += sizeof(int);
 
+                // connections.Count
                 connections = new Dictionary<OctantCode, HashSet<OctantCode>>(BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int))));
                 index += sizeof(int);
 

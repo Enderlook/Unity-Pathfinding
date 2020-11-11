@@ -36,19 +36,30 @@ namespace Enderlook.Unity.Pathfinding
 
         private byte subdivisions;
 
+        private LayerMask filterInclude;
+
+        private QueryTriggerInteraction query;
+
+        private ConnectionType connectionType;
+
         private int MaxDepth => subdivisions + 1;
 
-        public Octree(Vector3 center, float size, byte subdivisions)
+        public Octree(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, bool includeTriggerColliders, ConnectionType connectionType)
         {
+            if (subdivisions > 9)
+                throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
+
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
-            if (subdivisions > 9)
-                throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
+            this.filterInclude = filterInclude;
+            query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
+            this.connectionType = connectionType;            
             distances = new Dictionary<(OctantCode, OctantCode), float>();
+            lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
         }
 
-        internal void Reset(Vector3 center, float size, byte subdivisions)
+        internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, bool includeTriggerColliders, ConnectionType connectionType)
         {
             if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
@@ -56,6 +67,9 @@ namespace Enderlook.Unity.Pathfinding
             this.center = center;
             this.size = size;
             this.subdivisions = subdivisions;
+            this.filterInclude = filterInclude;
+            query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
+            this.connectionType = connectionType;
 
             Clear();
         }
@@ -76,6 +90,11 @@ namespace Enderlook.Unity.Pathfinding
                 distances = new Dictionary<(OctantCode, OctantCode), float>();
             else
                 distances.Clear();
+
+            if (lineOfSigths is null)
+                lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
+            else
+                lineOfSigths.Clear();
         }
     }
 }

@@ -5,9 +5,9 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree : IGraphIntrinsic<Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator>, IGraphLocation<Octree.OctantCode, Vector3>, IGraphHeuristic<Octree.OctantCode>
+    internal sealed partial class Octree : IGraphIntrinsic<Octree.OctantCode, HashSet<Octree.OctantCode>.Enumerator>, IGraphLocation<Octree.OctantCode, Vector3>, IGraphHeuristic<Octree.OctantCode>, IGraphLineOfSight<Vector3>
     {
-        private static readonly HashSet<OctantCode> EmptyHashset =  new HashSet<OctantCode>();
+        private static readonly HashSet<OctantCode> EmptyHashset = new HashSet<OctantCode>();
 
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.ToPosition(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)] 
@@ -89,5 +89,20 @@ namespace Enderlook.Unity.Pathfinding
         /// <inheritdoc cref="IGraphHeuristic{TNode}.GetHeuristicCost(TNode, TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetHeuristicCost(OctantCode from, OctantCode to) => GetCost(from, to);
+
+        private Dictionary<(Vector3, Vector3), bool> lineOfSigths;
+
+        /// <inheritdoc cref="IGraphLineOfSight{TCoord}.HasLineOfSight(TCoord, TCoord)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool HasLineOfSight(Vector3 from, Vector3 to)
+        {
+            (Vector3, Vector3) tuple = (from, to);
+            if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
+            {
+                hasLineOfSight = !Physics.Linecast(from, to, filterInclude, query);
+                lineOfSigths.Add(tuple, hasLineOfSight);
+            }
+            return hasLineOfSight;
+        }
     }
 }

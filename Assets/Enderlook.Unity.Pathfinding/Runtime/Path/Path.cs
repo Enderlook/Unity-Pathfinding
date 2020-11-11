@@ -91,7 +91,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathFeedable<TInfo>.Feed(IPathFeeder<TInfo> feeder)
         {
-            if (IsComplete)
+            if (processHandle.IsCompleteThreadSafe)
                 throw new InvalidOperationException(CAN_NOT_FEED_IF_IS_NOT_PENDING);
 
             version++;
