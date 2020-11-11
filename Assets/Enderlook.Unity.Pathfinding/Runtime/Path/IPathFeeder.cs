@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using System;
 
 namespace Enderlook.Unity.Pathfinding
 {
@@ -25,6 +25,6 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         /// <returns>The information of this path.</returns>
         /// <remarks>This can be empty if <see cref="Status"/> is <see cref="PathBuilderStatus.Empty"/>, <see cref="PathBuilderStatus.PathNotFound"/> or <see cref="PathBuilderStatus.Timedout"/>.</remarks>
-        IEnumerable<TInfo> GetPathInfo();
+        ReadOnlySpan<TInfo> GetPathInfo();
     }
 }

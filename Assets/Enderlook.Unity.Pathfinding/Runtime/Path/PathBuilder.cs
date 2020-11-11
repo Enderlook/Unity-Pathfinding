@@ -4,7 +4,6 @@ using Enderlook.Unity.Threading;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -26,8 +25,8 @@ namespace Enderlook.Unity.Pathfinding
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
         private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
-        private readonly List<TCoord> pathRaw = new List<TCoord>();
-        private readonly List<TCoord> pathOptimized = new List<TCoord>();
+        private DynamicArray<TCoord> pathRaw = DynamicArray<TCoord>.Create();
+        private DynamicArray<TCoord> pathOptimized = DynamicArray<TCoord>.Create();
 
         private IGraphLocation<TNode, TCoord> converter;
         private IGraphLineOfSight<TCoord> lineOfsight;
@@ -177,12 +176,12 @@ namespace Enderlook.Unity.Pathfinding
 
         /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        IEnumerable<TCoord> IPathFeeder<TCoord>.GetPathInfo()
+        ReadOnlySpan<TCoord> IPathFeeder<TCoord>.GetPathInfo()
         {
             if ((status & Status.Finalized) == 0)
                 throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_NOT_FINALIZED);
 
-            return pathOptimized;
+            return pathOptimized.AsSpan;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession(TNode)"/>

@@ -19,7 +19,7 @@ namespace Enderlook.Unity.Pathfinding
         private const string PATH_WAS_MODIFIED_OUTDATED_ENUMERATOR = "Path was modified; enumeration operation may not execute.";
         private const string CAN_NOT_EXECUTE_IF_IS_PENDING = "Can't execute if it's pending.";
 
-        private readonly List<TInfo> list = new List<TInfo>();
+        private DynamicArray<TInfo> list = DynamicArray<TInfo>.Create();
         private int version;
         private Status status;
         private ProcessHandle processHandle;
@@ -115,6 +115,20 @@ namespace Enderlook.Unity.Pathfinding
 
             list.Clear();
             list.AddRange(path.list);
+        }
+
+        /// <summary>
+        /// Feeds a manual path.
+        /// </summary>
+        /// <param name="path">New path.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetManualPath(IEnumerable<TInfo> path)
+        {
+            if (!processHandle.IsCompleteThreadSafe)
+                throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
+
+            list.Clear();
+            list.AddRange(path);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
