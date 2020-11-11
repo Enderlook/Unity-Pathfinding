@@ -1,6 +1,7 @@
 ﻿using Enderlook.Collections;
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -56,9 +57,8 @@ namespace Enderlook.Unity.Pathfinding
             this.subdivisions = subdivisions;
             this.filterInclude = filterInclude;
             query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
-            this.connectionType = connectionType;            
-            distances = new Dictionary<(OctantCode, OctantCode), float>();
-            lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
+            this.connectionType = connectionType;
+            distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
         }
 
@@ -90,7 +90,7 @@ namespace Enderlook.Unity.Pathfinding
                 connections.Clear();
 
             if (distances is null)
-                distances = new Dictionary<(OctantCode, OctantCode), float>();
+                distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             else
                 distances.Clear();
 

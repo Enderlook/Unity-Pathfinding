@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -75,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding
            */
         }
 
-        private Dictionary<(OctantCode, OctantCode), float> distances;
+        private ConcurrentDictionary<(OctantCode, OctantCode), float> distances;
 
         /// <inheritdoc cref="IGraphIntrinsic{TNode}.GetCost(TNode, TNode)"/>
         public float GetCost(OctantCode from, OctantCode to)
@@ -88,7 +89,7 @@ namespace Enderlook.Unity.Pathfinding
             else
                 value = Vector3.Distance(octants[from].Center, octants[to].Center);
 
-            distances[(from, to)] = value;
+            distances.TryAdd((from, to), value);
             return value;
         }
 

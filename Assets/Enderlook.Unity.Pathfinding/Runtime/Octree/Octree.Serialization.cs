@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -151,8 +152,7 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void LoadFrom(Span<byte> serialized)
         {
-            distances = new Dictionary<(OctantCode, OctantCode), float>();
-            lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
+            distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
 
             if (serialized.Length == 0)
