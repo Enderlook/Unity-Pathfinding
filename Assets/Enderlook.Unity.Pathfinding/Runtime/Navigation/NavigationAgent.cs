@@ -110,7 +110,7 @@ namespace Enderlook.Unity.Pathfinding
         private new Rigidbody rigidbody;
 
         private DynamicArray<Vector3> innerPath;
-        private DynamicArray<Vector3>.Enumerator enumerator;
+        internal DynamicArray<Vector3>.Enumerator enumerator;
         private bool hasPath;
 
         private static Collider[] colliders = new Collider[100];

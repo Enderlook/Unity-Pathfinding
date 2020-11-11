@@ -372,6 +372,19 @@ namespace Enderlook.Unity.Pathfinding
                 return true;
             }
 
+            /// <summary>
+            /// Move the enumerator back by one.</br>
+            /// If already at beginning, nothing happens.
+            /// </summary>
+            public void MoveBack()
+            {
+                int index = this.index - 1;
+                if (index == -1)
+                    this.index = 0;
+                else
+                    this.index = index;
+            }
+
             /// <inheritdoc cref="IEnumerator{T}.Current"/>
             public T Current {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
