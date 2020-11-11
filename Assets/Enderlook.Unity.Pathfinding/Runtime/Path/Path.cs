@@ -105,6 +105,19 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Feed(Path<TInfo> path)
+        {
+            if (IsPending)
+                throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
+
+            if (!path.processHandle.IsCompleteThreadSafe)
+                throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_PENDING);
+
+            list.Clear();
+            list.AddRange(path.list);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void GuardVersion(int version)
         {
             if (version != this.version)
