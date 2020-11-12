@@ -138,23 +138,23 @@ namespace Enderlook.Unity.Pathfinding
         public Enumerator GetEnumerator() => new Enumerator(this);
 
         /// <inheritdoc cref="IEnumerable.GetEnumerator"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         IEnumerator<TInfo> IEnumerable<TInfo>.GetEnumerator() => GetEnumerator();
 
         /// <inheritdoc cref="IProcessHandleSourceCompletition.Start"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IProcessHandleSourceCompletition.Start() => processHandle.Start();
 
         /// <inheritdoc cref="IProcessHandleSourceCompletition.SetJobHandle(JobHandle)"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IProcessHandleSourceCompletition.SetJobHandle(JobHandle jobHandle) => processHandle.SetJobHandle(jobHandle);
 
         /// <inheritdoc cref="IProcessHandleSourceCompletition.CompleteJobHandle"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IProcessHandleSourceCompletition.CompleteJobHandle() => processHandle.CompleteJobHandle();
 
         /// <inheritdoc cref="IProcessHandleSourceCompletition.End"/>
