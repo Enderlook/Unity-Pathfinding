@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [AddComponentMenu("Enderlook/Pathfinding/Navigation Volume"), DefaultExecutionOrder(-100 /* Just to be sure */)]
+    [AddComponentMenu("Enderlook/Pathfinding/Navigation Volume"), DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationVolume : MonoBehaviour
     {
 #pragma warning disable CS0649

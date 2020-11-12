@@ -6,8 +6,8 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent"), RequireComponent(typeof(Rigidbody))]
-    public class NavigationAgent : MonoBehaviour
+    [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
+    public sealed class NavigationAgent : MonoBehaviour
     {
         private const string CAN_NOT_BE_NEGATIVE = "Can't be negative.";
 
@@ -107,7 +107,7 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        private new Rigidbody rigidbody;
+        internal Rigidbody Rigidbody;
 
         private DynamicArray<Vector3> innerPath;
         internal DynamicArray<Vector3>.Enumerator enumerator;
@@ -119,10 +119,13 @@ namespace Enderlook.Unity.Pathfinding
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake()
         {
-            rigidbody = GetComponent<Rigidbody>();
+            Rigidbody = GetComponent<Rigidbody>();
             innerPath = DynamicArray<Vector3>.Create();
 
-            rigidbody.constraints |= RigidbodyConstraints.FreezeRotation;
+            Rigidbody.constraints |= RigidbodyConstraints.FreezeRotation;
+
+            if (TryGetComponent(out NavigationAgentAutoPath autoPath))
+                autoPath.Inject(this);
         }
 
 #if UNITY_EDITOR
@@ -153,9 +156,9 @@ namespace Enderlook.Unity.Pathfinding
                 return Vector3.zero;
 
             Vector3 current = enumerator.Current;
-            current.y = rigidbody.position.y;
+            current.y = Rigidbody.position.y;
 
-            Vector3 direction = current - rigidbody.position;
+            Vector3 direction = current - Rigidbody.position;
             float distance = direction.magnitude;
             if (distance <= stoppingDistance)
             {
@@ -176,7 +179,7 @@ namespace Enderlook.Unity.Pathfinding
                 radius += avoidancePredictionRadius;
 
             start:
-            int amount = Physics.OverlapSphereNonAlloc(rigidbody.position, radius, colliders, avoidanceLayers);
+            int amount = Physics.OverlapSphereNonAlloc(Rigidbody.position, radius, colliders, avoidanceLayers);
             if (amount == colliders.Length)
             {
                 Array.Resize(ref colliders, colliders.Length * COLLIDER_GROW_FACTOR);
@@ -187,7 +190,7 @@ namespace Enderlook.Unity.Pathfinding
                 return Vector3.zero;
 
             Span<Collider> span = colliders.AsSpan(0, amount);
-            Vector3 currentPosition = rigidbody.position;
+            Vector3 currentPosition = Rigidbody.position;
             Vector3 total = Vector3.zero;
             int count = 0;
             foreach (Collider collider in span)
@@ -196,7 +199,7 @@ namespace Enderlook.Unity.Pathfinding
                     continue;
 
                 Vector3 position;
-                Vector3 closestPoint = collider.ClosestPointOnBounds(rigidbody.position);
+                Vector3 closestPoint = collider.ClosestPointOnBounds(Rigidbody.position);
                 if (collider.TryGetComponent(out Rigidbody _rigidbody))
                     position = closestPoint + _rigidbody.velocity * avoidancePredictionTime;
                 else
@@ -244,9 +247,9 @@ namespace Enderlook.Unity.Pathfinding
             direction.y = 0;
 
             Vector3 targetSpeed = direction * linealSpeed;
-            rigidbody.velocity = Vector3.MoveTowards(rigidbody.velocity, targetSpeed, linealAcceleration * Time.fixedDeltaTime);
+            Rigidbody.velocity = Vector3.MoveTowards(Rigidbody.velocity, targetSpeed, linealAcceleration * Time.fixedDeltaTime);
 
-            rigidbody.rotation = Quaternion.RotateTowards(rigidbody.rotation, Quaternion.LookRotation(-direction), angularSpeed * Time.fixedDeltaTime);
+            Rigidbody.rotation = Quaternion.RotateTowards(Rigidbody.rotation, Quaternion.LookRotation(-direction), angularSpeed * Time.fixedDeltaTime);
         }
 
         /// <summary>
@@ -267,27 +270,27 @@ namespace Enderlook.Unity.Pathfinding
         private void OnDrawGizmosSelected()
         {
             if (!Application.isPlaying)
-                rigidbody = GetComponent<Rigidbody>();
+                Rigidbody = GetComponent<Rigidbody>();
 
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(rigidbody.position, avoidanceRadius);
+            Gizmos.DrawWireSphere(Rigidbody.position, avoidanceRadius);
 
             Color orange = (Color.yellow + Color.red) / 2;
             orange.a = 1;
             Gizmos.color = orange;
-            Gizmos.DrawWireSphere(rigidbody.position, avoidanceRadius + avoidancePredictionRadius);
+            Gizmos.DrawWireSphere(Rigidbody.position, avoidanceRadius + avoidancePredictionRadius);
 
             Gizmos.color = Color.cyan;
-            Gizmos.DrawLine(rigidbody.position, rigidbody.position + rigidbody.velocity);
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + Rigidbody.velocity);
 
             Gizmos.color = Color.blue;
-            Gizmos.DrawLine(rigidbody.position, rigidbody.position - transform.forward);
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position - transform.forward);
 
             Gizmos.color = Color.green;
-            Gizmos.DrawLine(rigidbody.position, rigidbody.position + gizmosMovementDirection);
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + gizmosMovementDirection);
 
             Gizmos.color = Color.yellow;
-            Gizmos.DrawLine(rigidbody.position, rigidbody.position + gizmosAvoidDirection);
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + gizmosAvoidDirection);
         }
 #endif
     }
