@@ -153,6 +153,7 @@ namespace Enderlook.Unity.Pathfinding
         internal void LoadFrom(Span<byte> serialized)
         {
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
+            lineOfSigths = new ConcurrentDictionary<(Vector3, Vector3), bool>();
             kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
 
             if (serialized.Length == 0)

@@ -1,6 +1,9 @@
-﻿using System.Collections.Concurrent;
+﻿using Enderlook.Unity.Threading;
+
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -106,7 +109,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetHeuristicCost(OctantCode from, OctantCode to) => GetCost(from, to);
 
-        private Dictionary<(Vector3, Vector3), bool> lineOfSigths;
+        private ConcurrentDictionary<(Vector3, Vector3), bool> lineOfSigths;
 
         /// <inheritdoc cref="IGraphLineOfSight{TCoord}.HasLineOfSight(TCoord, TCoord)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,10 +118,22 @@ namespace Enderlook.Unity.Pathfinding
             (Vector3, Vector3) tuple = (from, to);
             if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
             {
-                hasLineOfSight = !Physics.Linecast(from, to, filterInclude, query);
-                lineOfSigths.Add(tuple, hasLineOfSight);
+                bool isMain = ThreadSwitcher.IsExecutingMainThread;
+                if (isMain)
+                    hasLineOfSight = !Physics.Linecast(from, to, filterInclude, query);
+                else
+                    hasLineOfSight = HasSight().GetAwaiter().GetResult();
+                lineOfSigths.TryAdd(tuple, hasLineOfSight);
             }
             return hasLineOfSight;
+
+            async ValueTask<bool> HasSight()
+            {
+                await ThreadSwitcher.ResumeUnityAsync;
+                bool value = !Physics.Linecast(from, to, filterInclude, query);
+                await ThreadSwitcher.ResumeTaskAsync;
+                return value;
+            }
         }
     }
 }

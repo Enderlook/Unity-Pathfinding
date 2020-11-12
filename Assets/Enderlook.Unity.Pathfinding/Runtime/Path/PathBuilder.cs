@@ -296,6 +296,18 @@ namespace Enderlook.Unity.Pathfinding
             return costs.TryGetValue(to, out cost);
         }
 
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.TryGetEdge(TNode, out TNode)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IPathBuilder<TNode, TCoord>.TryGetEdge(TNode to, out TNode from)
+        {
+#if UNITY_EDITOR || DEBUG
+            if ((status & Status.Initialized) == 0)
+                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
+#endif
+
+            return edges.TryGetValue(to, out from);
+        }
+
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.Visit(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.Visit(TNode node)
