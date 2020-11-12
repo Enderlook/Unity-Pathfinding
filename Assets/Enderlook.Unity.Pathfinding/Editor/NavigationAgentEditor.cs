@@ -1,4 +1,6 @@
-﻿using UnityEditor;
+﻿using Enderlook.Unity.Utils.UnityEditor;
+
+using UnityEditor;
 
 using UnityEngine;
 
@@ -20,6 +22,9 @@ namespace Enderlook.Unity.Pathfinding
         {
             DrawDefaultInspector();
 
+            EditorGUILayout.Space();
+            EditorGUIHelper.Header("Other");
+
             drawPath = EditorGUILayout.Toggle(DRAW_PATH_TOGGLE, drawPath);
         }
 
@@ -28,7 +33,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             if (drawPath)
             {
-                DynamicArray<Vector3>.Enumerator enumerator = target.enumerator;
+                DynamicArray<Vector3>.Enumerator enumerator = target.PathFollower.enumerator;
                 if (enumerator.IsDefault)
                     return;
 
