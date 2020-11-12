@@ -1,4 +1,6 @@
-﻿using Enderlook.Unity.Attributes;
+﻿using Assets.Enderlook.Unity.Pathfinding;
+
+using Enderlook.Unity.Attributes;
 
 using System;
 
@@ -9,8 +11,6 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationAgent : MonoBehaviour
     {
-        private const string CAN_NOT_BE_NEGATIVE = "Can't be negative.";
-
         [SerializeField, Tooltip("Determines if the agent has control over the rigidbody.")]
         public bool isStopped;
 
@@ -19,44 +19,28 @@ namespace Enderlook.Unity.Pathfinding
         private float linealSpeed = 3.5f;
         public float LinealSpeed {
             get => linealSpeed;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(LinealSpeed), CAN_NOT_BE_NEGATIVE);
-                linealSpeed = value;
-            }
+            set => linealSpeed = ErrorMessage.NoNegativeGuard(nameof(LinealSpeed), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the acceleration of the lineal speed while following a path.")]
         private float linealAcceleration = 10;
         public float LinealAcceleration {
             get => linealAcceleration;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(LinealAcceleration), CAN_NOT_BE_NEGATIVE);
-                linealAcceleration = value;
-            }
+            set => linealAcceleration = ErrorMessage.NoNegativeGuard(nameof(LinealAcceleration), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the turning speed while following a path.")]
         private float angularSpeed = 120;
         public float AngularSpeed {
             get => angularSpeed;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(AngularSpeed), CAN_NOT_BE_NEGATIVE);
-                angularSpeed = value;
-            }
+            set => angularSpeed = ErrorMessage.NoNegativeGuard(nameof(AngularSpeed), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the minimal distance from the target to consider it as reached.")]
         private float stoppingDistance = .25f;
         public float StoppingDistance {
             get => stoppingDistance;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(StoppingDistance), CAN_NOT_BE_NEGATIVE);
-                stoppingDistance = value;
-            }
+            set => stoppingDistance = ErrorMessage.NoNegativeGuard(nameof(StoppingDistance), value);
         }
 
         [Header("Obstacle Avoidance")]
@@ -67,44 +51,28 @@ namespace Enderlook.Unity.Pathfinding
         private float avoidanceRadius = 1.5f;
         public float AvoidanceRadius {
             get => avoidanceRadius;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(AvoidanceRadius), CAN_NOT_BE_NEGATIVE);
-                avoidanceRadius = value;
-            }
+            set => avoidanceRadius = ErrorMessage.NoNegativeGuard(nameof(AvoidanceRadius), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the avoidance strength to repel from obstacles.")]
         private float avoidanceStrength = 1;
         public float AvoidanceStrength {
-            get => avoidanceRadius;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(AvoidanceStrength), CAN_NOT_BE_NEGATIVE);
-                avoidanceStrength = value;
-            }
+            get => avoidanceStrength;
+            set => avoidanceStrength = ErrorMessage.NoNegativeGuard(nameof(AvoidanceStrength), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the prediction time used for moving obstacles to avoid their futures positions.")]
         private float avoidancePredictionTime = 1;
         public float AvoidancePredictionTime {
             get => avoidancePredictionTime;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(AvoidancePredictionTime), CAN_NOT_BE_NEGATIVE);
-                avoidancePredictionTime = value;
-            }
+            set => avoidancePredictionTime = ErrorMessage.NoNegativeGuard(nameof(AvoidancePredictionTime), value);
         }
 
         [SerializeField, Min(0), ShowIf(nameof(avoidancePredictionTime), typeof(float), 0, mustBeEqual: false), Tooltip("Determines additional detection radius used for moving obstacles.")]
         private float avoidancePredictionRadius = 1;
         public float AvoidancePredictionRadius {
             get => avoidancePredictionRadius;
-            set {
-                if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(AvoidancePredictionRadius), CAN_NOT_BE_NEGATIVE);
-                avoidancePredictionRadius = value;
-            }
+            set => avoidancePredictionRadius = ErrorMessage.NoNegativeGuard(nameof(AvoidancePredictionRadius), value);
         }
 
         internal Rigidbody Rigidbody;
