@@ -131,7 +131,7 @@ namespace Enderlook.Unity.Pathfinding
             {
                 await ThreadSwitcher.ResumeUnityAsync;
                 bool value = !Physics.Linecast(from, to, filterInclude, query);
-                await ThreadSwitcher.ResumeTaskAsync;
+                await ThreadSwitcher.ResumeBackgroundAsync;
                 return value;
             }
         }

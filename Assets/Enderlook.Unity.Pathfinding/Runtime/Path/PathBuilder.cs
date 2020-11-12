@@ -169,7 +169,7 @@ namespace Enderlook.Unity.Pathfinding
             }
 
             if (isTask)
-                await ThreadSwitcher.ResumeTaskAsync;
+                await ThreadSwitcher.ResumeBackgroundAsync;
 
             pathOptimized.Add(pathRaw[pathRaw.Count - 1]);
         }
