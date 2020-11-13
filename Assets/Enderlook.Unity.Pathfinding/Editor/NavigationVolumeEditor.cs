@@ -76,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding
                             endOctant = target.Graph.FindClosestNodeTo(endPosition);
                             if (path.IsComplete)
                             {
-                                target.CalculatePath(path, startPosition, endPosition);
+                                target.CalculatePathSync(path, startPosition, endPosition);
                                 JobHandle.ScheduleBatchedJobs();
                             }
                             else
@@ -116,7 +116,7 @@ namespace Enderlook.Unity.Pathfinding
                             {
                                 if (path.IsComplete)
                                 {
-                                    target.CalculatePath(path, startPosition, endPosition);
+                                    target.CalculatePathSync(path, startPosition, endPosition);
                                     JobHandle.ScheduleBatchedJobs();
                                 }
                                 else
@@ -157,7 +157,7 @@ namespace Enderlook.Unity.Pathfinding
             {
                 mustRecalculate = false;
                 path.Complete();
-                target.CalculatePath(path, startPosition, endPosition);
+                target.CalculatePathSync(path, startPosition, endPosition);
                 JobHandle.ScheduleBatchedJobs();
             }
         }
@@ -203,7 +203,7 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     if (path.IsComplete)
                     {
-                        target.CalculatePath(path, startPosition, endPosition);
+                        target.CalculatePathSync(path, startPosition, endPosition);
                         JobHandle.ScheduleBatchedJobs();
                     }
                     else
@@ -215,7 +215,7 @@ namespace Enderlook.Unity.Pathfinding
                     {
                         mustRecalculate = false;
                         path.Complete();
-                        target.CalculatePath(path, startPosition, endPosition);
+                        target.CalculatePathSync(path, startPosition, endPosition);
                         JobHandle.ScheduleBatchedJobs();
                     }
                 }

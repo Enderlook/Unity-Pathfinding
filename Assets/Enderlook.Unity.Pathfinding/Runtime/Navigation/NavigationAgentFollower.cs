@@ -162,17 +162,17 @@ namespace Enderlook.Unity.Pathfinding
                         }
 
                         Vector3 path = PathFollower.GetDirection(Rigidbody) * pathStrength;
-                        return ((separation + alineation + cohesion).normalized * .5f + path + obstacles).normalized;
+                        return (p = ((separation + alineation + cohesion).normalized * .2f + path + obstacles).normalized);
                     }
                 }
             }
 
-            return (separation + alineation + cohesion + leader + obstacles).normalized;
+            return (p = (separation + alineation + cohesion + leader + obstacles).normalized);
         }
 
         private void CalculatePath(NavigationVolume navigationVolume, Vector3 leaderPosition)
         {
-            navigationVolume.CalculatePathSync(path, Rigidbody.position, leaderPosition);
+            navigationVolume.CalculatePath(path, Rigidbody.position, leaderPosition);
             pathPending = true;
         }
 
@@ -208,6 +208,54 @@ namespace Enderlook.Unity.Pathfinding
                 total += entity.RigidbodyMinusEntity.normalized * multiplier;
             }
             return total.normalized;
+        }
+
+        Vector3 p;
+        private void OnDrawGizmos()
+        {
+            if (!Application.isPlaying)
+                return;
+
+            /*Span<EntityInfo> entities = FlockingLeader.GetEntitiesInRange(Rigidbody, flockingRange);
+
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawLine(Rigidbody.position, GetSeparation(entities) * separationWeight);
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawLine(Rigidbody.position, GetAlineation(entities) * alineationWeight);
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(Rigidbody.position, GetCohesion(entities) * cohesionWeight);
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(Rigidbody.position, GetLeader() * leaderWeight);
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(Rigidbody.position, ObstacleAvoidance.GetDirection(Rigidbody));
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(Rigidbody.position, PathFollower.GetDirection(Rigidbody) * pathStrength);
+            Gizmos.color = Color.white;
+            Gizmos.DrawLine(Rigidbody.position, q);*/
+
+            Gizmos.color = Color.white;
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + p * 3);
+
+            if (path.IsComplete && path.HasPath)
+            {
+                Gizmos.color = Color.black;
+                using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
+                {
+                    if (enumerator.MoveNext())
+                    {
+                        Vector3 start;
+                        Vector3 end = enumerator.Current;
+                        while (enumerator.MoveNext())
+                        {
+                            Gizmos.DrawWireCube(end, Vector3.one * .1f);
+                            start = end;
+                            end = enumerator.Current;
+                            Gizmos.DrawLine(start, end);
+                        }
+                        Gizmos.DrawWireCube(end, Vector3.one * .1f);
+                    }
+                }
+            }
         }
     }
 }
