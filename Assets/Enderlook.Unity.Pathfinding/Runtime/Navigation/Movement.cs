@@ -39,8 +39,10 @@ namespace Assets.Enderlook.Unity.Pathfinding
             if (IsStopped)
                 return;
 
-            direction = direction.normalized;
             direction.y = 0;
+
+            if (direction.magnitude > 1)
+                direction = direction.normalized;
 
             Vector3 targetSpeed = direction * linealSpeed;
             rigidbody.velocity = Vector3.MoveTowards(rigidbody.velocity, targetSpeed, linealAcceleration * Time.fixedDeltaTime);
