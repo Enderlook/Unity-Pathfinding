@@ -20,6 +20,8 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly GUIContent END_LABEL = new GUIContent("End", "End position of the path to show.");
         private static readonly GUIContent PATH_COUNT_LABEL = new GUIContent("Count", "Amount of points it must travel.");
         private static readonly GUIContent PATH_DISTANCE_LABEL = new GUIContent("Distance", "Distance it must travel.");
+        private static readonly GUIContent CACHED_COSTS = new GUIContent("Cached Costs", "Amount of costs that are cached.");
+        private static readonly GUIContent CACHED_LINE_OF_SIGHT = new GUIContent("Cached Sights", "Amount of line of sights that are cached.");
 
         private new NavigationVolume target;
 
@@ -100,6 +102,8 @@ namespace Enderlook.Unity.Pathfinding
                     EditorGUI.BeginDisabledGroup(true);
                     EditorGUILayout.IntField(OCTANS_COUNT_LABEL, target.Graph.OctantsCount);
                     EditorGUILayout.IntField(NEIGHBOURS_COUNT_LABEL, target.Graph.NeighboursCount);
+                    EditorGUILayout.IntField(CACHED_COSTS, target.Graph.CachedDistances);
+                    EditorGUILayout.IntField(CACHED_LINE_OF_SIGHT, target.Graph.CachedLineOfSights);
                     EditorGUI.EndDisabledGroup();
                     target.Graph.drawMode = (Octree.DrawMode)EditorGUILayout.EnumFlagsField(DRAW_MODE_ENUM, target.Graph.drawMode);
 

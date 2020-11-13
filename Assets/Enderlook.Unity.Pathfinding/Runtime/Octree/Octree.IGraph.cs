@@ -79,6 +79,7 @@ namespace Enderlook.Unity.Pathfinding
            */
         }
 
+        public int CachedDistances => distances?.Count ?? 0;
         private ConcurrentDictionary<(OctantCode, OctantCode), float> distances;
 
         /// <inheritdoc cref="IGraphIntrinsic{TNode}.GetCost(TNode, TNode)"/>
@@ -109,6 +110,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float GetHeuristicCost(OctantCode from, OctantCode to) => GetCost(from, to);
 
+        public int CachedLineOfSights => lineOfSigths?.Count ?? 0;
         private ConcurrentDictionary<(Vector3, Vector3), bool> lineOfSigths;
 
         /// <inheritdoc cref="IGraphLineOfSight{TCoord}.HasLineOfSight(TCoord, TCoord)"/>
