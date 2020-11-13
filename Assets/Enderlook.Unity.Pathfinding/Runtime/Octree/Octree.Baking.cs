@@ -38,19 +38,19 @@ namespace Enderlook.Unity.Pathfinding
                 octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
 
             FilterFloor();
-            AddToKdTree();
+            SavePositions();
         }
 
-        private void AddToKdTree()
+        private void SavePositions()
         {
             foreach (Octant octant in octants.Values)
-                TryAddToKDTree(octant);
+                TrySavePosition(octant);
         }
 
-        private void TryAddToKDTree(Octant octant)
+        private void TrySavePosition(Octant octant)
         {
             if (octant.HasGround && !octant.IsIntransitable)
-                kdTree.Insert(octant.Center, octant.Code);
+                positions.Add((octant.Code, octant.Center));
         }
 
         private void FilterFloor()

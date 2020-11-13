@@ -18,7 +18,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 ToPosition(OctantCode code) => octants[code].Center;
 
-        private Vector3Tree<OctantCode> kdTree;
+        private DynamicArray<(OctantCode, Vector3)> positions;
 
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.FindClosestNodeTo(TCoord)"/>
         public OctantCode FindClosestNodeTo(Vector3 position)
@@ -27,11 +27,21 @@ namespace Enderlook.Unity.Pathfinding
             if (!octant.HasInvalidCode && !octant.IsIntransitable && octant.HasGround)
                 return octant.Code;
 
-            if (kdTree.IsEmpty)
+            if (positions.IsDefaultOrEmpty)
                 return octant.Code;
 
-            (Vector3 key, OctantCode value, double distance) nearest = kdTree.FindNearestNeighbour(position);
-            return nearest.value;
+            OctantCode closest = positions[0].Item1;
+            float distance = Vector3.Distance(position, positions[0].Item2);
+            for (int i = 0; i < positions.Count; i++)
+            {
+                float v = Vector3.Distance(position, positions[i].Item2);
+                if (v < distance)
+                {
+                    distance = v;
+                    closest = positions[i].Item1;
+                }
+            }
+            return closest;
         }
 
         private Octant FindBoundingOctant(Vector3 position)

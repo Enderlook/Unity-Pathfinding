@@ -60,7 +60,7 @@ namespace Enderlook.Unity.Pathfinding
             this.connectionType = connectionType;
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new ConcurrentDictionary<(Vector3, Vector3), bool>();
-            kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
+            positions = DynamicArray<(OctantCode, Vector3)>.Create();
         }
 
         internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, bool includeTriggerColliders, ConnectionType connectionType)
@@ -100,10 +100,10 @@ namespace Enderlook.Unity.Pathfinding
             else
                 lineOfSigths.Clear();
 
-            if (kdTree.IsDefault)
-                kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
+            if (positions.IsDefault)
+                positions = DynamicArray<(OctantCode, Vector3)>.Create();
             else
-                kdTree.Clear();
+                positions.Clear();
         }
     }
 }

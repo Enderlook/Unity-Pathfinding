@@ -154,7 +154,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new ConcurrentDictionary<(Vector3, Vector3), bool>();
-            kdTree = new Vector3Tree<OctantCode>(new D3TreeFloat<OctantCode>());
+            positions = DynamicArray<(OctantCode, Vector3)>.Create();
 
             if (serialized.Length == 0)
             {
@@ -245,7 +245,7 @@ namespace Enderlook.Unity.Pathfinding
                     octant.Center = center;
                     octants[code] = octant;
 
-                    TryAddToKDTree(octant);
+                    TrySavePosition(octant);
 
                     float currentSize = code.GetSize(this.size) / 4;
 
