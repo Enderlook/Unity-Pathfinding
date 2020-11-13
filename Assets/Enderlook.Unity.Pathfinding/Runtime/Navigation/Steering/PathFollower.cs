@@ -1,4 +1,5 @@
-﻿using Enderlook.Unity.Pathfinding;
+﻿using Enderlook.Unity.Components.ScriptableSound.Modifiers;
+using Enderlook.Unity.Pathfinding;
 
 using System;
 
@@ -59,6 +60,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
             if (!HasPath)
                 return Vector3.zero;
 
+            start:
             Vector3 current = enumerator.Current;
             current.y = agent.position.y;
 
@@ -71,6 +73,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
                     HasPath = false;
                     return Vector3.zero;
                 }
+                goto start;
             }
 
             return direction.normalized;
