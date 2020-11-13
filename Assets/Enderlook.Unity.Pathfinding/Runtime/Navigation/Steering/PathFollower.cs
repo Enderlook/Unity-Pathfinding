@@ -47,8 +47,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
             innerPath.Clear();
             innerPath.AddRange(path);
             enumerator = innerPath.GetEnumerator();
-            enumerator.MoveNext();
-            HasPath = true;
+            HasPath = enumerator.MoveNext();
         }
 
         /// <inheritdoc cref="SetPath(Span{Vector3})"/>
