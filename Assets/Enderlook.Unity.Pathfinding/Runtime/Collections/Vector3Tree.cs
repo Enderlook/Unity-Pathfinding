@@ -69,6 +69,8 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(Vector3 key, out TValue value) => kdTree.TryGetValue(ToTuple(ref key), out value);
 
-        internal void Clear() => kdTree = new D3TreeFloat<TValue>();
+        /// <inheritdoc cref="ISpatialIndexBasic{TKey, TValue}.Clear"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear() => kdTree.Clear();
     }
 }

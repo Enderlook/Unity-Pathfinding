@@ -318,10 +318,48 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         /// <summary>
+        /// Copies the content of this dynamic array into <paramref name="array"/>.
+        /// </summary>
+        /// <param name="array">Where elements are coppied to.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        public void CopyTo(T[] array) => CopyTo(array, 0);
+
+        /// <summary>
+        /// Copies the content of this dynamic array into <paramref name="array"/>.
+        /// </summary>
+        /// <param name="array">Where elements are coppied to.</param>
+        /// <param name="startIndex">In which index from <paramref name="array"/> elements should start be copying.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        public void CopyTo(T[] array, int startIndex) => Array.Copy(items, 0, array, startIndex, size);
+
+        /// <summary>
         /// Reverse the content of the array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reverse() => Array.Reverse(items, 0, size);
+
+        /// <summary>
+        /// Removes the first element of the array which matches equality with <paramref name="element"/>.
+        /// </summary>
+        /// <param name="element">Element to remove.</param>
+        /// <returns>Whenever an element was removed or not because it was not found.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Remove(T element)
+        {
+            for (int i = 0; i < size; i++)
+            {
+                if (EqualityComparer<T>.Default.Equals(element, items[i]))
+                {
+                    size--;
+                    if (i < size)
+                        Array.Copy(items, i + 1, items, i, size - i);
+                    items[size] = default;
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

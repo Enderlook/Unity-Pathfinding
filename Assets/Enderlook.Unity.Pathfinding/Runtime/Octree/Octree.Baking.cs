@@ -43,11 +43,14 @@ namespace Enderlook.Unity.Pathfinding
 
         private void AddToKdTree()
         {
-            foreach (KeyValuePair<OctantCode, Octant> kvp in octants)
-            {
-                if (kvp.Value.HasGround && !kvp.Value.IsIntransitable)
-                    kdTree.Insert(center, kvp.Key);
-            }
+            foreach (Octant octant in octants.Values)
+                TryAddToKDTree(octant);
+        }
+
+        private void TryAddToKDTree(Octant octant)
+        {
+            if (octant.HasGround && !octant.IsIntransitable)
+                kdTree.Insert(octant.Center, octant.Code);
         }
 
         private void FilterFloor()

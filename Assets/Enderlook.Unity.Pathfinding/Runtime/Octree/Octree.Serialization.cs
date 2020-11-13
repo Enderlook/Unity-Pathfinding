@@ -245,8 +245,7 @@ namespace Enderlook.Unity.Pathfinding
                     octant.Center = center;
                     octants[code] = octant;
 
-                    if (octant.HasGround && !octant.IsIntransitable)
-                        kdTree.Insert(center, code);
+                    TryAddToKDTree(octant);
 
                     float currentSize = code.GetSize(this.size) / 4;
 

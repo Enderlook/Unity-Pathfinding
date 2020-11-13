@@ -1,5 +1,6 @@
 ﻿using Enderlook.Unity.Threading;
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -14,7 +15,7 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly HashSet<OctantCode> EmptyHashset = new HashSet<OctantCode>();
 
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.ToPosition(TNode)"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 ToPosition(OctantCode code) => octants[code].Center;
 
         private Vector3Tree<OctantCode> kdTree;
@@ -120,21 +121,68 @@ namespace Enderlook.Unity.Pathfinding
             (Vector3, Vector3) tuple = (from, to);
             if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
             {
-                bool isMain = ThreadSwitcher.IsExecutingMainThread;
-                if (isMain)
-                    hasLineOfSight = !Physics.Linecast(from, to, filterInclude, query);
-                else
-                    hasLineOfSight = HasSight().GetAwaiter().GetResult();
+                hasLineOfSight = !Physics.Linecast(from, to, filterInclude, query);
                 lineOfSigths.TryAdd(tuple, hasLineOfSight);
             }
             return hasLineOfSight;
+        }
 
-            async ValueTask<bool> HasSight()
+        /// <inheritdoc cref="IGraphLineOfSight{TCoord}.HasLineOfSightBulk(TCoord, TCoord[], bool[], int)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void HasLineOfSightBulk(Vector3[] from, Vector3[] to, bool[] results, int length)
+        {
+            if (from.Length < length)
+                throw new ArgumentException($"{nameof(from)}.Length must be equal or larger {nameof(length)}.");
+            if (to.Length < length)
+                throw new ArgumentException($"{nameof(to)}.Length must be equal or larger {nameof(length)}.");
+            if (results.Length < length)
+                throw new ArgumentException($"{nameof(results)}.Length must be equal or larger {nameof(length)}.");
+
+            if (ThreadSwitcher.IsExecutingMainThread)
             {
-                await ThreadSwitcher.ResumeUnityAsync;
-                bool value = !Physics.Linecast(from, to, filterInclude, query);
-                await ThreadSwitcher.ResumeBackgroundAsync;
-                return value;
+                for (int i = 0; i < length; i++)
+                {
+                    (Vector3, Vector3) tuple = (from[i], to[i]);
+                    if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
+                    {
+                        hasLineOfSight = !Physics.Linecast(from[i], to[i], filterInclude, query);
+                        lineOfSigths.TryAdd(tuple, hasLineOfSight);
+                    }
+                    results[i] = hasLineOfSight;
+                }
+            }
+            else
+            {
+                // We don't switch context all the time because it's too expensive
+                int i = 0;
+                for (; i < to.Length; i++)
+                {
+                    (Vector3, Vector3) tuple = (from[i], to[i]);
+                    if (lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
+                        results[i] = hasLineOfSight;
+                    else
+                        goto switchThread;
+                }
+                return;
+
+                switchThread:
+                ExecuteRest().GetAwaiter().GetResult();
+
+                async ValueTask ExecuteRest()
+                {
+                    await ThreadSwitcher.ResumeUnityAsync;
+                    for (; i < to.Length; i++)
+                    {
+                        (Vector3, Vector3) tuple = (from[i], to[i]);
+                        if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
+                        {
+                            hasLineOfSight = !Physics.Linecast(from[i], to[i], filterInclude, query);
+                            lineOfSigths.TryAdd(tuple, hasLineOfSight);
+                        }
+                        results[i] = hasLineOfSight;
+                    }
+                    await ThreadSwitcher.ResumeBackgroundAsync;
+                }
             }
         }
     }
