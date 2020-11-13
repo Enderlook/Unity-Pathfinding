@@ -1,0 +1,16 @@
+using UnityEngine;
+using UnityEditor;
+
+//[CustomPropertyDrawer(typeof(#SCRIPTNAME#Attribute))]
+public class #SCRIPTNAME# : DecoratorDrawer
+{
+    public override void OnGUI(Rect position)
+    {
+        base.OnGUI(position);
+    }
+
+    public override float GetHeight()
+    {
+        return base.GetHeight();
+    }
+}
