@@ -106,6 +106,9 @@ namespace Enderlook.Unity.Pathfinding
             Movement.MoveAndRotate(Rigidbody, GetDirection());
         }
 
+        private float cooldown = maxCooldown;
+        private const float maxCooldown = 4;
+
         private Vector3 GetDirection()
         {
             if (Vector3.Distance(Rigidbody.position, FlockingLeader.Rigidbody.position) < leaderStoppingDistance)
@@ -150,6 +153,14 @@ namespace Enderlook.Unity.Pathfinding
 
                     if (PathFollower.HasPath)
                     {
+                        cooldown -= Time.fixedDeltaTime;
+                        if (cooldown < 0)
+                        {
+                            cooldown = maxCooldown;
+                            if (!pathPending && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
+                                CalculatePath(navigationVolume, leaderPosition);
+                        }
+
                         Vector3 path = PathFollower.GetDirection(Rigidbody) * pathStrength;
                         return ((separation + alineation + cohesion).normalized * .5f + path + obstacles).normalized;
                     }
