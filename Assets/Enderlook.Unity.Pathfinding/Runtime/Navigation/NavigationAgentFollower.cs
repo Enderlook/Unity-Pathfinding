@@ -111,8 +111,9 @@ namespace Enderlook.Unity.Pathfinding
 
         private Vector3 GetDirection()
         {
-            if (Vector3.Distance(Rigidbody.position, FlockingLeader.Rigidbody.position) < leaderStoppingDistance)
-                return Vector3.zero;
+            Vector3 direction = (Rigidbody.position - FlockingLeader.Rigidbody.position);
+            if (direction.magnitude < leaderStoppingDistance)
+                return direction.normalized;
 
             Span<EntityInfo> entities = FlockingLeader.GetEntitiesInRange(Rigidbody, flockingRange);
 
