@@ -7,8 +7,6 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Leader"), RequireComponent(typeof(NavigationAgent)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationAgentLeader : MonoBehaviour
     {
-        private NavigationAgent navigationAgent;
-
         private DynamicArray<Rigidbody> followers = DynamicArray<Rigidbody>.Create();
 
         private Vector3[] followersPositions = Array.Empty<Vector3>();
@@ -16,12 +14,12 @@ namespace Enderlook.Unity.Pathfinding
         // We take advantage of Unity single threading to temporarily store in the same array the closest entites to the requested and so reduce allocations
         private DynamicArray<EntityInfo> followersInRange = DynamicArray<EntityInfo>.Create();
 
-        internal NavigationAgent NavigationAgent => navigationAgent;
+        internal NavigationAgent NavigationAgent { get; private set; }
 
-        internal Rigidbody Rigidbody => navigationAgent.Rigidbody;
+        internal Rigidbody Rigidbody => NavigationAgent.Rigidbody;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void Awake() => navigationAgent = GetComponent<NavigationAgent>();
+        private void Awake() => NavigationAgent = GetComponent<NavigationAgent>();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void FixedUpdate()
