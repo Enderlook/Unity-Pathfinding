@@ -25,13 +25,13 @@ namespace Enderlook.Unity.Pathfinding
 
         private Path<Vector3> path;
         private bool canSetPath;
-        private new Rigidbody rigidbody;
+        internal Rigidbody Rigidbody { get; private set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake()
         {
-            rigidbody = GetComponent<Rigidbody>();
-            Movement.Initialize(rigidbody);
+            Rigidbody = GetComponent<Rigidbody>();
+            Movement.Initialize(Rigidbody);
             path = new Path<Vector3>();
         }
 
@@ -48,7 +48,7 @@ namespace Enderlook.Unity.Pathfinding
             if (Movement.IsStopped)
                 return;
 
-            Movement.MoveAndRotate(rigidbody, GetDirection());
+            Movement.MoveAndRotate(Rigidbody, GetDirection());
         }
 
         /// <summary>
@@ -57,7 +57,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="destination">Destiantion to follow.</param>
         public void SetDestinationSync(Vector3 destination)
         {
-            NavigationVolume.CalculatePathSync(path, rigidbody.position, destination);
+            NavigationVolume.CalculatePathSync(path, Rigidbody.position, destination);
             PathFollower.SetPath(path);
         }
 
@@ -67,10 +67,10 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="destination">Destiantion to follow.</param>
         public void SetDestination(Vector3 destination)
         {
-            NavigationVolume.CalculatePath(path, rigidbody.position, destination);
+            NavigationVolume.CalculatePath(path, Rigidbody.position, destination);
             canSetPath = true;
         }
 
-        private Vector3 GetDirection() => PathFollower.GetDirection(rigidbody) + ObstacleAvoidance.GetDirection(rigidbody);
+        private Vector3 GetDirection() => PathFollower.GetDirection(Rigidbody) + ObstacleAvoidance.GetDirection(Rigidbody);
     }
 }
