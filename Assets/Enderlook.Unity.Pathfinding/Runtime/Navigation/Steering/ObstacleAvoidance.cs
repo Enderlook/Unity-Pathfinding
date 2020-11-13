@@ -13,37 +13,37 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
     public struct ObstacleAvoidance : ISteering
     {
         private static Collider[] colliders = new Collider[100];
-        private static int COLLIDER_GROW_FACTOR = 2;
+        private static int GROW_FACTOR = 2;
 
         [SerializeField, Tooltip("Determines which layers does the agent tries to avoid.")]
-        public LayerMask avoidanceLayers;
+        public LayerMask Layers;
 
         [SerializeField, Min(0), Tooltip("Determines the radius in which tries to avoid obstacles.")]
-        private float avoidanceRadius;
-        public float AvoidanceRadius {
-            get => avoidanceRadius;
-            set => avoidanceRadius = ErrorMessage.NoNegativeGuard(nameof(AvoidanceRadius), value);
+        private float radius;
+        public float Radius {
+            get => radius;
+            set => radius = ErrorMessage.NoNegativeGuard(nameof(Radius), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the prediction time used for moving obstacles to avoid their futures positions.")]
-        private float avoidancePredictionTime;
-        public float AvoidancePredictionTime {
-            get => avoidancePredictionTime;
-            set => avoidancePredictionTime = ErrorMessage.NoNegativeGuard(nameof(AvoidancePredictionTime), value);
+        private float predictionTime;
+        public float PredictionTime {
+            get => predictionTime;
+            set => predictionTime = ErrorMessage.NoNegativeGuard(nameof(PredictionTime), value);
         }
 
-        [SerializeField, Min(0), ShowIf(nameof(avoidancePredictionTime), typeof(float), 0, mustBeEqual: false), Tooltip("Determines additional detection radius used for moving obstacles.")]
-        private float avoidancePredictionRadius;
-        public float AvoidancePredictionRadius {
-            get => avoidancePredictionRadius;
-            set => avoidancePredictionRadius = ErrorMessage.NoNegativeGuard(nameof(AvoidancePredictionRadius), value);
+        [SerializeField, Min(0), ShowIf(nameof(predictionTime), typeof(float), 0, mustBeEqual: false), Tooltip("Determines additional detection radius used for moving obstacles.")]
+        private float predictionRadius;
+        public float PredictionRadius {
+            get => predictionRadius;
+            set => predictionRadius = ErrorMessage.NoNegativeGuard(nameof(PredictionRadius), value);
         }
 
         [SerializeField, Min(0), Tooltip("Determines the avoidance strength to repel from obstacles.")]
-        private float avoidanceStrength;
-        public float AvoidanceStrength {
-            get => avoidanceStrength;
-            set => avoidanceStrength = ErrorMessage.NoNegativeGuard(nameof(AvoidanceStrength), value);
+        private float weight;
+        public float Weigth {
+            get => weight;
+            set => weight = ErrorMessage.NoNegativeGuard(nameof(Weigth), value);
         }
 
         Vector3 ISteering.GetDirection(Rigidbody agent) => GetDirection(agent);
@@ -52,15 +52,15 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
         {
             Transform transform = agent.transform;
 
-            float radius = avoidanceRadius;
-            if (avoidancePredictionTime != 0)
-                radius += avoidancePredictionRadius;
+            float radius = Radius;
+            if (predictionTime != 0)
+                radius += predictionRadius;
 
             start:
-            int amount = Physics.OverlapSphereNonAlloc(agent.position, radius, colliders, avoidanceLayers);
+            int amount = Physics.OverlapSphereNonAlloc(agent.position, radius, colliders, Layers);
             if (amount == colliders.Length)
             {
-                Array.Resize(ref colliders, colliders.Length * COLLIDER_GROW_FACTOR);
+                Array.Resize(ref colliders, colliders.Length * GROW_FACTOR);
                 goto start;
             }
 
@@ -79,17 +79,17 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
                 Vector3 position;
                 Vector3 closestPoint = collider.ClosestPointOnBounds(agent.position);
                 if (collider.TryGetComponent(out Rigidbody _rigidbody))
-                    position = closestPoint + _rigidbody.velocity * avoidancePredictionTime;
+                    position = closestPoint + _rigidbody.velocity * predictionTime;
                 else
                     position = closestPoint;
 
                 Vector3 direction = position - currentPosition;
                 float distance = direction.magnitude;
-                if (distance >= avoidanceRadius)
+                if (distance >= Radius)
                     continue;
 
                 count++;
-                total -= (avoidanceRadius - distance) / avoidanceRadius * direction;
+                total -= (Radius - distance) / Radius * direction;
             }
 
             if (count == 0)
@@ -100,7 +100,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
             if (total.sqrMagnitude > 1)
                 total = total.normalized;
 
-            return total * avoidanceStrength;
+            return total * weight;
 
             bool IsMine(Transform otherTransform)
             {
