@@ -71,6 +71,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             ConcurrentPool<TBuilder>.Return(builder);
 
             ((IProcessHandleSourceCompletition)path).End();
+
+            ((IProcessHandle)path).Complete();
         }
 
         private struct Handle<#= variation.Code() #><#= genericDeclaration #>
