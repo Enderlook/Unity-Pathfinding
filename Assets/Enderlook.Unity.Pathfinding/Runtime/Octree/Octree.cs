@@ -75,10 +75,10 @@ namespace Enderlook.Unity.Pathfinding
             query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             this.connectionType = connectionType;
 
-            Clear();
+            ClearCollections();
         }
 
-        private void Clear()
+        private void ClearCollections()
         {
             if (octants is null)
                 octants = new Dictionary<OctantCode, Octant>();

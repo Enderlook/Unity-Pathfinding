@@ -28,10 +28,7 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void SubdivideFromObstacles()
         {
-            if (octants is null)
-                octants = new Dictionary<OctantCode, Octant>();
-            else
-                octants.Clear();
+            ClearCollections();
 
             Collider[] test = new Collider[1];
 
@@ -41,6 +38,16 @@ namespace Enderlook.Unity.Pathfinding
                 octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
 
             FilterFloor();
+            AddToKdTree();
+        }
+
+        private void AddToKdTree()
+        {
+            foreach (KeyValuePair<OctantCode, Octant> kvp in octants)
+            {
+                if (kvp.Value.HasGround && !kvp.Value.IsIntransitable)
+                    kdTree.Insert(center, kvp.Key);
+            }
         }
 
         private void FilterFloor()
