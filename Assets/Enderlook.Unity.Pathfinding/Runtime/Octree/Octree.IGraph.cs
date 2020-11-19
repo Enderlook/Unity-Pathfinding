@@ -1,10 +1,6 @@
-﻿using Enderlook.Unity.Threading;
-
-using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -122,7 +118,7 @@ namespace Enderlook.Unity.Pathfinding
         public float GetHeuristicCost(OctantCode from, OctantCode to) => GetCost(from, to);
 
         public int CachedLineOfSights => lineOfSigths?.Count ?? 0;
-        private ConcurrentDictionary<(Vector3, Vector3), bool> lineOfSigths;
+        private Dictionary<(Vector3, Vector3), bool> lineOfSigths;
 
         /// <inheritdoc cref="IGraphLineOfSight{TCoord}.HasLineOfSight(TCoord, TCoord)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -132,68 +128,9 @@ namespace Enderlook.Unity.Pathfinding
             if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
             {
                 hasLineOfSight = !Physics.Linecast(from, to, filterInclude, query);
-                lineOfSigths.TryAdd(tuple, hasLineOfSight);
+                lineOfSigths.Add(tuple, hasLineOfSight);
             }
             return hasLineOfSight;
-        }
-
-        /// <inheritdoc cref="IGraphLineOfSight{TCoord}.HasLineOfSightBulk(TCoord, TCoord[], bool[], int)"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void HasLineOfSightBulk(Vector3[] from, Vector3[] to, bool[] results, int length)
-        {
-            if (from.Length < length)
-                throw new ArgumentException($"{nameof(from)}.Length must be equal or larger {nameof(length)}.");
-            if (to.Length < length)
-                throw new ArgumentException($"{nameof(to)}.Length must be equal or larger {nameof(length)}.");
-            if (results.Length < length)
-                throw new ArgumentException($"{nameof(results)}.Length must be equal or larger {nameof(length)}.");
-
-            if (ThreadSwitcher.IsExecutingMainThread)
-            {
-                for (int i = 0; i < length; i++)
-                {
-                    (Vector3, Vector3) tuple = (from[i], to[i]);
-                    if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
-                    {
-                        hasLineOfSight = !Physics.Linecast(from[i], to[i], filterInclude, query);
-                        lineOfSigths.TryAdd(tuple, hasLineOfSight);
-                    }
-                    results[i] = hasLineOfSight;
-                }
-            }
-            else
-            {
-                // We don't switch context all the time because it's too expensive
-                int i = 0;
-                for (; i < to.Length; i++)
-                {
-                    (Vector3, Vector3) tuple = (from[i], to[i]);
-                    if (lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
-                        results[i] = hasLineOfSight;
-                    else
-                        goto switchThread;
-                }
-                return;
-
-                switchThread:
-                ExecuteRest().GetAwaiter().GetResult();
-
-                async ValueTask ExecuteRest()
-                {
-                    await ThreadSwitcher.ResumeUnityAsync;
-                    for (; i < to.Length; i++)
-                    {
-                        (Vector3, Vector3) tuple = (from[i], to[i]);
-                        if (!lineOfSigths.TryGetValue(tuple, out bool hasLineOfSight))
-                        {
-                            hasLineOfSight = !Physics.Linecast(from[i], to[i], filterInclude, query);
-                            lineOfSigths.TryAdd(tuple, hasLineOfSight);
-                        }
-                        results[i] = hasLineOfSight;
-                    }
-                    await ThreadSwitcher.ResumeBackgroundAsync;
-                }
-            }
         }
     }
 }

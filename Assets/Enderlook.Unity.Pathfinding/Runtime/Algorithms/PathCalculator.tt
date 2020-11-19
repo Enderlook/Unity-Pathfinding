@@ -62,7 +62,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             var builder = ConcurrentPool<TBuilder>.Rent();
 
-            ThetaStar.CalculatePath
+            AStar.CalculatePath
                 <TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
                 (graph, builder, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>);
 
@@ -123,7 +123,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             public void Execute()
             {
-                ThetaStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
+                AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder <#= IfHasSearcher(", TSearcher") #> <#= IfHasWatchdog(", TWatchdog") #>>
                     (graph, builder, from, <#= IfElseHasSearcher("searcher", "to") #> <#= IfHasWatchdog(", watchdog") #>);
 
                 ((IPathFeeder<TCoord>)builder).FeedPathTo(path);

@@ -1,6 +1,4 @@
-﻿using Enderlook.Collections;
-
-using System;
+﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -153,7 +151,7 @@ namespace Enderlook.Unity.Pathfinding
         internal void LoadFrom(Span<byte> serialized)
         {
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
-            lineOfSigths = new ConcurrentDictionary<(Vector3, Vector3), bool>();
+            lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
             positions = DynamicArray<(OctantCode, Vector3)>.Create();
 
             if (serialized.Length == 0)

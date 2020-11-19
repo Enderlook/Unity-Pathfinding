@@ -1,6 +1,4 @@
-﻿using Enderlook.Collections;
-
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
@@ -59,7 +57,7 @@ namespace Enderlook.Unity.Pathfinding
             query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             this.connectionType = connectionType;
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
-            lineOfSigths = new ConcurrentDictionary<(Vector3, Vector3), bool>();
+            lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
             positions = DynamicArray<(OctantCode, Vector3)>.Create();
         }
 
@@ -96,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding
                 distances.Clear();
 
             if (lineOfSigths is null)
-                lineOfSigths = new ConcurrentDictionary<(Vector3, Vector3), bool>();
+                lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
             else
                 lineOfSigths.Clear();
 
