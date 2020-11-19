@@ -18,7 +18,7 @@ namespace Enderlook.Unity.Pathfinding
          * - (Vetor3 (float x 3): center. Center of this octree.)
          * - (float: size. Size of this octree.)
          * - (byte: subdivisions. Amount of subdivisions of this octree.)
-         * - (LayerMaks (int): filterInclude. Layers included.)
+         * - (LayerMask (int): filterInclude. Layers included.)
          * - (QueryTriggerInteraction (int): query. How raycast is queried.)
          * - (ConnectionType (byte): connection type. Type of connections calculated.)
          * - (int: octants.Count. Amount of stored octants and body.)
