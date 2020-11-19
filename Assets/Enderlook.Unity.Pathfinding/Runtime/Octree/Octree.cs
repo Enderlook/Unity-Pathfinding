@@ -39,13 +39,15 @@ namespace Enderlook.Unity.Pathfinding
 
         private LayerMask filterInclude;
 
+        private LayerMask filterGround;
+
         private QueryTriggerInteraction query;
 
         private ConnectionType connectionType;
 
         private int MaxDepth => subdivisions + 1;
 
-        public Octree(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, bool includeTriggerColliders, ConnectionType connectionType)
+        public Octree(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, LayerMask filterGround, bool includeTriggerColliders, ConnectionType connectionType)
         {
             if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
@@ -54,6 +56,7 @@ namespace Enderlook.Unity.Pathfinding
             this.size = size;
             this.subdivisions = subdivisions;
             this.filterInclude = filterInclude;
+            this.filterGround = filterGround;
             query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             this.connectionType = connectionType;
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
@@ -61,7 +64,7 @@ namespace Enderlook.Unity.Pathfinding
             positions = DynamicArray<(OctantCode, Vector3)>.Create();
         }
 
-        internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, bool includeTriggerColliders, ConnectionType connectionType)
+        internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, LayerMask filterGround, bool includeTriggerColliders, ConnectionType connectionType)
         {
             if (subdivisions > 9)
                 throw new ArgumentOutOfRangeException(nameof(subdivisions), "Must be a value from 1 to 10.", subdivisions.ToString());
@@ -70,6 +73,7 @@ namespace Enderlook.Unity.Pathfinding
             this.size = size;
             this.subdivisions = subdivisions;
             this.filterInclude = filterInclude;
+            this.filterGround = filterGround;
             query = includeTriggerColliders ? QueryTriggerInteraction.Collide : QueryTriggerInteraction.Ignore;
             this.connectionType = connectionType;
 

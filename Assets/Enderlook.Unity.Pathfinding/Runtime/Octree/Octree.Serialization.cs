@@ -19,6 +19,7 @@ namespace Enderlook.Unity.Pathfinding
          * - (float: size. Size of this octree.)
          * - (byte: subdivisions. Amount of subdivisions of this octree.)
          * - (LayerMask (int): filterInclude. Layers included.)
+         * - (LayerMask (int): groundFilter. Layers which determines ground.)
          * - (QueryTriggerInteraction (int): query. How raycast is queried.)
          * - (ConnectionType (byte): connection type. Type of connections calculated.)
          * - (int: octants.Count. Amount of stored octants and body.)
@@ -50,6 +51,7 @@ namespace Enderlook.Unity.Pathfinding
                 sizeof(int) + // Size
                 sizeof(byte) + // Subdivisions
                 sizeof(int) + // Filter Include
+                sizeof(int) + // Filter Ground
                 sizeof(int) + // Query
                 sizeof(byte) + // Connection Type
                 (sizeof(int) * 2) + // Number of octants and number of connections
@@ -84,6 +86,10 @@ namespace Enderlook.Unity.Pathfinding
 
             // filterInclude
             BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), filterInclude.value);
+            index += sizeof(int);
+            
+            // filterGround
+            BinaryPrimitives.WriteInt32LittleEndian(serialized.AsSpan(index, sizeof(int)), filterGround.value);
             index += sizeof(int);
 
             // query
@@ -182,6 +188,13 @@ namespace Enderlook.Unity.Pathfinding
 
                 // filterInclude
                 filterInclude = new LayerMask
+                {
+                    value = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)))
+                };
+                index += sizeof(int);
+
+                // filterGround
+                filterGround = new LayerMask
                 {
                     value = BinaryPrimitives.ReadInt32LittleEndian(serialized.Slice(index, sizeof(int)))
                 };

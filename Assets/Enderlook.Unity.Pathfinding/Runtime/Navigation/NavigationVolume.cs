@@ -22,6 +22,9 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("Define the layers of which GameObject are be included.")]
         private LayerMask filterInclude;
 
+        [SerializeField, Tooltip("Defines the layers of which GameObjects count as ground.")]
+        private LayerMask filterGround;
+
         [SerializeField, Tooltip("Determines the geometry used for path areas.")]
         private GeometryType geometryType;
 
@@ -67,7 +70,7 @@ namespace Enderlook.Unity.Pathfinding
                 graph = new Octree(bakedContent.content);
             else
             {
-                graph = new Octree(transform.position, collectionSize, subdivisions, filterInclude, includeTriggerColliders, connectionType);
+                graph = new Octree(transform.position, collectionSize, subdivisions, filterInclude, filterGround, includeTriggerColliders, connectionType);
                 Bake();
             }
         }
@@ -96,7 +99,7 @@ namespace Enderlook.Unity.Pathfinding
         internal void CheckAndBake()
         {
             if (graph is null)
-                graph = new Octree(transform.position, collectionSize, subdivisions, filterInclude, includeTriggerColliders, connectionType);
+                graph = new Octree(transform.position, collectionSize, subdivisions, filterInclude, filterGround, includeTriggerColliders, connectionType);
 
             Bake();
         }
@@ -117,7 +120,7 @@ namespace Enderlook.Unity.Pathfinding
             graph.CalculateConnections();
         }
 
-        internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions, filterInclude, includeTriggerColliders, connectionType);
+        internal void Clear() => graph.Reset(transform.position, collectionSize, subdivisions, filterInclude, filterGround, includeTriggerColliders, connectionType);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CalculatePathSync(Path<Vector3> path, Vector3 from, Vector3 to)
