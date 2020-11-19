@@ -10,6 +10,8 @@ namespace Enderlook.Unity.Pathfinding
     {
         private Dictionary<OctantCode, Octant> octants;
 
+        private static readonly Collider[] dummy = new Collider[1];
+
 #if UNITY_EDITOR
         /// <summary>
         /// Only use in Editor.
@@ -30,11 +32,9 @@ namespace Enderlook.Unity.Pathfinding
         {
             ClearCollections();
 
-            Collider[] test = new Collider[1];
-
             octants[OctantCode.Root] = new Octant(OctantCode.Root);
 
-            if (CheckChild(OctantCode.Root, center, test))
+            if (CheckChild(OctantCode.Root, center))
                 octants[OctantCode.Root] = new Octant(OctantCode.Root, center, Octant.StatusFlags.IsIntransitable);
 
             FilterFloor();
@@ -70,7 +70,11 @@ namespace Enderlook.Unity.Pathfinding
 
                 Octant belowOctant = octants[belowCode];
                 if (belowOctant.IsIntransitable)
-                    toChange.Add(kvp.Key);
+                {
+                    int count = Physics.OverlapBoxNonAlloc(belowOctant.Center, Vector3.one * belowOctant.GetSize(size), dummy, Quaternion.identity, filterGround, query);
+                    if (count == 1)
+                        toChange.Add(kvp.Key);
+                }
             }
 
             foreach (OctantCode code in toChange)
@@ -81,10 +85,7 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        private bool CheckChild(
-            OctantCode code,
-            Vector3 center,
-            Collider[] test)
+        private bool CheckChild(OctantCode code, Vector3 center)
         {
             Octant octant = new Octant(code, center)
             {
@@ -93,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding
 
             float currentSize = octant.GetSize(size) * .5f;
 
-            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * currentSize, test, Quaternion.identity, filterInclude, query);
+            int count = Physics.OverlapBoxNonAlloc(center, Vector3.one * currentSize, dummy, Quaternion.identity, filterInclude, query);
             if (count == 0)
             {
                 octants[code] = octant;
@@ -123,14 +124,14 @@ namespace Enderlook.Unity.Pathfinding
             OctantCode code6 = new OctantCode(firstChild++);
             OctantCode code7 = new OctantCode(firstChild);
             if (
-                CheckChild(code0, center + (ChildrenPositions.Child0 * currentSize), test) &
-                CheckChild(code1, center + (ChildrenPositions.Child1 * currentSize), test) &
-                CheckChild(code2, center + (ChildrenPositions.Child2 * currentSize), test) &
-                CheckChild(code3, center + (ChildrenPositions.Child3 * currentSize), test) &
-                CheckChild(code4, center + (ChildrenPositions.Child4 * currentSize), test) &
-                CheckChild(code5, center + (ChildrenPositions.Child5 * currentSize), test) &
-                CheckChild(code6, center + (ChildrenPositions.Child6 * currentSize), test) &
-                CheckChild(code7, center + (ChildrenPositions.Child7 * currentSize), test)
+                CheckChild(code0, center + (ChildrenPositions.Child0 * currentSize)) &
+                CheckChild(code1, center + (ChildrenPositions.Child1 * currentSize)) &
+                CheckChild(code2, center + (ChildrenPositions.Child2 * currentSize)) &
+                CheckChild(code3, center + (ChildrenPositions.Child3 * currentSize)) &
+                CheckChild(code4, center + (ChildrenPositions.Child4 * currentSize)) &
+                CheckChild(code5, center + (ChildrenPositions.Child5 * currentSize)) &
+                CheckChild(code6, center + (ChildrenPositions.Child6 * currentSize)) &
+                CheckChild(code7, center + (ChildrenPositions.Child7 * currentSize))
                 )
             {
                 // If all children are intransitable, we can kill them and just mark this node as intransitable to save space
