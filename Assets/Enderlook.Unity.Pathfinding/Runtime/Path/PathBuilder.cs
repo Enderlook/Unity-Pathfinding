@@ -168,10 +168,19 @@ namespace Enderlook.Unity.Pathfinding
                 lastOptimized = previous;
             }
 
+            TCoord last = pathRaw[pathRaw.Count - 1];
+            if (pathOptimized.Count > 1)
+            {
+                if (lineOfsight.HasLineOfSight(pathOptimized[pathOptimized.Count - 2], last))
+                    pathOptimized[pathOptimized.Count - 1] = last;
+                else
+                    pathOptimized.Add(last);
+            }
+            else
+                pathOptimized.Add(last);
+
             if (isTask)
                 await ThreadSwitcher.ResumeBackgroundAsync;
-
-            pathOptimized.Add(pathRaw[pathRaw.Count - 1]);
         }
 
         /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
