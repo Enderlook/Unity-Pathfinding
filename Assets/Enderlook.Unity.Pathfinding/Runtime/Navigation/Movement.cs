@@ -50,7 +50,7 @@ namespace Assets.Enderlook.Unity.Pathfinding
             if (direction == Vector3.zero)
                 return;
 
-            rigidbody.rotation = Quaternion.RotateTowards(rigidbody.rotation, Quaternion.LookRotation(-direction), angularSpeed * Time.fixedDeltaTime);
+            rigidbody.rotation = Quaternion.RotateTowards(rigidbody.rotation, Quaternion.LookRotation(direction), angularSpeed * Time.fixedDeltaTime);
         }
     }
 }
