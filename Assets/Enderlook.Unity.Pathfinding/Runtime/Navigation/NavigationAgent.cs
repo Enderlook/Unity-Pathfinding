@@ -23,8 +23,13 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("Configuration of the obstacle avoidance.")]
         public ObstacleAvoidance ObstacleAvoidance;
 
+        /// <summary>
+        /// Whenever it's calculating a new path.
+        /// </summary>
+        public bool IsPending { get; private set; }
+
         private Path<Vector3> path;
-        private bool canSetPath;
+
         internal Rigidbody Rigidbody { get; private set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -38,9 +43,9 @@ namespace Enderlook.Unity.Pathfinding
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void FixedUpdate()
         {
-            if (path.IsComplete && canSetPath)
+            if (path.IsComplete && IsPending)
             {
-                canSetPath = false;
+                IsPending = false;
                 path.Complete();
                 PathFollower.SetPath(path);
             }
@@ -68,7 +73,7 @@ namespace Enderlook.Unity.Pathfinding
         public void SetDestination(Vector3 destination)
         {
             NavigationVolume.CalculatePath(path, Rigidbody.position, destination);
-            canSetPath = true;
+            IsPending = true;
         }
 
         private Vector3 GetDirection() => PathFollower.GetDirection(Rigidbody) + ObstacleAvoidance.GetDirection(Rigidbody);
