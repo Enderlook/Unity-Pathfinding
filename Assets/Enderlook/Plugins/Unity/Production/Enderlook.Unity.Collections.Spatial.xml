@@ -1,0 +1,290 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Enderlook.Unity.Collections.Spatial</name>
+    </assembly>
+    <members>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector2.IsEmpty">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2&gt;.IsEmpty"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector2.Count">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2&gt;.Count"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.Clear">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2&gt;.Contains(UnityEngine.Vector2)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.Contains(UnityEngine.Vector2)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2&gt;.Contains(UnityEngine.Vector2)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.GetEnumerator">
+            <inheritdoc cref="!:IEnumerable&lt;UnityEngine.Vector2&gt;.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.System#Collections#IEnumerable#GetEnumerator">
+            <inheritdoc cref="M:System.Collections.IEnumerable.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.FindNearestNeighbour(UnityEngine.Vector2)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector2&gt;.FindNearestNeighbour(UnityEngine.Vector2)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.Insert(UnityEngine.Vector2)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector2&gt;.Insert(UnityEngine.Vector2)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.TryFindNearestNeighbour(UnityEngine.Vector2)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector2&gt;.TryFindNearestNeighbour(UnityEngine.Vector2)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2.Remove(UnityEngine.Vector2)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2&gt;.Remove(UnityEngine.Vector2)"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector3.IsEmpty">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3&gt;.IsEmpty"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector3.Count">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3&gt;.Count"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.Clear">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3&gt;.Contains(UnityEngine.Vector3)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.Contains(UnityEngine.Vector3)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3&gt;.Contains(UnityEngine.Vector3)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.GetEnumerator">
+            <inheritdoc cref="!:IEnumerable&lt;UnityEngine.Vector3&gt;.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.System#Collections#IEnumerable#GetEnumerator">
+            <inheritdoc cref="M:System.Collections.IEnumerable.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.FindNearestNeighbour(UnityEngine.Vector3)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector3&gt;.FindNearestNeighbour(UnityEngine.Vector3)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.Insert(UnityEngine.Vector3)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector3&gt;.Insert(UnityEngine.Vector3)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.TryFindNearestNeighbour(UnityEngine.Vector3)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector3&gt;.TryFindNearestNeighbour(UnityEngine.Vector3)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3.Remove(UnityEngine.Vector3)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3&gt;.Remove(UnityEngine.Vector3)"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector4.IsEmpty">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector4&gt;.IsEmpty"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector4.Count">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector4&gt;.Count"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.Clear">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector4&gt;.Contains(UnityEngine.Vector4)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.Contains(UnityEngine.Vector4)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector4&gt;.Contains(UnityEngine.Vector4)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.GetEnumerator">
+            <inheritdoc cref="!:IEnumerable&lt;UnityEngine.Vector4&gt;.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.System#Collections#IEnumerable#GetEnumerator">
+            <inheritdoc cref="M:System.Collections.IEnumerable.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.FindNearestNeighbour(UnityEngine.Vector4)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector4&gt;.FindNearestNeighbour(UnityEngine.Vector4)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.Insert(UnityEngine.Vector4)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector4&gt;.Insert(UnityEngine.Vector4)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.TryFindNearestNeighbour(UnityEngine.Vector4)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector4&gt;.TryFindNearestNeighbour(UnityEngine.Vector4)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector4.Remove(UnityEngine.Vector4)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector4&gt;.Remove(UnityEngine.Vector4)"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.IsEmpty">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2Int&gt;.IsEmpty"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.Count">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2Int&gt;.Count"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.Clear">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2Int&gt;.Contains(UnityEngine.Vector2Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.Contains(UnityEngine.Vector2Int)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2Int&gt;.Contains(UnityEngine.Vector2Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.GetEnumerator">
+            <inheritdoc cref="!:IEnumerable&lt;UnityEngine.Vector2Int&gt;.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.System#Collections#IEnumerable#GetEnumerator">
+            <inheritdoc cref="M:System.Collections.IEnumerable.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.FindNearestNeighbour(UnityEngine.Vector2Int)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector2Int&gt;.FindNearestNeighbour(UnityEngine.Vector2Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.Insert(UnityEngine.Vector2Int)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector2Int&gt;.Insert(UnityEngine.Vector2Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.TryFindNearestNeighbour(UnityEngine.Vector2Int)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector2Int&gt;.TryFindNearestNeighbour(UnityEngine.Vector2Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector2Int.Remove(UnityEngine.Vector2Int)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector2Int&gt;.Remove(UnityEngine.Vector2Int)"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.IsEmpty">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3Int&gt;.IsEmpty"/>
+        </member>
+        <member name="P:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.Count">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3Int&gt;.Count"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.Clear">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3Int&gt;.Contains(UnityEngine.Vector3Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.Contains(UnityEngine.Vector3Int)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3Int&gt;.Contains(UnityEngine.Vector3Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.GetEnumerator">
+            <inheritdoc cref="!:IEnumerable&lt;UnityEngine.Vector3Int&gt;.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.System#Collections#IEnumerable#GetEnumerator">
+            <inheritdoc cref="M:System.Collections.IEnumerable.GetEnumerator"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.FindNearestNeighbour(UnityEngine.Vector3Int)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector3Int&gt;.FindNearestNeighbour(UnityEngine.Vector3Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.Insert(UnityEngine.Vector3Int)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector3Int&gt;.Insert(UnityEngine.Vector3Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.TryFindNearestNeighbour(UnityEngine.Vector3Int)">
+            <inheritdoc cref="!:ISpatialIndex&lt;UnityEngine.Vector3Int&gt;.TryFindNearestNeighbour(UnityEngine.Vector3Int)"/>
+        </member>
+        <member name="M:Enderlook.Unity.Collections.Spatial.KDTreeVector3Int.Remove(UnityEngine.Vector3Int)">
+            <inheritdoc cref="!:ISpatialIndexCommon&lt;UnityEngine.Vector3Int&gt;.Remove(UnityEngine.Vector3Int)"/>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.EqualityType.EqualityOperator">
+            <summary>
+            <c>a == b</c>.
+            <c>!(a == b)</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.EqualityType.EqualsMethod">
+            <summary>
+            <c>a.Equals(b)</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.EqualityType.EqualsByRefMethod">
+            <summary>
+            <c>a.Equals(ref b)</c>.
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "F:Enderlook.Collections.Spatial.EqualityType.EqualsInterfaceMethod" -->
+        <!-- Badly formed XML comment ignored for member "F:Enderlook.Collections.Spatial.EqualityType.DefaultEqualityComparer" -->
+        <member name="F:Enderlook.Collections.Spatial.EqualityType.DefinedInType">
+            <summary>
+            <c>Equals(a, b)</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.EqualityType.DefinedInTypeByRef">
+            <summary>
+            <c>Equals(ref a, ref b)</c>.
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "F:Enderlook.Collections.Spatial.ComparabilityType.ComparerOperator" -->
+        <member name="F:Enderlook.Collections.Spatial.ComparabilityType.CompareToMethod">
+            <summary>
+            <c>a.CompareTo(b)</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.ComparabilityType.CompareToByRefMethod">
+            <summary>
+            <c>a.CompareTo(ref b)</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.ComparabilityType.IComparable">
+            <summary>
+            <c>((IComparable)a).CompareTo(b)</c>.
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "F:Enderlook.Collections.Spatial.ComparabilityType.IComparableGeneric" -->
+        <!-- Badly formed XML comment ignored for member "F:Enderlook.Collections.Spatial.ComparabilityType.DefaultComparer" -->
+        <member name="F:Enderlook.Collections.Spatial.ComparabilityType.DefinedInType">
+            <summary>
+            <c>Compare(a, b)</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.ComparabilityType.DefinedInTypeByRef">
+            <summary>
+            <c>Compare(ref a, ref b)</c>.
+            </summary>
+        </member>
+        <!-- Badly formed XML comment ignored for member "T:Enderlook.Collections.Spatial.KDTreeCustomAttribute" -->
+        <member name="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.IndexType">
+            <summary>
+            Determines the type of the index.<br/>
+            For example:
+            <c>(int, int)</c> or <c>Vector3</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.DistanceType">
+            <summary>
+            Determines the type of the distance between index.<br/>
+            For example:
+            <c>float</c> or <c>double</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.DistanceComparabilityMode">
+            <summary>
+            Determines the type of comparison between distances.<br/>
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.Dimensions">
+            <summary>
+            Determines the amount of dimensions (axis) it does have.<br/>
+            That is the number of fields the <see cref="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.IndexType"/> has.<br/>
+            This value must be greater than 1;
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.IndexEqualityMode">
+            <summary>
+            Determines how equality is perfomed on the <see cref="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.IndexType"/> type.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeCustomAttribute.SafeEnumeration">
+            <summary>
+            Whenever it should throw an exception if the instance is updated while it's enumerating.
+            </summary>
+        </member>
+        <member name="T:Enderlook.Collections.Spatial.KDTreeTupleAttribute">
+            <summary>
+            Autogenerates code to construct an strongly typed KD-Tree using value tuples.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.IndexType">
+            <summary>
+            Determines the type of the index.<br/>
+            For example:
+            <c>int</c> or <c>double</c>.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.Dimensions">
+            <summary>
+            Determines the amount of dimensions (axis) it does have.<br/>
+            That is the number of fields the <see cref="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.IndexType"/> has.<br/>
+            This value must be greater than 1;
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.IndexEqualityMode">
+            <summary>
+            Determines how equality is perfomed on the <see cref="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.IndexType"/> type.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.IndexComparabilityMode">
+            <summary>
+            Determines the type of comparison between <see cref="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.IndexType"/> axis.<br/>
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.SafeEnumeration">
+            <summary>
+            Whenever it should throw an exception if the instance is updated while it's enumerating.
+            </summary>
+        </member>
+        <member name="F:Enderlook.Collections.Spatial.KDTreeTupleAttribute.PassIndexByReference">
+            <summary>
+            Whenever it should pass field by reference in the underliyng code.
+            </summary>
+        </member>
+    </members>
+</doc>
