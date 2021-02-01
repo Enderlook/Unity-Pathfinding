@@ -1,0 +1,15 @@
+{
+    "name": "Enderlook.Unity.Pathfinding",
+    "references": [
+        "GUID:3b94afafe5219ff4e9581b8747e5dada",
+        "GUID:f08c8926a21dd0348ae52330b4f06db1"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": []
+}
