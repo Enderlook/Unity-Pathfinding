@@ -3,7 +3,6 @@ using Enderlook.Unity.Threading;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -138,7 +137,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private async ValueTask OptimizePath()
         {
-            Debug.Assert(pathRaw.Count >= 2);
+            System.Diagnostics.Debug.Assert(pathRaw.Count >= 2);
 
             pathOptimized.Clear();
 
@@ -151,9 +150,9 @@ namespace Enderlook.Unity.Pathfinding
 
             pathOptimized.Add(pathRaw[0]);
 
-            bool isTask = !ThreadSwitcher.IsExecutingMainThread;
+            bool isTask = !Switch.IsInMainThread;
             if (isTask)
-                await ThreadSwitcher.ResumeUnityAsync;
+                await Switch.ToUnity;
 
             TCoord previous;
             TCoord current = pathRaw[0];
@@ -180,7 +179,7 @@ namespace Enderlook.Unity.Pathfinding
                 pathOptimized.Add(last);
 
             if (isTask)
-                await ThreadSwitcher.ResumeBackgroundAsync;
+                await Switch.ToBackground;
         }
 
         /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
