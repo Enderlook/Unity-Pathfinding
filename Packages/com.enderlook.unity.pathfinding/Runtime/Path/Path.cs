@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Enderlook.Collections.LowLevel;
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -11,7 +13,7 @@ namespace Enderlook.Unity.Pathfinding
     /// Represents a path.
     /// </summary>
     /// <typeparam name="TInfo">Node or coordinate type.</typeparam>
-    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IProcessHandle, IProcessHandleSourceCompletition, IEnumerable<TInfo>
+    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IProcessHandle, IProcessHandleSourceCompletition, IEnumerable<TInfo>, IDisposable
     {
         private const string CAN_NOT_FEED_IF_IS_NOT_PENDING = "Can't feed path if it's not pending.";
         private const string CAN_NOT_GET_DESTINATION_IF_PATH_WAS_NOT_FOUND = "Can't get destination if path is empty or not found.";
@@ -19,7 +21,7 @@ namespace Enderlook.Unity.Pathfinding
         private const string PATH_WAS_MODIFIED_OUTDATED_ENUMERATOR = "Path was modified; enumeration operation may not execute.";
         private const string CAN_NOT_EXECUTE_IF_IS_PENDING = "Can't execute if it's pending.";
 
-        private DynamicArray<TInfo> list = DynamicArray<TInfo>.Create();
+        private DynamicPooledArray<TInfo> list = DynamicPooledArray<TInfo>.Create();
         private int version;
         private Status status;
         private ProcessHandle processHandle;
@@ -160,6 +162,9 @@ namespace Enderlook.Unity.Pathfinding
         /// <inheritdoc cref="IProcessHandleSourceCompletition.End"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IProcessHandleSourceCompletition.End() => processHandle.End();
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose() => list.Dispose();
 
         public struct Enumerator : IEnumerator<TInfo>
         {

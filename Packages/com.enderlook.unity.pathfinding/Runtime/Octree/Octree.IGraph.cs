@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using Enderlook.Collections.LowLevel;
+
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -14,7 +16,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 ToPosition(OctantCode code) => octants[code].Center;
 
-        private DynamicArray<(OctantCode, Vector3)> positions;
+        private DynamicPooledArray<(OctantCode, Vector3)> positions;
 
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.FindClosestNodeTo(TCoord)"/>
         public OctantCode FindClosestNodeTo(Vector3 position)

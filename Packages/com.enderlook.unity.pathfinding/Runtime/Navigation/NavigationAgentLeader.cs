@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Enderlook.Collections.LowLevel;
+
+using System;
 
 using UnityEngine;
 
@@ -7,12 +9,12 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Leader"), RequireComponent(typeof(NavigationAgent)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationAgentLeader : MonoBehaviour
     {
-        private DynamicArray<Rigidbody> followers = DynamicArray<Rigidbody>.Create();
+        private DynamicPooledArray<Rigidbody> followers = DynamicPooledArray<Rigidbody>.Create();
 
         private Vector3[] followersPositions = Array.Empty<Vector3>();
 
         // We take advantage of Unity single threading to temporarily store in the same array the closest entites to the requested and so reduce allocations
-        private DynamicArray<EntityInfo> followersInRange = DynamicArray<EntityInfo>.Create();
+        private DynamicPooledArray<EntityInfo> followersInRange = DynamicPooledArray<EntityInfo>.Create();
 
         internal NavigationAgent NavigationAgent { get; private set; }
 

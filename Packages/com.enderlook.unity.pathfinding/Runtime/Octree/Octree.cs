@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Enderlook.Collections.LowLevel;
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
@@ -6,7 +8,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    internal sealed partial class Octree
+    internal sealed partial class Octree : IDisposable
     {
         /* Octree Representation Data Structures
          *  https://geidav.wordpress.com/2014/08/18/advanced-octrees-2-node-representations/
@@ -61,7 +63,7 @@ namespace Enderlook.Unity.Pathfinding
             this.connectionType = connectionType;
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
-            positions = DynamicArray<(OctantCode, Vector3)>.Create();
+            positions = DynamicPooledArray<(OctantCode, Vector3)>.Create();
         }
 
         internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, LayerMask filterGround, bool includeTriggerColliders, ConnectionType connectionType)
@@ -103,9 +105,12 @@ namespace Enderlook.Unity.Pathfinding
                 lineOfSigths.Clear();
 
             if (positions.IsDefault)
-                positions = DynamicArray<(OctantCode, Vector3)>.Create();
+                positions = DynamicPooledArray<(OctantCode, Vector3)>.Create();
             else
                 positions.Clear();
         }
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose() => positions.Dispose();
     }
 }

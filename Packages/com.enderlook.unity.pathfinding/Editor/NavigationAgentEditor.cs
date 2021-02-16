@@ -1,4 +1,5 @@
-﻿using Enderlook.Unity.Toolset.Utils;
+﻿using Enderlook.Collections.LowLevel;
+using Enderlook.Unity.Toolset.Utils;
 
 using UnityEditor;
 
@@ -33,7 +34,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             if (drawPath)
             {
-                DynamicArray<Vector3>.Enumerator enumerator = target.PathFollower.enumerator;
+                DynamicPooledArray<Vector3>.Enumerator enumerator = target.PathFollower.enumerator;
                 if (enumerator.IsDefault)
                     return;
 

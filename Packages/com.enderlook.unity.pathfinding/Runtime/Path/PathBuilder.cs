@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections;
+using Enderlook.Collections.LowLevel;
 using Enderlook.Unity.Threading;
 
 using System;
@@ -13,7 +14,7 @@ namespace Enderlook.Unity.Pathfinding
     /// </summary>
     /// <typeparam name="TNode">Node type.</typeparam>
     /// <typeparam name="TCoord">Coordinate type.</typeparam>
-    internal sealed class PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>
+    internal sealed class PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, IDisposable
     {
         private const string CAN_NOT_INITIALIZE_ALREADY_INITIALIZED = "Can't initialize a builder session because it's already initialized.";
         private const string CAN_NOT_EXECUTE_IF_IS_NOT_FINALIZED = "Can't execute if the session hasn't finalized";
@@ -24,8 +25,8 @@ namespace Enderlook.Unity.Pathfinding
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
         private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
-        private DynamicArray<TCoord> pathRaw = DynamicArray<TCoord>.Create();
-        private DynamicArray<TCoord> pathOptimized = DynamicArray<TCoord>.Create();
+        private DynamicPooledArray<TCoord> pathRaw = DynamicPooledArray<TCoord>.Create();
+        private DynamicPooledArray<TCoord> pathOptimized = DynamicPooledArray<TCoord>.Create();
 
         private IGraphLocation<TNode, TCoord> converter;
         private IGraphLineOfSight<TCoord> lineOfsight;
@@ -326,6 +327,13 @@ namespace Enderlook.Unity.Pathfinding
 #endif
 
             return visited.Contains(node);
+        }
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose()
+        {
+            pathRaw.Dispose();
+            pathOptimized.Dispose();
         }
 
         [Flags]

@@ -74,6 +74,11 @@
             "name": "com.enderlook.threading",
             "hash": "1e4a655e0a80003506cb1a691abe6bad7e26b872",
             "url": "https://github.com/Enderlook/Unity-Net-Packages?path=Packages/com.enderlook.threading#com.enderlook.threading/v0.1.0"
+        },
+        {
+            "name": "com.enderlook.collections.low_level",
+            "hash": "eeb14b2999e24d8792974eab094cf7f877011a88",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.low_level#com.enderlook.collections.low_level/v0.1.0"
         }
     ]
 }

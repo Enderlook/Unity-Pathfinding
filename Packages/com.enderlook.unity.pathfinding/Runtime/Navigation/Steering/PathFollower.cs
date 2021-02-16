@@ -1,4 +1,5 @@
-﻿using Enderlook.Unity.Pathfinding;
+﻿using Enderlook.Collections.LowLevel;
+using Enderlook.Unity.Pathfinding;
 
 using System;
 
@@ -10,7 +11,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
     /// An steering behavour to follow a path.
     /// </summary>
     [Serializable]
-    public struct PathFollower : ISteering
+    public struct PathFollower : ISteering, IDisposable
     {
         [SerializeField, Min(0), Tooltip("Determines the minimal distance from the target to consider it as reached.")]
         private float stoppingDistance;
@@ -33,8 +34,8 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        private DynamicArray<Vector3> innerPath;
-        internal DynamicArray<Vector3>.Enumerator enumerator;
+        private DynamicPooledArray<Vector3> innerPath;
+        internal DynamicPooledArray<Vector3>.Enumerator enumerator;
 
         /// <summary>
         /// Set the path to follow.
@@ -43,7 +44,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
         public void SetPath(Span<Vector3> path)
         {
             if (innerPath.IsDefault)
-                innerPath = DynamicArray<Vector3>.Create();
+                innerPath = DynamicPooledArray<Vector3>.Create();
             innerPath.Clear();
             innerPath.AddRange(path);
             enumerator = innerPath.GetEnumerator();
@@ -80,5 +81,12 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
 
         /// <inheritdoc cref="ISteering.GetDirection(Rigidbody)"/>
         Vector3 ISteering.GetDirection(Rigidbody agent) => GetDirection(agent);
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose()
+        {
+            innerPath.Dispose();
+            enumerator.Dispose();
+        }
     }
 }
