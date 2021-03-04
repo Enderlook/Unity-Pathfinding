@@ -63,7 +63,7 @@ namespace Enderlook.Unity.Pathfinding
             this.connectionType = connectionType;
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
-            positions = DynamicPooledArray<(OctantCode, Vector3)>.Create();
+            positions = RawPooledList<(OctantCode, Vector3)>.Create();
         }
 
         internal void Reset(Vector3 center, float size, byte subdivisions, LayerMask filterInclude, LayerMask filterGround, bool includeTriggerColliders, ConnectionType connectionType)
@@ -105,7 +105,7 @@ namespace Enderlook.Unity.Pathfinding
                 lineOfSigths.Clear();
 
             if (positions.IsDefault)
-                positions = DynamicPooledArray<(OctantCode, Vector3)>.Create();
+                positions = RawPooledList<(OctantCode, Vector3)>.Create();
             else
                 positions.Clear();
         }

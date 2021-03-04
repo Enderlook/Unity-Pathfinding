@@ -21,7 +21,7 @@ namespace Enderlook.Unity.Pathfinding
         private const string PATH_WAS_MODIFIED_OUTDATED_ENUMERATOR = "Path was modified; enumeration operation may not execute.";
         private const string CAN_NOT_EXECUTE_IF_IS_PENDING = "Can't execute if it's pending.";
 
-        private DynamicPooledArray<TInfo> list = DynamicPooledArray<TInfo>.Create();
+        private RawPooledList<TInfo> list = RawPooledList<TInfo>.Create();
         private int version;
         private Status status;
         private ProcessHandle processHandle;
@@ -31,7 +31,7 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         internal Span<TInfo> AsSpan {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => list.AsSpan;
+            get => list.AsSpan();
         }
 
         /// <summary>

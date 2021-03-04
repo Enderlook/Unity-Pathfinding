@@ -34,8 +34,11 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        private DynamicPooledArray<Vector3> innerPath;
-        internal DynamicPooledArray<Vector3>.Enumerator enumerator;
+        private RawPooledList<Vector3> innerPath;
+        private RawPooledList<Vector3>.Enumerator enumerator;
+#if UNITY_EDITOR
+        internal RawPooledList<Vector3>.Enumerator previousEnumerator;
+#endif
 
         /// <summary>
         /// Set the path to follow.
@@ -44,10 +47,13 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
         public void SetPath(Span<Vector3> path)
         {
             if (innerPath.IsDefault)
-                innerPath = DynamicPooledArray<Vector3>.Create();
+                innerPath = RawPooledList<Vector3>.Create();
             innerPath.Clear();
             innerPath.AddRange(path);
             enumerator = innerPath.GetEnumerator();
+#if UNITY_EDITOR
+            previousEnumerator = enumerator;
+#endif
             HasPath = enumerator.MoveNext();
         }
 
@@ -68,6 +74,9 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
             float distance = direction.magnitude;
             if (distance <= stoppingDistance)
             {
+#if UNITY_EDITOR
+                previousEnumerator = enumerator;
+#endif
                 if (!enumerator.MoveNext())
                 {
                     HasPath = false;

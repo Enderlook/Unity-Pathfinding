@@ -16,7 +16,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 ToPosition(OctantCode code) => octants[code].Center;
 
-        private DynamicPooledArray<(OctantCode, Vector3)> positions;
+        private RawPooledList<(OctantCode, Vector3)> positions;
 
         /// <inheritdoc cref="IGraphLocation{TNode, TCoord}.FindClosestNodeTo(TCoord)"/>
         public OctantCode FindClosestNodeTo(Vector3 position)

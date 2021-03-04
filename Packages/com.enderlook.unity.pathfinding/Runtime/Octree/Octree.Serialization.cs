@@ -160,7 +160,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             distances = new ConcurrentDictionary<(OctantCode, OctantCode), float>();
             lineOfSigths = new Dictionary<(Vector3, Vector3), bool>();
-            positions = DynamicPooledArray<(OctantCode, Vector3)>.Create();
+            positions = RawPooledList<(OctantCode, Vector3)>.Create();
 
             if (serialized.Length == 0)
             {

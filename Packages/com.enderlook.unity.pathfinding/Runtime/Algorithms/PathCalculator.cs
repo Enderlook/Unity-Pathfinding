@@ -86,7 +86,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TWatchdog : IWatchdog
         {
             ((IProcessHandleSourceCompletition)path).Start();
-            JobHandle jobHandle = new JobSearcherWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog>(graph, path, from, searcher, watchdog).ScheduleManaged();
+            JobHandle jobHandle = new JobSearcherWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog>(graph, path, from, searcher, watchdog).Schedule();
             ((IProcessHandleSourceCompletition)path).SetJobHandle(jobHandle);
         }
 
@@ -99,7 +99,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TSearcher : ISearcherSatisfy<TNode>, ISearcherHeuristic<TNode>
         {
             ((IProcessHandleSourceCompletition)path).Start();
-            JobHandle jobHandle = new JobSearcher<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher>(graph, path, from, searcher).ScheduleManaged();
+            JobHandle jobHandle = new JobSearcher<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher>(graph, path, from, searcher).Schedule();
             ((IProcessHandleSourceCompletition)path).SetJobHandle(jobHandle);
         }
 
@@ -112,7 +112,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TWatchdog : IWatchdog
         {
             ((IProcessHandleSourceCompletition)path).Start();
-            JobHandle jobHandle = new JobWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TWatchdog>(graph, path, from, to, watchdog).ScheduleManaged();
+            JobHandle jobHandle = new JobWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TWatchdog>(graph, path, from, to, watchdog).Schedule();
             ((IProcessHandleSourceCompletition)path).SetJobHandle(jobHandle);
         }
 
@@ -124,11 +124,11 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
         {
             ((IProcessHandleSourceCompletition)path).Start();
-            JobHandle jobHandle = new Job<TCoord, TNode, TNodes, TGraph, TBuilder, TPath>(graph, path, from, to).ScheduleManaged();
+            JobHandle jobHandle = new Job<TCoord, TNode, TNodes, TGraph, TBuilder, TPath>(graph, path, from, to).Schedule();
             ((IProcessHandleSourceCompletition)path).SetJobHandle(jobHandle);
         }
 
-        private struct JobSearcherWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog> : IJobManaged
+        private struct JobSearcherWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog> : IManagedJob
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
@@ -151,7 +151,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 this.watchdog = watchdog;
             }
 
-            void IJob.Execute()
+            void IManagedJob.Execute()
             {
                 TBuilder builder = ConcurrentPool<TBuilder>.Rent();
                 AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog>(graph, builder, from, searcher, watchdog);
@@ -161,7 +161,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             }
         }
 
-        private struct JobSearcher<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher> : IJobManaged
+        private struct JobSearcher<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher> : IManagedJob
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
@@ -181,7 +181,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 this.searcher = searcher;
             }
 
-            void IJob.Execute()
+            void IManagedJob.Execute()
             {
                 TBuilder builder = ConcurrentPool<TBuilder>.Rent();
                 AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher>(graph, builder, from, searcher);
@@ -191,7 +191,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             }
         }
 
-        private struct JobWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TWatchdog> : IJobManaged
+        private struct JobWatchdog<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TWatchdog> : IManagedJob
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
@@ -213,7 +213,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 this.watchdog = watchdog;
             }
 
-            void IJob.Execute()
+            void IManagedJob.Execute()
             {
                 TBuilder builder = ConcurrentPool<TBuilder>.Rent();
                 AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TWatchdog>(graph, builder, from, to, watchdog);
@@ -223,7 +223,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             }
         }
 
-        private struct Job<TCoord, TNode, TNodes, TGraph, TBuilder, TPath> : IJobManaged
+        private struct Job<TCoord, TNode, TNodes, TGraph, TBuilder, TPath> : IManagedJob
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphHeuristic<TNode>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
@@ -242,7 +242,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 this.to = to;
             }
 
-            void IJob.Execute()
+            void IManagedJob.Execute()
             {
                 TBuilder builder = ConcurrentPool<TBuilder>.Rent();
                 AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder>(graph, builder, from, to);

@@ -34,14 +34,13 @@ namespace Enderlook.Unity.Pathfinding
         {
             if (drawPath)
             {
-                DynamicPooledArray<Vector3>.Enumerator enumerator = target.PathFollower.enumerator;
+                RawPooledList<Vector3>.Enumerator enumerator = target.PathFollower.previousEnumerator;
                 if (enumerator.IsDefault)
                     return;
 
                 Handles.color = Color.blue;
                 Vector3 start;
                 Vector3 end = target.transform.position;
-                enumerator.MoveBack();
                 while (enumerator.MoveNext())
                 {
                     Handles.DrawWireCube(end, Vector3.one * .1f);

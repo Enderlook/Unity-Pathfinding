@@ -25,8 +25,8 @@ namespace Enderlook.Unity.Pathfinding
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
         private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
-        private DynamicPooledArray<TCoord> pathRaw = DynamicPooledArray<TCoord>.Create();
-        private DynamicPooledArray<TCoord> pathOptimized = DynamicPooledArray<TCoord>.Create();
+        private RawPooledList<TCoord> pathRaw = RawPooledList<TCoord>.Create();
+        private RawPooledList<TCoord> pathOptimized = RawPooledList<TCoord>.Create();
 
         private IGraphLocation<TNode, TCoord> converter;
         private IGraphLineOfSight<TCoord> lineOfsight;
@@ -190,7 +190,7 @@ namespace Enderlook.Unity.Pathfinding
             if ((status & Status.Finalized) == 0)
                 throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_NOT_FINALIZED);
 
-            return pathOptimized.AsSpan;
+            return pathOptimized.AsSpan();
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession(TNode)"/>
