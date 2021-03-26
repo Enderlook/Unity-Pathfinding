@@ -1,4 +1,4 @@
-﻿using Enderlook.Collections.LowLevel;
+﻿using Enderlook.Collections.Pooled.LowLevel;
 
 using System;
 using System.Collections;

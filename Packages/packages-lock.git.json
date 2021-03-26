@@ -61,6 +61,21 @@
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.system.runtime.compiler_services.unsafe#com.system.runtime.compiler_services.unsafe/v4.5.3"
         },
         {
+            "name": "com.enderlook.collections.pooled.low_level",
+            "hash": "c6fa8d24a42593efbf95bbbf173f32d8f7aec288",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled.low_level#com.enderlook.collections.pooled.low_level/v0.1.0"
+        },
+        {
+            "name": "com.enderlook.unity.threading",
+            "hash": "fe49c8f37e829f7c3734d34e3264914c240b7be6",
+            "url": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.threading#com.enderlook.unity.threading/v0.4.0"
+        },
+        {
+            "name": "com.enderlook.collections.low_level",
+            "hash": "1c59261bb84ff4f8e7af589e2cd3a50bed2be9af",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages?path=Packages/com.enderlook.collections.low_level#com.enderlook.collections.low_level/v0.5.0"
+        },
+        {
             "name": "com.enderlook.threading",
             "hash": "aff498dad4302ee2e9e5a68b2fc07b59bfd2015b",
             "url": "https://github.com/Enderlook/Unity-Net-Packages?path=Packages/com.enderlook.threading#com.enderlook.threading/v0.1.0"
