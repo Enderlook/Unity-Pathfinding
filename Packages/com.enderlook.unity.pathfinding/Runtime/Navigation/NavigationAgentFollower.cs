@@ -194,7 +194,7 @@ namespace Enderlook.Unity.Pathfinding
             for (int i = 0; i < entities.Length; i++)
             {
                 EntityInfo entity = entities[i];
-                total += entity.FowardFactor;
+                total += entity.ForwardFactor;
             }
             return total.normalized;
         }

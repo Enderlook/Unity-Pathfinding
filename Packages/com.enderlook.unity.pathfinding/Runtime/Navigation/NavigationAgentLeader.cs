@@ -77,14 +77,14 @@ namespace Enderlook.Unity.Pathfinding
     {
         public readonly Vector3 Position;
         public readonly Vector3 RigidbodyMinusEntity;
-        public readonly Vector3 FowardFactor;
+        public readonly Vector3 ForwardFactor;
         public readonly float Distance;
         public readonly float DistanceFactor;
 
         public EntityInfo(Vector3 position, Vector3 forwardFactor, Vector3 rigidbodyMinusEntity, float distance, float distanceFactor)
         {
             Position = position;
-            FowardFactor = forwardFactor;
+            ForwardFactor = forwardFactor;
             RigidbodyMinusEntity = rigidbodyMinusEntity;
             Distance = distance;
             DistanceFactor = distanceFactor;
