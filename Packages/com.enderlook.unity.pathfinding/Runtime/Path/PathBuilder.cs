@@ -151,7 +151,7 @@ namespace Enderlook.Unity.Pathfinding
 
             pathOptimized.Add(pathRaw[0]);
 
-            bool isTask = !Switch.IsInMainThread;
+            bool isTask = !UnityThread.IsMainThread;
             if (isTask)
                 await Switch.ToUnity;
 

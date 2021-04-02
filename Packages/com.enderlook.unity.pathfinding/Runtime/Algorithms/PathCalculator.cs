@@ -1,4 +1,4 @@
-﻿using Enderlook.Unity.Threading.Jobs;
+﻿using Enderlook.Unity.Jobs;
 
 using System.Collections.Generic;
 

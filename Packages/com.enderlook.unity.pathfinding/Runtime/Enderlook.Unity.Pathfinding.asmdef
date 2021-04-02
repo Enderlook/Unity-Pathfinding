@@ -2,8 +2,10 @@
     "name": "Enderlook.Unity.Pathfinding",
     "references": [
         "GUID:3b94afafe5219ff4e9581b8747e5dada",
-        "GUID:f08c8926a21dd0348ae52330b4f06db1",
-        "GUID:e7b7e5b5bef57d3438bb55ed1fb4f5cb"
+        "GUID:e7b7e5b5bef57d3438bb55ed1fb4f5cb",
+        "GUID:12965892c664bf44cbd63f6568ef40da",
+        "GUID:0213f6f83d9102e47a7722b566934def",
+        "GUID:b9985c1548fef4e4e8622349dc1d0d91"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
