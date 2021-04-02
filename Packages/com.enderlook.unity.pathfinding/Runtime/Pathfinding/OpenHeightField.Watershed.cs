@@ -1,5 +1,6 @@
 ﻿using Enderlook.Collections.LowLevel;
 using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Mathematics;
 
 using System;
 using System.Buffers;
@@ -15,10 +16,21 @@ namespace Enderlook.Unity.Pathfinding2
     {
         public void BuildRegions()
         {
-            /*RawPooledList<int> sourceRegion = RawPooledList<int>.Create();
-            RawPooledList<int> sourceDistance = RawPooledList<int>.Create();
-            RawPooledList<int> destinationRegion = RawPooledList<int>.Create();
-            RawPooledList<int> destinationDistance = RawPooledList<int>.Create();*/
+            int lengthXZ = resolution.x * resolution.z;
+            //int[] spanIndexStartAt = ArrayPool<int>.Shared.Rent(lengthXZ);
+            int spanCount = columns[0].AsSpan().Length;
+            //spanIndexStartAt[0] = 0;
+            for (int i = 1; i < (lengthXZ - 1); i++)
+            {
+                //spanIndexStartAt[i] = spanCount;
+                spanCount += columns[i].AsSpan().Length;
+            }
+            //spanIndexStartAt[lengthXZ - 1] = spanCount;
+
+            int[] sourceRegion = ArrayPool<int>.Shared.Rent(spanCount);
+            int[] sourceDistance = ArrayPool<int>.Shared.Rent(spanCount);
+            int[] destinationRegion = ArrayPool<int>.Shared.Rent(spanCount);
+            int[] destinationDistance = ArrayPool<int>.Shared.Rent(spanCount);
             RawPooledStack<(int x, int z, int i)> stack = RawPooledStack<(int x, int z, int i)>.Create(1024);
 
             int level = (maximumDistance + 1) & ~1; // Ensures that value is always an even number.
@@ -26,29 +38,34 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 level = level >= 2 ? level - 2 : 0;
 
-                // Expand current regions untilno empty connected cells are found.
+                // Expand current regions until no empty connected cells are found.
 
             }
         }
 
         private void ExpandRegions(
             int waterLevel,
+            int[] sourceRegion,
+            int[] sourceDistance,
+            int[] destinationRegion,
+            int[] destinationDistance,
             RawPooledList<(int x, int z, int i)> stack
         )
         {
             // Find cells revealed by the raised level
-            int index = 0;
+            int columnIndex = 0;
+            int spanIndex = 0;
             for (int z = 0; z < resolution.z; z++)
             {
                 for (int x = 0; x < resolution.x; x++)
                 {
-                    ref HeightColumn column = ref columns[index++];
+                    ref HeightColumn column = ref columns[columnIndex++];
                     Span<HeightSpan> spans = column.AsSpan();
                     for (int i = 0; i < spans.Length; i++)
                     {
                         ref HeightSpan span = ref spans[i];
-                        if (span.Distance >= waterLevel && span.SourceRegion == 0 && span.Area != 0)
-                            stack.Push((x, z, i));
+                        if (span.Distance >= waterLevel && sourceRegion[spanIndex++] == 0 && span.Area != 0)
+                            stack.Add((x, z, i));
                     }
                 }
             }

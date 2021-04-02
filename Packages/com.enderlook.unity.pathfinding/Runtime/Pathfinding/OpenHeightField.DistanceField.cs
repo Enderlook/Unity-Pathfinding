@@ -11,7 +11,6 @@ namespace Enderlook.Unity.Pathfinding2
     {
         public void CalculateDistanceField()
         {
-            // TODO: In the future we may use an struct based pooled queue to reduce allocations.
             RawPooledQueue<(int xz, int y)> handeling = RawPooledQueue<(int xz, int y)>.Create();
 
             // Find initial borders.
@@ -25,7 +24,7 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     ref HeightSpan span = ref spans[j];
                     // TODO: Is this actually faster than 4 if statements?
-                    bool isBorder = (span.Left | span.Foward | span.Rigth | span.Backward) == -1;
+                    bool isBorder = (span.Left | span.Foward | span.Right | span.Backward) == -1;
                     if (isBorder)
                     {
                         // A border is any span with less than 4 neighbours.
@@ -45,7 +44,7 @@ namespace Enderlook.Unity.Pathfinding2
                 ref HeightSpan span = ref spans[y];
 
                 DistanceFieldCheckNeigbour(ref handeling, xz, ref span, span.Left, -resolution.z);
-                DistanceFieldCheckNeigbour(ref handeling, xz, ref span, span.Rigth, resolution.z);
+                DistanceFieldCheckNeigbour(ref handeling, xz, ref span, span.Right, resolution.z);
                 DistanceFieldCheckNeigbour(ref handeling, xz, ref span, span.Foward, 1);
                 DistanceFieldCheckNeigbour(ref handeling, xz, ref span, span.Backward, -1);
 
