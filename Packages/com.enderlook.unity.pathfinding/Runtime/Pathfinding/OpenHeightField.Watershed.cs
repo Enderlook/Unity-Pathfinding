@@ -17,15 +17,15 @@ namespace Enderlook.Unity.Pathfinding2
         public void BuildRegions()
         {
             int lengthXZ = resolution.x * resolution.z;
-            //int[] spanIndexStartAt = ArrayPool<int>.Shared.Rent(lengthXZ);
+            int[] spanIndexStartAt = ArrayPool<int>.Shared.Rent(lengthXZ);
             int spanCount = columns[0].AsSpan().Length;
-            //spanIndexStartAt[0] = 0;
+            spanIndexStartAt[0] = 0;
             for (int i = 1; i < (lengthXZ - 1); i++)
             {
-                //spanIndexStartAt[i] = spanCount;
+                spanIndexStartAt[i] = spanCount;
                 spanCount += columns[i].AsSpan().Length;
             }
-            //spanIndexStartAt[lengthXZ - 1] = spanCount;
+            spanIndexStartAt[lengthXZ - 1] = spanCount;
 
             int[] sourceRegion = ArrayPool<int>.Shared.Rent(spanCount);
             int[] sourceDistance = ArrayPool<int>.Shared.Rent(spanCount);
@@ -43,29 +43,36 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
+        private const ushort NULL_AREA = 0;
+
         private void ExpandRegions(
             int waterLevel,
+            int[] spanIndexStartAt,
             ushort[] sourceRegion,
             int[] sourceDistance,
             int[] destinationRegion,
             int[] destinationDistance,
-            RawPooledList<(int x, int z, int xz, int i)> stack
+            byte[] areas,
+            ushort[] regions,
+            RawPooledList<(int x, int z, int columnIndex, int i, int spanIndex)> stack
         )
         {
             // Find cells revealed by the raised level
-            int columnIndex = 0;
-            int spanIndex = 0;
-            for (int z = 0; z < resolution.z; z++)
             {
-                for (int x = 0; x < resolution.x; x++)
+                int columnIndex = 0;
+                int spanIndex = 0;
+                for (int z = 0; z < resolution.z; z++)
                 {
-                    ref HeightColumn column = ref columns[columnIndex++];
-                    Span<HeightSpan> spans = column.AsSpan();
-                    for (int i = 0; i < spans.Length; i++)
+                    for (int x = 0; x < resolution.x; x++, columnIndex++)
                     {
-                        ref HeightSpan span = ref spans[i];
-                        if (span.Distance >= waterLevel && sourceRegion[spanIndex++] == 0 && span.Area != HeightSpan.NULL_AREA)
-                            stack.Add((x, z, columnIndex, i));
+                        ref HeightColumn column = ref columns[columnIndex];
+                        Span<HeightSpan> spans = column.AsSpan();
+                        for (int i = 0; i < spans.Length; i++, spanIndex++)
+                        {
+                            ref HeightSpan span = ref spans[i];
+                            if (span.Distance >= waterLevel && sourceRegion[spanIndex] == 0 && areas[spanIndex] == NULL_AREA)
+                                stack.Add((x, z, columnIndex, i, spanIndex));
+                        }
                     }
                 }
             }
@@ -77,7 +84,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 for (int j = 0; j < stack.Count; j++)
                 {
-                    (int x, int z, int xz, int i) = stack[j];
+                    (int x, int z, int i, int columnIndex, int spanIndex) = stack[j];
 
                     if (i < 0)
                     {
@@ -87,7 +94,22 @@ namespace Enderlook.Unity.Pathfinding2
 
                     ushort region = sourceRegion[i];
                     ushort d2 = 0xFFFF;
-                    byte area = columns[xz].AsSpan()[i].Area;
+                    byte area = areas[spanIndex];
+                    ref HeightSpan span = ref columns[columnIndex].AsSpan()[spanIndex];
+
+                    {
+                        if (span.Left == HeightSpan.NULL_SIDE)
+                            continue;
+                        int aX = x - 1;
+                        int aZ = z;
+                        Debug.Assert(columnIndex - resolution.z == GetIndex(x - 1, z));
+                        int aColumnIndex = columnIndex - resolution.z;
+                        //ref HeightSpan spanNeighbour = ref columns[aColumnIndex].AsSpan()[span.Left];
+                        int aSpanIndex = spanIndexStartAt[aColumnIndex] + span.Left;
+                        if (areas[aSpanIndex] != area)
+                            continue;
+                        if (sourceRegion[aSpanIndex] > 0 && (sourceRegion[aSpanIndex] && )
+                    }
                 }
 
             }

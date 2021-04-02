@@ -73,7 +73,7 @@ namespace Enderlook.Unity.Pathfinding2
                     case SpanStatus.Open:
                         handeling.Enqueue((neighbourXZ, neighbourY));
                         spanNeighbour.Status = SpanStatus.InProgress;
-                        spanNeighbour.Distance = span.Distance + 1;
+                        spanNeighbour.Distance = (ushort)(span.Distance + 1);
                         break;
                     case SpanStatus.InProgress:
                         if (span.Distance + 1 < spanNeighbour.Distance)
@@ -82,7 +82,7 @@ namespace Enderlook.Unity.Pathfinding2
                     case SpanStatus.Closed:
                         if (span.Distance + 1 < spanNeighbour.Distance)
                         {
-                            spanNeighbour.Distance = span.Distance + 1;
+                            spanNeighbour.Distance = (ushort)(span.Distance + 1);
                             spanNeighbour.Status = SpanStatus.InProgress;
                             handeling.Enqueue((neighbourXZ, neighbourY));
                         }

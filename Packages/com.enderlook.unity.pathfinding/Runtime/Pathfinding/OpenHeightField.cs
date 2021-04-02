@@ -776,11 +776,11 @@ namespace Enderlook.Unity.Pathfinding2
             public ushort Distance;
 
             // Used by Region.
-            public ushort Region;
+            //public ushort Region;
 
             /* Note: This field is only used during calculation of regions,
              * so we could remove it from here and use a temporary array to store it. */
-            public byte Area;
+            //public byte Area;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public HeightSpan(int floor, int ceil)
@@ -793,8 +793,8 @@ namespace Enderlook.Unity.Pathfinding2
                 Backward = NULL_SIDE;
                 Status = SpanStatus.Open;
                 Distance = 0;
-                Region = 0;
-                Area = NULL_AREA;
+                //Region = 0;
+                //Area = NULL_AREA;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
