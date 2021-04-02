@@ -759,6 +759,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             // Value of Floor, Ceil, Left, Foward, Right, Backward when is null.
             public const int NULL_SIDE = -1;
+            public const byte NULL_AREA = 0;
 
             public int Floor;
             public int Ceil;
@@ -772,14 +773,14 @@ namespace Enderlook.Unity.Pathfinding2
              * so we could remove it from here and use a temporary array to store it. */
             public SpanStatus Status;
             // Used by DistanceField.
-            public int Distance;
+            public ushort Distance;
 
             // Used by Region.
-            public int Region;
+            public ushort Region;
 
             /* Note: This field is only used during calculation of regions,
              * so we could remove it from here and use a temporary array to store it. */
-            public int Area;
+            public byte Area;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public HeightSpan(int floor, int ceil)
@@ -793,7 +794,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Status = SpanStatus.Open;
                 Distance = 0;
                 Region = 0;
-                Area = 0;
+                Area = NULL_AREA;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

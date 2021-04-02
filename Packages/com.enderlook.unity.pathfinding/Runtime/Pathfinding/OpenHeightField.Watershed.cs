@@ -45,11 +45,11 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void ExpandRegions(
             int waterLevel,
-            int[] sourceRegion,
+            ushort[] sourceRegion,
             int[] sourceDistance,
             int[] destinationRegion,
             int[] destinationDistance,
-            RawPooledList<(int x, int z, int i)> stack
+            RawPooledList<(int x, int z, int xz, int i)> stack
         )
         {
             // Find cells revealed by the raised level
@@ -64,8 +64,8 @@ namespace Enderlook.Unity.Pathfinding2
                     for (int i = 0; i < spans.Length; i++)
                     {
                         ref HeightSpan span = ref spans[i];
-                        if (span.Distance >= waterLevel && sourceRegion[spanIndex++] == 0 && span.Area != 0)
-                            stack.Add((x, z, i));
+                        if (span.Distance >= waterLevel && sourceRegion[spanIndex++] == 0 && span.Area != HeightSpan.NULL_AREA)
+                            stack.Add((x, z, columnIndex, i));
                     }
                 }
             }
@@ -77,7 +77,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 for (int j = 0; j < stack.Count; j++)
                 {
-                    (int x, int z, int i) = stack[j];
+                    (int x, int z, int xz, int i) = stack[j];
 
                     if (i < 0)
                     {
@@ -85,7 +85,9 @@ namespace Enderlook.Unity.Pathfinding2
                         continue;
                     }
 
-
+                    ushort region = sourceRegion[i];
+                    ushort d2 = 0xFFFF;
+                    byte area = columns[xz].AsSpan()[i].Area;
                 }
 
             }
