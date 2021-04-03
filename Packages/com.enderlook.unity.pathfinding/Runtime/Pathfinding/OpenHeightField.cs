@@ -806,13 +806,10 @@ namespace Enderlook.Unity.Pathfinding2
 
                 if (Math.Abs(Floor - neighbourSpan.Floor) <= maxTraversableStep)
                 {
-                    if (Ceil == NULL_SIDE || neighbourSpan.Ceil == NULL_SIDE ||  Math.Min(Ceil, neighbourSpan.Ceil) - Math.Max(Floor, neighbourSpan.Floor) >= minTraversableHeight)
+                    if (Ceil == NULL_SIDE || neighbourSpan.Ceil == NULL_SIDE || Math.Min(Ceil, neighbourSpan.Ceil) - Math.Max(Floor, neighbourSpan.Floor) >= minTraversableHeight)
                     {
-                        unsafe
-                        {
-                            Debug.Assert(side == NULL_SIDE);
-                            side = neighbourIndex;
-                        }
+                        Debug.Assert(side == NULL_SIDE);
+                        side = neighbourIndex;
                         return true;
                     }
                 }

@@ -242,7 +242,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             while (stackIndex > 0)
             {
-                DoubleInt value = stack[stackIndex--];
+                DoubleInt value = stack[--stackIndex];
                 ref HeightSpan span = ref columns[value.a].AsSpan()[value.b];
                 FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, ref stackIndex, ref stackOwner, span.Left, -resolution.z);
                 FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, ref stackIndex, ref stackOwner, span.Right, resolution.z);
@@ -265,7 +265,7 @@ namespace Enderlook.Unity.Pathfinding2
                     if (stackIndex == stack.Length)
                         ResizeAndAddToStack(ref stack, ref stackIndex, ref stackOwner, j, i);
                     else
-                        stack[i++] = new DoubleInt(i, j);
+                        stack[stackIndex++] = new DoubleInt(i, j);
                 }
             }
         }
