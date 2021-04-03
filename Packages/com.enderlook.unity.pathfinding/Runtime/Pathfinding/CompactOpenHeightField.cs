@@ -2,8 +2,6 @@
 
 using System;
 using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -13,10 +11,12 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Represent an open height field.
     /// </summary>
-    internal struct CompactOpenHeightField
+    internal readonly struct CompactOpenHeightField
     {
-        private readonly (int x, int y, int z) resolution;
+        private readonly int width;
+        private readonly int depth;
         private readonly HeightColumn[] columns;
+        private int columnsCount => width * depth;
         private readonly HeightSpan[] spans;
         private readonly int spansCount;
 
@@ -29,12 +29,13 @@ namespace Enderlook.Unity.Pathfinding2
         /// <returns>The open height field of the heigh field.</returns>
         public CompactOpenHeightField(HeightField heightField, int maxTraversableStep, int minTraversableHeight)
         {
-            resolution = heightField.Resolution;
+            width = heightField.Resolution.x;
+            depth = heightField.Resolution.z;
 
             spans = null;
             spansCount = 0;
 
-            columns = ArrayPool<HeightColumn>.Shared.Rent(resolution.x * resolution.z);
+            columns = ArrayPool<HeightColumn>.Shared.Rent(width * depth);
             try
             {
                 RawPooledList<HeightSpan> spanBuilder = RawPooledList<HeightSpan>.Create();
@@ -42,9 +43,9 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     ReadOnlySpan<HeightField.HeightColumn> columns = heightField.AsSpan();
                     int index = 0;
-                    for (int x = 0; x < resolution.x; x++)
+                    for (int x = 0; x < width; x++)
                     {
-                        for (int z = 0; z < resolution.z; z++)
+                        for (int z = 0; z < depth; z++)
                         {
                             Debug.Assert(index == GetIndex(x, z));
                             this.columns[index] = new HeightColumn(spanBuilder.Count);
@@ -166,8 +167,8 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void CalculateNeighbours(int maxTraversableStep, int minTraversableHeight)
         {
-            int xM = resolution.x - 1;
-            int zM = resolution.z - 1;
+            int xM = width - 1;
+            int zM = depth - 1;
 
             int index = CalculateNeighboursWhenXIs0(maxTraversableStep, minTraversableHeight);
             int x;
@@ -186,10 +187,10 @@ namespace Enderlook.Unity.Pathfinding2
 
                     HeightColumn column = columns[index];
 
-                    Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-                    HeightColumn left = columns[index - resolution.z];
-                    Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-                    HeightColumn right = columns[index + resolution.z];
+                    Debug.Assert(index - depth == GetIndex(x - 1, z));
+                    HeightColumn left = columns[index - depth];
+                    Debug.Assert(index + depth == GetIndex(x + 1, z));
+                    HeightColumn right = columns[index + depth];
                     Debug.Assert(index - 1 == GetIndex(x, z - 1));
                     HeightColumn backward = columns[index - 1];
                     Debug.Assert(index + 1 == GetIndex(x, z + 1));
@@ -210,12 +211,12 @@ namespace Enderlook.Unity.Pathfinding2
                 }
 
                 Debug.Assert(z == zM);
-                Debug.Assert(z == resolution.z - 1);
+                Debug.Assert(z == depth - 1);
                 index = CalculateNeighboursWhenZIsZM(maxTraversableStep, minTraversableHeight, index, x, zM);
             }
 
             Debug.Assert(x == xM);
-            Debug.Assert(x == resolution.x - 1);
+            Debug.Assert(x == width - 1);
             CalculateNeighboursWhenXIsXM(maxTraversableStep, minTraversableHeight, index, x);
         }
 
@@ -231,7 +232,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             int index = 0;
             const int x = 0;
-            int zM = resolution.z - 1;
+            int zM = depth - 1;
 
             index = CalculateNeighboursWhenXIs0AndZIs0(maxTraversableStep, minTraversableHeight, index);
 
@@ -242,8 +243,8 @@ namespace Enderlook.Unity.Pathfinding2
 
                 HeightColumn column = columns[index];
 
-                Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-                HeightColumn right = columns[index + resolution.z];
+                Debug.Assert(index + depth == GetIndex(x + 1, z));
+                HeightColumn right = columns[index + depth];
                 Debug.Assert(index - 1 == GetIndex(x, z - 1));
                 HeightColumn backward = columns[index - 1];
                 Debug.Assert(index + 1 == GetIndex(x, z + 1));
@@ -263,7 +264,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             Debug.Assert(z == zM);
-            Debug.Assert(z == resolution.z - 1);
+            Debug.Assert(z == depth - 1);
             index = CalculateNeighboursWhenXIs0AndZIsZM(maxTraversableStep, minTraversableHeight, index);
 
             return index;
@@ -278,8 +279,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             HeightColumn column = columns[index];
 
-            Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-            HeightColumn right = columns[index + resolution.z];
+            Debug.Assert(index + depth == GetIndex(x + 1, z));
+            HeightColumn right = columns[index + depth];
             Debug.Assert(index + 1 == GetIndex(x, z + 1));
             HeightColumn foward = columns[++index];
 
@@ -300,13 +301,13 @@ namespace Enderlook.Unity.Pathfinding2
         private int CalculateNeighboursWhenXIs0AndZIsZM(int maxTraversableStep, int minTraversableHeight, int index)
         {
             const int x = 0;
-            int z = resolution.z - 1;
+            int z = depth - 1;
             Debug.Assert(index == GetIndex(x, z));
 
             HeightColumn column = columns[index];
 
-            Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-            HeightColumn right = columns[index + resolution.z];
+            Debug.Assert(index + depth == GetIndex(x + 1, z));
+            HeightColumn right = columns[index + depth];
             Debug.Assert(index - 1 == GetIndex(x, z - 1));
             HeightColumn backward = columns[index - 1];
             index++;
@@ -333,10 +334,10 @@ namespace Enderlook.Unity.Pathfinding2
 
             HeightColumn column = columns[index];
 
-            Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-            HeightColumn left = columns[index - resolution.z];
-            Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-            HeightColumn right = columns[index + resolution.z];
+            Debug.Assert(index - depth == GetIndex(x - 1, z));
+            HeightColumn left = columns[index - depth];
+            Debug.Assert(index + depth == GetIndex(x + 1, z));
+            HeightColumn right = columns[index + depth];
             Debug.Assert(index + 1 == GetIndex(x, z + 1));
             HeightColumn foward = columns[++index];
 
@@ -357,15 +358,15 @@ namespace Enderlook.Unity.Pathfinding2
 
         private int CalculateNeighboursWhenZIsZM(int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
         {
-            Debug.Assert(z == resolution.z - 1);
+            Debug.Assert(z == depth - 1);
             Debug.Assert(index == GetIndex(x, z));
 
             HeightColumn column = columns[index];
 
-            Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-            HeightColumn left = columns[index - resolution.z];
-            Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-            HeightColumn right = columns[index + resolution.z];
+            Debug.Assert(index - depth == GetIndex(x - 1, z));
+            HeightColumn left = columns[index - depth];
+            Debug.Assert(index + depth == GetIndex(x + 1, z));
+            HeightColumn right = columns[index + depth];
             Debug.Assert(index - 1 == GetIndex(x, z - 1));
             HeightColumn backward = columns[index - 1];
             index++;
@@ -387,8 +388,8 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void CalculateNeighboursWhenXIsXM(int maxTraversableStep, int minTraversableHeight, int index, int x)
         {
-            Debug.Assert(x == resolution.x - 1);
-            int zM = resolution.z - 1;
+            Debug.Assert(x == width - 1);
+            int zM = depth - 1;
 
             index = CalculateNeighboursWhenXIsXMAndZIs0(maxTraversableStep, minTraversableHeight, index, x);
 
@@ -399,8 +400,8 @@ namespace Enderlook.Unity.Pathfinding2
 
                 HeightColumn column = columns[index];
 
-                Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-                HeightColumn left = columns[index - resolution.z];
+                Debug.Assert(index - depth == GetIndex(x - 1, z));
+                HeightColumn left = columns[index - depth];
                 Debug.Assert(index - 1 == GetIndex(x, z - 1));
                 HeightColumn backward = columns[index - 1];
                 Debug.Assert(index + 1 == GetIndex(x, z + 1));
@@ -420,21 +421,21 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             Debug.Assert(z == zM);
-            Debug.Assert(z == resolution.z - 1);
+            Debug.Assert(z == depth - 1);
             CalculateNeighboursWhenXIsXMAndZIsZM(maxTraversableStep, minTraversableHeight, index, x, z);
         }
 
         private int CalculateNeighboursWhenXIsXMAndZIs0(int maxTraversableStep, int minTraversableHeight, int index, int x)
         {
-            Debug.Assert(x == resolution.x - 1);
+            Debug.Assert(x == width - 1);
             const int z = 0;
 
             Debug.Assert(index == GetIndex(x, z));
 
             HeightColumn column = columns[index];
 
-            Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-            HeightColumn left = columns[index - resolution.z];
+            Debug.Assert(index - depth == GetIndex(x - 1, z));
+            HeightColumn left = columns[index - depth];
             Debug.Assert(index + 1 == GetIndex(x, z + 1));
             HeightColumn foward = columns[++index];
 
@@ -454,14 +455,14 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void CalculateNeighboursWhenXIsXMAndZIsZM(int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
         {
-            Debug.Assert(x == resolution.x - 1);
-            Debug.Assert(z == resolution.z - 1);
+            Debug.Assert(x == width - 1);
+            Debug.Assert(z == depth - 1);
             Debug.Assert(index == GetIndex(x, z));
 
             HeightColumn column = columns[index];
 
-            Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-            HeightColumn left = columns[index - resolution.z];
+            Debug.Assert(index - depth == GetIndex(x - 1, z));
+            HeightColumn left = columns[index - depth];
             Debug.Assert(index - 1 == GetIndex(x, z - 1));
             HeightColumn backward = columns[index - 1];
 
@@ -481,11 +482,11 @@ namespace Enderlook.Unity.Pathfinding2
         private int GetIndex(int x, int z)
         {
             Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.x);
+            Debug.Assert(x < width);
             Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.z);
-            int index_ = (resolution.z * x) + z;
-            Debug.Assert(index_ < resolution.x * resolution.z);
+            Debug.Assert(z < depth);
+            int index_ = (depth * x) + z;
+            Debug.Assert(index_ < width * depth);
             return index_;
         }
 
@@ -496,18 +497,18 @@ namespace Enderlook.Unity.Pathfinding2
             ArrayPool<HeightSpan>.Shared.Return(spans);
         }
 
-        public void DrawGizmosOfOpenHeightField(Vector3 center, Vector3 cellSize, bool neightbours)
+        public void DrawGizmosOfOpenHeightField(Vector3 center, Vector3 cellSize, int height, bool neightbours)
         {
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireCube(center, new Vector3(cellSize.x * resolution.x, cellSize.y * resolution.y, cellSize.z * resolution.z));
-            Vector3 offset = (new Vector3(resolution.x * (-cellSize.x), resolution.y * (-cellSize.y), resolution.z * (-cellSize).z) * .5f) + (cellSize * .5f);
+            Gizmos.DrawWireCube(center, new Vector3(cellSize.x * width, cellSize.y * height, cellSize.z * depth));
+            Vector3 offset = (new Vector3(width * (-cellSize.x), height * (-cellSize.y), depth * (-cellSize).z) * .5f) + (cellSize * .5f);
             offset.y -= cellSize.y / 2;
             offset += center;
 
             int i = 0;
-            for (int x = 0; x < resolution.x; x++)
+            for (int x = 0; x < width; x++)
             {
-                for (int z = 0; z < resolution.z; z++)
+                for (int z = 0; z < depth; z++)
                 {
                     Vector2 position_ = new Vector2(x * cellSize.x, z * cellSize.z);
                     int i_ = i;
@@ -521,14 +522,14 @@ namespace Enderlook.Unity.Pathfinding2
                         if (heightSpan.Floor != HeightSpan.NULL_SIDE)
                             Draw(heightSpan.Floor - .1f, Color.green);
                         Draw(heightSpan.Ceil + .1f, Color.red);
-                        Draw2(heightSpan, columns, spans, i_, resolution);
+                        Draw2(this, heightSpan, i_);
 
                         for (; j < heightSpans.Length - 1; j++)
                         {
                             heightSpan = heightSpans[j];
                             Draw(heightSpan.Floor - .1f, Color.green);
                             Draw(heightSpan.Ceil + .1f, Color.red);
-                            Draw2(heightSpan, columns, spans, i_, resolution);
+                            Draw2(this, heightSpan, i_);
                         }
 
                         if (heightSpans.Length > 1) // Shouldn't this be 2?
@@ -538,7 +539,7 @@ namespace Enderlook.Unity.Pathfinding2
                             Draw(heightSpan.Floor, Color.green);
                             if (heightSpan.Ceil != HeightSpan.NULL_SIDE)
                                 Draw(heightSpan.Ceil + .1f, Color.red);
-                            Draw2(heightSpan, columns, spans, i_, resolution);
+                            Draw2(this, heightSpan, i_);
                         }
                     }
 
@@ -551,46 +552,48 @@ namespace Enderlook.Unity.Pathfinding2
                         Gizmos.DrawCube(center_, size);
                     }
 
-                    void Draw2(HeightSpan span, HeightColumn[] columns, HeightSpan[] spans, int index, (int x, int y, int z) resolution)
+                    void Draw2(in CompactOpenHeightField self, HeightSpan span, int index)
                     {
                         if (!neightbours)
                             return;
+                        int width = self.width;
+                        int depth = self.depth;
                         Gizmos.color = Color.yellow;
                         unsafe
                         {
                             if (span.Left != HeightSpan.NULL_SIDE)
                             {
-                                Debug.Assert(index - resolution.z == GetIndex(x - 1, z));
-                                HeightSpan span_ = spans[span.Left];
+                                Debug.Assert(index - depth == GetIndex(x - 1, z));
+                                HeightSpan span_ = self.spans[span.Left];
                                 Draw3(span_.Floor, span.Floor, HeightSpan.NULL_SIDE, 0);
                             }
 
                             if (span.Right != HeightSpan.NULL_SIDE)
                             {
-                                Debug.Assert(index + resolution.z == GetIndex(x + 1, z));
-                                HeightSpan span_ = spans[span.Right];
+                                Debug.Assert(index + depth == GetIndex(x + 1, z));
+                                HeightSpan span_ = self.spans[span.Right];
                                 Draw3(span_.Floor, span.Floor, 1, 0);
                             }
 
                             if (span.Backward != HeightSpan.NULL_SIDE)
                             {
                                 Debug.Assert(index - 1 == GetIndex(x, z - 1));
-                                HeightSpan span_ = spans[span.Backward];
+                                HeightSpan span_ = self.spans[span.Backward];
                                 Draw3(span_.Floor, span.Floor, 0, HeightSpan.NULL_SIDE);
                             }
 
                             if (span.Foward != HeightSpan.NULL_SIDE)
                             {
                                 Debug.Assert(index + 1 == GetIndex(x, z + 1));
-                                HeightSpan span_ = spans[span.Foward];
+                                HeightSpan span_ = self.spans[span.Foward];
                                 Draw3(span_.Floor, span.Floor, 0, 1);
                             }
                         }
 
                         int GetIndex(int x_, int z_)
                         {
-                            int index_ = (resolution.z * x_) + z_;
-                            Debug.Assert(index_ < resolution.x * resolution.z);
+                            int index_ = (depth * x_) + z_;
+                            Debug.Assert(index_ < width * depth);
                             return index_;
                         }
 
