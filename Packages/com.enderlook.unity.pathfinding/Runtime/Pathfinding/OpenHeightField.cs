@@ -15,8 +15,6 @@ namespace Enderlook.Unity.Pathfinding2
         private readonly (int x, int y, int z) resolution;
         // Used by Distance
         private int maximumDistance;
-        // Used by Regions
-        private int regions;
 
         /// <summary>
         /// Creates a the open height field of a height field.
@@ -27,7 +25,6 @@ namespace Enderlook.Unity.Pathfinding2
         /// <returns>The open height field of the heigh field.</returns>
         public OpenHeightField(HeightField heightField, int maxTraversableStep, int minTraversableHeight)
         {
-            regions = 0;
             maximumDistance = 0;
             resolution = heightField.Resolution;
 
