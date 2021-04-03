@@ -94,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        public void DrawGizmosOfDistanceHeighField(Vector3 center, Vector3 cellSize)
+        public void DrawGizmosOfDistanceHeightField(Vector3 center, Vector3 cellSize)
         {
             if (maximumDistance == 0)
                 throw new InvalidOperationException();
@@ -137,7 +137,10 @@ namespace Enderlook.Unity.Pathfinding2
 
                     void Draw(float y, float lerp)
                     {
-                        Gizmos.color = Color.Lerp(Color.red, Color.green, lerp);
+                        if (lerp == 0)
+                            Gizmos.color = Color.black;
+                        else
+                            Gizmos.color = Color.Lerp(Color.red, Color.green, lerp);
                         Vector3 position = new Vector3(position_.x, cellSize.y * y, position_.y);
                         Vector3 center_ = offset + position;
                         Vector3 size = new Vector3(cellSize.x, cellSize.y * .1f, cellSize.z);

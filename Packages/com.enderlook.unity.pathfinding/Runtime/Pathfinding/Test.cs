@@ -29,8 +29,8 @@ namespace Enderlook.Unity.Pathfinding2
                 if (meshFilters.Length == 0)
                     return;
 
-                (int, int, int) resolution = (20, 20, 20);
-                MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, new Bounds(transform.position, Vector3.one * 2));
+                (int, int, int) resolution = (20, 20, 30);
+                MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, new Bounds(transform.position, new Vector3(5, 2, 3)));
 
                 foreach (MeshFilter meshFilter in meshFilters)
                     meshVoxelizer.Enqueue(meshFilter);
@@ -48,7 +48,10 @@ namespace Enderlook.Unity.Pathfinding2
                 //openHeightField.DrawGizmosOfOpenHeightField(transform.position, voxelSize, true);
 
                 openHeightField.CalculateDistanceField();
-                openHeightField.DrawGizmosOfDistanceHeighField(transform.position, voxelSize);
+                //openHeightField.DrawGizmosOfDistanceHeightField(transform.position, voxelSize);
+
+                openHeightField.CalculateRegions(0);
+                openHeightField.DrawGizmosOfRegions(transform.position, voxelSize);
             }
         }
     }

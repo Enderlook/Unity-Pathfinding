@@ -100,7 +100,7 @@ namespace Enderlook.Unity.Pathfinding2
             return index;
         }
 
-        public ReadOnlySpan<HeightColumn> AsSpan() => columns.AsSpan(0, Resolution.x * Resolution.y);
+        public ReadOnlySpan<HeightColumn> AsSpan() => columns.AsSpan(0, Resolution.x * Resolution.z);
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()

@@ -13,7 +13,10 @@ namespace Enderlook.Unity.Pathfinding2
     {
         private readonly HeightColumn[] columns;
         private readonly (int x, int y, int z) resolution;
+        // Used by Distance
         private int maximumDistance;
+        // Used by Regions
+        private int regions;
 
         /// <summary>
         /// Creates a the open height field of a height field.
@@ -24,6 +27,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <returns>The open height field of the heigh field.</returns>
         public OpenHeightField(HeightField heightField, int maxTraversableStep, int minTraversableHeight)
         {
+            regions = 0;
             maximumDistance = 0;
             resolution = heightField.Resolution;
 
@@ -759,7 +763,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             // Value of Floor, Ceil, Left, Foward, Right, Backward when is null.
             public const int NULL_SIDE = -1;
-            public const byte NULL_AREA = 0;
+            public const byte NULL_REGION = 0;
 
             public int Floor;
             public int Ceil;
@@ -776,7 +780,7 @@ namespace Enderlook.Unity.Pathfinding2
             public ushort Distance;
 
             // Used by Region.
-            //public ushort Region;
+            public ushort Region;
 
             /* Note: This field is only used during calculation of regions,
              * so we could remove it from here and use a temporary array to store it. */
@@ -793,7 +797,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Backward = NULL_SIDE;
                 Status = SpanStatus.Open;
                 Distance = 0;
-                //Region = 0;
+                Region = NULL_REGION;
                 //Area = NULL_AREA;
             }
 
