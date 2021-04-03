@@ -280,10 +280,21 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 (int i, int j) location = tmp[j];
                 ref HeightSpan span = ref columns[location.i].AsSpan()[location.j];
-                change |= GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Left, -resolution.z);
-                change |= GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Right, resolution.z);
-                change |= GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Backward, -1);
-                change |= GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Foward, 1);
+                bool c = false;
+                bool a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Left, -resolution.z);
+                change |= a;
+                c &= a;
+                a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Right, resolution.z);
+                change |= a;
+                c &= a;
+                a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Backward, -1);
+                change |= a;
+                c &= a;
+                a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Foward, 1);
+                change |= a;
+                c &= a;
+                if (!c)
+                    region.AddSpan(location.i, location.j);
             }
             return change;
         }
