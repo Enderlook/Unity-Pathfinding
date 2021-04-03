@@ -14,7 +14,7 @@ namespace Enderlook.Unity.Pathfinding2
             RawPooledList<Region> regions = RawPooledList<Region>.Create();
             try
             {
-                RawPooledList<(int i, int j)> tmp = RawPooledList<(int i, int j)>.Create();
+                RawPooledList<(int xz, int y)> tmp = RawPooledList<(int xz, int y)>.Create();
                 try
                 {
                     int lenghtXZ = resolution.x * resolution.z;
@@ -25,19 +25,19 @@ namespace Enderlook.Unity.Pathfinding2
                         GrowRegions(ref regions, waterLevel, ref tmp);
 
                         // Find new basins.
-                        for (int i = 0; i < lenghtXZ; i++)
+                        for (int xz = 0; xz < lenghtXZ; xz++)
                         {
-                            HeightColumn column = columns[i];
+                            HeightColumn column = columns[xz];
                             Span<HeightSpan> spans = column.AsSpan();
-                            for (int j = 0; j < spans.Length; j++)
+                            for (int y = 0; y < spans.Length; y++)
                             {
-                                ref HeightSpan span = ref spans[j];
+                                ref HeightSpan span = ref spans[y];
                                 if (span.Distance == waterLevel && span.Region == HeightSpan.NULL_REGION)
                                 {
                                     regions.Add(new Region((ushort)(regions.Count + 1)));
-                                    regions[regions.Count - 1].AddSpan(i, j);
+                                    regions[regions.Count - 1].AddSpan(xz, y);
                                     span.Region = (ushort)regions.Count;
-                                    FloodRegion(waterLevel, i, j, ref regions[regions.Count - 1], ref tmp);
+                                    FloodRegion(waterLevel, xz, y, ref regions[regions.Count - 1], ref tmp);
                                 }
                             }
                         }
@@ -58,24 +58,24 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FloodRegion(int waterLevel, int columnIndex, int spanIndex, ref Region region, ref RawPooledList<(int i, int j)> tmp)
+        private void FloodRegion(int waterLevel, int columnIndex, int spanIndex, ref Region region, ref RawPooledList<(int xz, int y)> tmp)
         {
-            RawPooledStack<(int i, int j)> stack = RawPooledStack<(int i, int j)>.FromEmpty(tmp.UnderlyingArray);
+            RawPooledStack<(int xz, int y)> stack = RawPooledStack<(int xz, int y)>.FromEmpty(tmp.UnderlyingArray);
 
             stack.Push((columnIndex, spanIndex));
 
-            while (stack.TryPop(out (int i, int j) value))
+            while (stack.TryPop(out (int xz, int y) value))
             {
-                ref HeightSpan span = ref columns[value.i].AsSpan()[value.j];
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Left, -resolution.z);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Right, resolution.z);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Backward, -1);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Foward, 1);
+                ref HeightSpan span = ref columns[value.xz].AsSpan()[value.y];
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Left, -resolution.z);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Right, resolution.z);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Backward, -1);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Foward, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void FloodRegionCheckNeighbour(int waterLevel, ref Region region, ref RawPooledStack<(int i, int j)> stack, int i, int j, int d)
+        private void FloodRegionCheckNeighbour(int waterLevel, ref Region region, ref RawPooledStack<(int xz, int y)> stack, int i, int j, int d)
         {
             if (j == HeightSpan.NULL_SIDE)
                 return;
@@ -90,7 +90,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void GrowRegions(ref RawPooledList<Region> regions, int waterLevel, ref RawPooledList<(int i, int j)> tmp)
+        private void GrowRegions(ref RawPooledList<Region> regions, int waterLevel, ref RawPooledList<(int xz, int y)> tmp)
         {
             bool change = true;
             while (change)
@@ -105,30 +105,30 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool GrowRegion(int waterLevel, ref RawPooledList<(int i, int j)> tmp, ref Region region)
+        private bool GrowRegion(int waterLevel, ref RawPooledList<(int xz, int y)> tmp, ref Region region)
         {
             tmp.Clear();
             tmp = region.Swap(tmp);
             bool change = false;
             for (int j = 0; j < tmp.Count; j++)
             {
-                (int i, int j) location = tmp[j];
-                ref HeightSpan span = ref columns[location.i].AsSpan()[location.j];
+                (int xz, int y) location = tmp[j];
+                ref HeightSpan span = ref columns[location.xz].AsSpan()[location.y];
                 bool c = false;
-                bool a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Left, -resolution.z);
+                bool a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Left, -resolution.z);
                 change |= a;
                 c &= a;
-                a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Right, resolution.z);
+                a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Right, resolution.z);
                 change |= a;
                 c &= a;
-                a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Backward, -1);
+                a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Backward, -1);
                 change |= a;
                 c &= a;
-                a = GrowRegionCheckNeighbour(waterLevel, location.i, ref region, span.Foward, 1);
+                a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Foward, 1);
                 change |= a;
                 c &= a;
                 if (!c)
-                    region.AddSpan(location.i, location.j);
+                    region.AddSpan(location.xz, location.y);
             }
             return change;
         }
@@ -153,22 +153,22 @@ namespace Enderlook.Unity.Pathfinding2
         private struct Region : IDisposable
         {
             public readonly ushort id;
-            public RawPooledList<(int i, int j)> spans;
+            public RawPooledList<(int xz, int y)> spans;
 
             public Region(ushort id)
             {
                 this.id = id;
-                spans = RawPooledList<(int i, int j)>.Create();
+                spans = RawPooledList<(int xz, int y)>.Create();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void AddSpan(int i, int j)
-                => spans.Add((i, j));
+            public void AddSpan(int xz, int y)
+                => spans.Add((xz, y));
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public RawPooledList<(int i, int j)> Swap(RawPooledList<(int i, int j)> other)
+            public RawPooledList<(int xz, int y)> Swap(RawPooledList<(int xz, int y)> other)
             {
-                RawPooledList<(int i, int j)> tmp = spans;
+                RawPooledList<(int xz, int y)> tmp = spans;
                 spans = other;
                 return tmp;
             }
