@@ -1,6 +1,7 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
 
 using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -182,7 +183,9 @@ namespace Enderlook.Unity.Pathfinding2
                 RawPooledList<(int i, int j)> tmp = RawPooledList<(int i, int j)>.Create();
                 try
                 {
-                    RawPooledStack<(int i, int j)> stack = RawPooledStack<(int i, int j)>.Create();
+                    Span<DoubleInt> stack = stackalloc DoubleInt[120];
+                    int stackIndex = 0;
+                    DoubleInt[] stackOwner = null;
                     try
                     {
                         int lenghtXZ = resolution.x * resolution.z;
@@ -205,7 +208,7 @@ namespace Enderlook.Unity.Pathfinding2
                                         regions.Add(new Region((ushort)(regions.Count + 1)));
                                         regions[regions.Count - 1].AddSpan(i, j);
                                         span.Region = (ushort)regions.Count;
-                                        FloodRegion(waterLevel, i, j, ref regions[regions.Count - 1], ref stack);
+                                        FloodRegion(waterLevel, i, j, ref regions[regions.Count - 1], ref stack, ref stackIndex, ref stackOwner);
                                     }
                                 }
                             }
@@ -215,7 +218,8 @@ namespace Enderlook.Unity.Pathfinding2
                     }
                     finally
                     {
-                        stack.Dispose();
+                        if (!(stackOwner is null))
+                            ArrayPool<DoubleInt>.Shared.Return(stackOwner);
                     }
                 }
                 finally
@@ -231,22 +235,24 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FloodRegion(int waterLevel, int index, int spanIndex, ref Region region, ref RawPooledStack<(int i, int j)> stack)
+        private void FloodRegion(int waterLevel, int index, int spanIndex, ref Region region, ref Span<DoubleInt> stack, ref int stackIndex, ref DoubleInt[] stackOwner)
         {
-            stack.Push((index, spanIndex));
+            stack[0] = new DoubleInt(index, spanIndex);
+            stackIndex = 1;
 
-            while (stack.TryPop(out (int index, int spanIndex) value))
+            while (stackIndex > 0)
             {
-                ref HeightSpan span = ref columns[value.index].AsSpan()[value.spanIndex];
-                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, span.Left, -resolution.z);
-                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, span.Right, resolution.z);
-                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, span.Backward, -1);
-                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, span.Foward, 1);
+                DoubleInt value = stack[stackIndex--];
+                ref HeightSpan span = ref columns[value.a].AsSpan()[value.b];
+                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, ref stackIndex, ref stackOwner, span.Left, -resolution.z);
+                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, ref stackIndex, ref stackOwner, span.Right, resolution.z);
+                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, ref stackIndex, ref stackOwner, span.Backward, -1);
+                FloodRegionCheckNeighbour(waterLevel, index, ref region, ref stack, ref stackIndex, ref stackOwner, span.Foward, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void FloodRegionCheckNeighbour(int waterLevel, int index, ref Region region, ref RawPooledStack<(int i, int j)> stack, int j, int d)
+        private void FloodRegionCheckNeighbour(int waterLevel, int index, ref Region region, ref Span<DoubleInt> stack, ref int stackIndex, ref DoubleInt[] stackOwner, int j, int d)
         {
             if (j != HeightSpan.NULL_SIDE)
             {
@@ -256,9 +262,24 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     neighbour.Region = region.id;
                     region.AddSpan(i, j);
-                    stack.Push((i, j));
+                    if (stackIndex == stack.Length)
+                        ResizeAndAddToStack(ref stack, ref stackIndex, ref stackOwner, j, i);
+                    else
+                        stack[i++] = new DoubleInt(i, j);
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ResizeAndAddToStack(ref Span<DoubleInt> stack, ref int stackIndex, ref DoubleInt[] stackOwner, int j, int i)
+        {
+            DoubleInt[] owner = ArrayPool<DoubleInt>.Shared.Rent(stackIndex * 2);
+            stack.CopyTo(owner);
+            stack = owner;
+            if (!(stackOwner is null))
+                ArrayPool<DoubleInt>.Shared.Return(stackOwner);
+            stackOwner = owner;
+            stack[stackIndex++] = new DoubleInt(i, j);
         }
 
         private void GrowRegions(ref RawPooledList<Region> regions, int waterLevel, ref RawPooledList<(int i, int j)> tmp)
@@ -308,6 +329,18 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
             return false;
+        }
+
+        private struct DoubleInt
+        {
+            public int a;
+            public int b;
+
+            public DoubleInt(int a, int b)
+            {
+                this.a = a;
+                this.b = b;
+            }
         }
 
         private struct Region : IDisposable
