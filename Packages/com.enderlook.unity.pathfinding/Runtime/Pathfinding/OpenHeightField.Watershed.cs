@@ -191,27 +191,20 @@ namespace Enderlook.Unity.Pathfinding2
                         GrowRegions(ref regions, waterLevel, ref tmp);
 
                         // Find new basins.
-                        //for (int i = 0; i < lenghtXZ; i++)
-                        //int i = 0;
-                        for (int x = 0; x < resolution.x; x++)
+                        for (int i = 0; i < lenghtXZ; i++)
                         {
-                            for (int z = 0; z < resolution.z; z++)
+                            HeightColumn column = columns[i];
+                            Span<HeightSpan> spans = column.AsSpan();
+                            for (int j = 0; j < spans.Length; j++)
                             {
-                                int i = GetIndex(x, z);
-                                HeightColumn column = columns[i];
-                                Span<HeightSpan> spans = column.AsSpan();
-                                for (int j = 0; j < spans.Length; j++)
+                                ref HeightSpan span = ref spans[j];
+                                if (span.Distance == waterLevel && span.Region == HeightSpan.NULL_REGION)
                                 {
-                                    ref HeightSpan span = ref spans[j];
-                                    if (span.Distance == waterLevel && span.Region == HeightSpan.NULL_REGION)
-                                    {
-                                        regions.Add(new Region((ushort)(regions.Count + 1)));
-                                        regions[regions.Count - 1].AddSpan(i, j);
-                                        span.Region = (ushort)regions.Count;
-                                        FloodRegion(waterLevel, j, ref regions[regions.Count - 1], ref tmp, x, z);
-                                    }
+                                    regions.Add(new Region((ushort)(regions.Count + 1)));
+                                    regions[regions.Count - 1].AddSpan(i, j);
+                                    span.Region = (ushort)regions.Count;
+                                    FloodRegion(waterLevel, i, j, ref regions[regions.Count - 1], ref tmp);
                                 }
-                                //i++;
                             }
                         }
                     }
@@ -231,61 +224,35 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FloodRegion(int waterLevel, int spanIndex, ref Region region, ref RawPooledList<(int i, int j)> tmp, int x, int z)
+        private void FloodRegion(int waterLevel, int columnIndex, int spanIndex, ref Region region, ref RawPooledList<(int i, int j)> tmp)
         {
-            //RawPooledStack<(int i, int j)> stack = RawPooledStack<(int i, int j)>.FromEmpty(tmp.UnderlyingArray);
-            RawPooledStack<(int j, int x, int z)> stack = RawPooledStack<(int j, int x, int z)>.Create();
+            RawPooledStack<(int i, int j)> stack = RawPooledStack<(int i, int j)>.FromEmpty(tmp.UnderlyingArray);
 
-            Debug.Assert(spanIndex >= 0);
-            stack.Push((spanIndex, x, z));
+            stack.Push((columnIndex, spanIndex));
 
-            while (stack.TryPop(out (int j, int x_, int z_) value))
+            while (stack.TryPop(out (int i, int j) value))
             {
-                Debug.Assert(value.x_ >= 0);
-                Debug.Assert(value.x_ < resolution.x);
-                Debug.Assert(value.z_ >= 0);
-                Debug.Assert(value.z_ < resolution.z);
-                Debug.Assert(value.j >= 0);
-                int i = GetIndex(value.x_, value.z_);
-                Debug.Assert(value.j < columns[i].AsSpan().Length);
-                ref HeightSpan span = ref columns[i].AsSpan()[value.j];
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Left, i - resolution.z, value.x_ - 1, value.z_);
-                if (value.x_ > 0)
-                    Debug.Assert(i - resolution.z == GetIndex(value.x_ - 1, value.z_));
-                else
-                    Debug.Assert(span.Left == HeightSpan.NULL_SIDE);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Right, i + resolution.z, value.x_ + 1, value.z_);
-                if (value.x_ < resolution.x - 1)
-                    Debug.Assert(i + resolution.z == GetIndex(value.x_ + 1, value.z_));
-                else
-                    Debug.Assert(span.Right == HeightSpan.NULL_SIDE);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Backward, i - 1, value.x_, value.z_ - 1);
-                if (value.z_ > 0)
-                    Debug.Assert(i - 1 == GetIndex(value.x_, value.z_ - 1));
-                else
-                    Debug.Assert(span.Backward == HeightSpan.NULL_SIDE);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Foward, i + 1, value.x_, value.z_ + 1);
-                if (value.z_ < resolution.z - 1)
-                    Debug.Assert(i + 1 == GetIndex(value.x_, value.z_ + 1));
-                else
-                    Debug.Assert(span.Foward == HeightSpan.NULL_SIDE);
+                ref HeightSpan span = ref columns[value.i].AsSpan()[value.j];
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Left, -resolution.z);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Right, resolution.z);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Backward, -1);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.i, span.Foward, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void FloodRegionCheckNeighbour(int waterLevel, ref Region region, ref RawPooledStack<(int j, int x_, int z_)> stack, int j, int i, int x, int z)
+        private void FloodRegionCheckNeighbour(int waterLevel, ref Region region, ref RawPooledStack<(int i, int j)> stack, int i, int j, int d)
         {
             if (j == HeightSpan.NULL_SIDE)
                 return;
 
-            Debug.Assert(i == GetIndex(x, z));
-            i = GetIndex(x, z);
+            i += d;
             ref HeightSpan neighbour = ref columns[i].AsSpan()[j];
             if (neighbour.Distance == waterLevel && neighbour.Region == HeightSpan.NULL_REGION)
             {
                 neighbour.Region = region.id;
                 region.AddSpan(i, j);
-                stack.Push((j, x, z));
+                stack.Push((i, j));
             }
         }
 
