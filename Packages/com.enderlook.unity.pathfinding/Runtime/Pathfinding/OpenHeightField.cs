@@ -577,7 +577,9 @@ namespace Enderlook.Unity.Pathfinding2
         private int GetIndex(int x, int z)
         {
             Debug.Assert(x >= 0);
+            Debug.Assert(x < resolution.x);
             Debug.Assert(z >= 0);
+            Debug.Assert(z < resolution.z);
             int index_ = (resolution.z * x) + z;
             Debug.Assert(index_ < resolution.x * resolution.z);
             return index_;
