@@ -295,7 +295,7 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 int i = index + d;
                 ref HeightSpan neighbour = ref columns[i].AsSpan()[j];
-                if (neighbour.Distance == waterLevel && neighbour.Region != HeightSpan.NULL_REGION && neighbour.Region != region.id)
+                if (neighbour.Distance == waterLevel && neighbour.Region == HeightSpan.NULL_REGION)
                 {
                     neighbour.Region = region.id;
                     region.AddSpan(i, j);
