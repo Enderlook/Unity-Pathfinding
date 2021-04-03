@@ -249,26 +249,43 @@ namespace Enderlook.Unity.Pathfinding2
                 int i = GetIndex(value.x_, value.z_);
                 Debug.Assert(value.j < columns[i].AsSpan().Length);
                 ref HeightSpan span = ref columns[i].AsSpan()[value.j];
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Left, value.x_ - 1, value.z_);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Right, value.x_ + 1, value.z_);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Backward, value.x_, value.z_ - 1);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Foward, value.x_, value.z_ + 1);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Left, i - resolution.z, value.x_ - 1, value.z_);
+                if (value.x_ > 0)
+                    Debug.Assert(i - resolution.z == GetIndex(value.x_ - 1, value.z_));
+                else
+                    Debug.Assert(span.Left == HeightSpan.NULL_SIDE);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Right, i + resolution.z, value.x_ + 1, value.z_);
+                if (value.x_ < resolution.x - 1)
+                    Debug.Assert(i + resolution.z == GetIndex(value.x_ + 1, value.z_));
+                else
+                    Debug.Assert(span.Right == HeightSpan.NULL_SIDE);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Backward, i - 1, value.x_, value.z_ - 1);
+                if (value.z_ > 0)
+                    Debug.Assert(i - 1 == GetIndex(value.x_, value.z_ - 1));
+                else
+                    Debug.Assert(span.Backward == HeightSpan.NULL_SIDE);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, span.Foward, i + 1, value.x_, value.z_ + 1);
+                if (value.z_ < resolution.z - 1)
+                    Debug.Assert(i + 1 == GetIndex(value.x_, value.z_ + 1));
+                else
+                    Debug.Assert(span.Foward == HeightSpan.NULL_SIDE);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void FloodRegionCheckNeighbour(int waterLevel, ref Region region, ref RawPooledStack<(int j, int x_, int z_)> stack, int j, int x, int z)
+        private void FloodRegionCheckNeighbour(int waterLevel, ref Region region, ref RawPooledStack<(int j, int x_, int z_)> stack, int j, int i, int x, int z)
         {
-            if (j != HeightSpan.NULL_SIDE)
+            if (j == HeightSpan.NULL_SIDE)
+                return;
+
+            Debug.Assert(i == GetIndex(x, z));
+            i = GetIndex(x, z);
+            ref HeightSpan neighbour = ref columns[i].AsSpan()[j];
+            if (neighbour.Distance == waterLevel && neighbour.Region == HeightSpan.NULL_REGION)
             {
-                int i = GetIndex(x, z);
-                ref HeightSpan neighbour = ref columns[i].AsSpan()[j];
-                if (neighbour.Distance == waterLevel && neighbour.Region == HeightSpan.NULL_REGION)
-                {
-                    neighbour.Region = region.id;
-                    region.AddSpan(i, j);
-                    stack.Push((j, x, z));
-                }
+                neighbour.Region = region.id;
+                region.AddSpan(i, j);
+                stack.Push((j, x, z));
             }
         }
 
