@@ -30,47 +30,49 @@ namespace Enderlook.Unity.Pathfinding2
         {
             RawPooledQueue<int> handeling = RawPooledQueue<int>.Create();
 
+            Span<CompactOpenHeightField.HeightColumn> columns = openHeighField.Columns;
             Span<CompactOpenHeightField.HeightSpan> spans = openHeighField.Spans;
             spansCount = spans.Length;
-            status = ArrayPool<byte>.Shared.Rent(spans.Length);
+            status = ArrayPool<byte>.Shared.Rent(spansCount);
             try
             {
-                distances = ArrayPool<ushort>.Shared.Rent(spans.Length);
+                distances = ArrayPool<ushort>.Shared.Rent(spansCount);
                 try
                 {
-                    Array.Clear(status, 0, spans.Length);
-                    Array.Clear(distances, 0, spans.Length);
-
                     // Find initial borders.
-                    for (int i = 0; i < spans.Length; i++)
+                    for (int i = 0; i < columns.Length; i++)
                     {
-                        ref CompactOpenHeightField.HeightSpan span = ref spans[i];
-                        // TODO: Is this actually faster than 4 if statements?
-                        bool isBorder = (span.Left | span.Foward | span.Right | span.Backward) == -1;
-                        if (isBorder)
+                        CompactOpenHeightField.HeightColumn column = columns[i];
+
+                        for (int j = column.First; j < column.Last; j++)
                         {
-                            // A border is any span with less than 4 neighbours.
-                            status[i] = STATUS_IN_PROGRESS;
-                            distances[i] = 0; // We zeroed it because ArrayPool doesn't guaranted zeroed arrays.
-                            handeling.Enqueue(i);
+                            ref CompactOpenHeightField.HeightSpan span = ref spans[j];
+                            // TODO: Is this actually faster than 4 if statements?
+                            bool isBorder = (span.Left | span.Foward | span.Right | span.Backward) == -1;
+                            if (isBorder)
+                            {
+                                // A border is any span with less than 4 neighbours.
+                                status[j] = STATUS_IN_PROGRESS;
+                                distances[j] = 0;
+                                handeling.Enqueue(j);
+                            }
                         }
                     }
 
                     maximumDistance = 0;
-                    while (handeling.TryDequeue(out int i))
+                    while (handeling.TryDequeue(out int j))
                     {
-                        ref CompactOpenHeightField.HeightSpan span = ref spans[i];
+                        ref CompactOpenHeightField.HeightSpan span = ref spans[j];
 
-                        DistanceFieldCheckNeigbour(spans, ref handeling, i, span.Left);
-                        DistanceFieldCheckNeigbour(spans, ref handeling, i, span.Right);
-                        DistanceFieldCheckNeigbour(spans, ref handeling, i, span.Foward);
-                        DistanceFieldCheckNeigbour(spans, ref handeling, i, span.Backward);
+                        DistanceFieldCheckNeigbour(ref handeling, spans, j, span.Left);
+                        DistanceFieldCheckNeigbour(ref handeling, spans, j, span.Right);
+                        DistanceFieldCheckNeigbour(ref handeling, spans, j, span.Foward);
+                        DistanceFieldCheckNeigbour(ref handeling, spans, j, span.Backward);
 
-                        ushort distance = distances[i];
-                        if (distance > maximumDistance)
-                            maximumDistance = distance;
+                        if (distances[j] > maximumDistance)
+                            maximumDistance = distances[j];
 
-                        status[i] = STATUS_CLOSED;
+                        status[j] = STATUS_CLOSED;
                     }
                 }
                 catch
@@ -87,39 +89,31 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DistanceFieldCheckNeigbour(Span<CompactOpenHeightField.HeightSpan> spans, ref RawPooledQueue<int> handeling, int i, int neighbour)
+        private void DistanceFieldCheckNeigbour(ref RawPooledQueue<int> handeling, Span<CompactOpenHeightField.HeightSpan> spans, int j, int neighbour)
         {
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
                 ref CompactOpenHeightField.HeightSpan spanNeighbour = ref spans[neighbour];
 
-                switch (distances[neighbour])
+                switch (status[j])
                 {
                     case STATUS_OPEN:
                         handeling.Enqueue(neighbour);
                         status[neighbour] = STATUS_IN_PROGRESS;
-                        distances[neighbour] = (ushort)(distances[i] + 1);
+                        distances[neighbour] = (ushort)(distances[j] + 1);
                         break;
                     case STATUS_IN_PROGRESS:
-                    {
-                        ushort currentDistance = distances[i];
-                        ref ushort neighbourDistance = ref distances[neighbour];
-                        if (currentDistance + 1 < neighbourDistance)
-                            neighbourDistance = currentDistance;
+                        if (distances[j] + 1 < distances[neighbour])
+                            distances[neighbour] = distances[j];
                         break;
-                    }
                     case STATUS_CLOSED:
-                    {
-                        ushort currentDistance = distances[i];
-                        ref ushort neighbourDistance = ref distances[neighbour];
-                        if (currentDistance + 1 < neighbourDistance)
+                        if (distances[j] + 1 < distances[neighbour])
                         {
-                            neighbourDistance = (ushort)(currentDistance + 1);
+                            distances[neighbour] = (ushort)(distances[j] + 1);
                             status[neighbour] = STATUS_IN_PROGRESS;
                             handeling.Enqueue(neighbour);
                         }
                         break;
-                    }
                     default:
                         Debug.Assert(false, "Impossible state.");
                         goto case STATUS_CLOSED;
@@ -127,7 +121,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        public void DrawGizmosOfDistanceHeightField(in Resolution resolution, in CompactOpenHeightField openHeightField)
+        public void DrawGizmos(in Resolution resolution, in CompactOpenHeightField openHeightField)
         {
             if (maximumDistance == 0)
                 throw new InvalidOperationException();

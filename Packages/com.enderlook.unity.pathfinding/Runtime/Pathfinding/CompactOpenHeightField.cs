@@ -41,112 +41,8 @@ namespace Enderlook.Unity.Pathfinding2
                 RawPooledList<HeightSpan> spanBuilder = RawPooledList<HeightSpan>.Create();
                 try
                 {
-                    ReadOnlySpan<HeightField.HeightColumn> columns = heightField.AsSpan();
-                    int index = 0;
-                    for (int x = 0; x < resolution.Width; x++)
-                    {
-                        for (int z = 0; z < resolution.Depth; z++)
-                        {
-                            Debug.Assert(index == GetIndex(resolution, x, z));
-                            int startIndex = spanBuilder.Count;
+                    Initialize(heightField, resolution, ref spanBuilder);
 
-                            HeightField.HeightColumn column = columns[index];
-                            ReadOnlySpan<HeightField.HeightSpan> spans = column.AsSpan();
-                            Debug.Assert(spans.Length > 0);
-
-                            int i = 0;
-                            int y = 0;
-
-                            if (spans.Length > 1)
-                            {
-                                HeightField.HeightSpan span = spans[i++];
-
-#if DEBUG
-                                bool wasSolid = span.IsSolid;
-#endif
-
-                                if (!span.IsSolid)
-                                {
-                                    /* Do we actually need to add this span?
-                                     * If we remove it, everything works... the output is just a bit different,
-                                     * maybe it doesn't mater */
-                                    const int floor = -1;
-                                    int ceil = y + span.Height;
-                                    spanBuilder.Add(new HeightSpan(floor, ceil));
-
-                                    // Regardless we remove above span, this line must stay!
-                                    y += span.Height;
-                                }
-                                else
-                                {
-                                    int floor = y + span.Height;
-                                    if (spans.Length > 2)
-                                    {
-                                        span = spans[i++];
-
-#if DEBUG
-                                        Debug.Assert(wasSolid != span.IsSolid);
-                                        wasSolid = span.IsSolid;
-#endif
-
-                                        y += span.Height;
-                                        int ceil = y;
-                                        spanBuilder.Add(new HeightSpan(floor, ceil));
-                                    }
-                                    else
-                                    {
-                                        Debug.Assert(i == spans.Length - 1);
-#if DEBUG
-                                        span = spans[i];
-                                        Debug.Assert(wasSolid != span.IsSolid);
-#endif
-                                        const int ceil = -1;
-                                        spanBuilder.Add(new HeightSpan(floor, ceil));
-
-                                        goto end;
-                                    }
-                                }
-
-                                for (; i < spans.Length - 1; i++)
-                                {
-                                    span = spans[i];
-#if DEBUG
-                                    Debug.Assert(wasSolid != span.IsSolid);
-                                    wasSolid = span.IsSolid;
-#endif
-                                    if (!span.IsSolid)
-                                    {
-                                        int floor = y;
-                                        y += span.Height;
-                                        int ceil = y;
-                                        spanBuilder.Add(new HeightSpan(floor, ceil));
-                                    }
-                                    else
-                                        y += span.Height;
-                                }
-
-                                if (spans.Length > 2)
-                                {
-                                    Debug.Assert(i == spans.Length - 1);
-                                    span = spans[i];
-#if DEBUG
-                                    Debug.Assert(wasSolid != span.IsSolid);
-#endif
-                                    if (!span.IsSolid)
-                                    {
-                                        int floor = y;
-                                        const int ceil = -1;
-                                        spanBuilder.Add(new HeightSpan(floor, ceil));
-                                    }
-                                }
-
-                                end:
-                                ;
-                            }
-
-                            this.columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
-                        }
-                    }
                     spans = spanBuilder.UnderlyingArray;
                     spansCount = spanBuilder.Count;
 
@@ -162,6 +58,116 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 ArrayPool<HeightColumn>.Shared.Return(columns);
                 throw;
+            }
+        }
+
+        private void Initialize(in HeightField heightField, in Resolution resolution, ref RawPooledList<HeightSpan> spanBuilder)
+        {
+            ReadOnlySpan<HeightField.HeightColumn> columns = heightField.AsSpan();
+            int index = 0;
+            for (int x = 0; x < resolution.Width; x++)
+            {
+                for (int z = 0; z < resolution.Depth; z++)
+                {
+                    Debug.Assert(index == GetIndex(resolution, x, z));
+                    int startIndex = spanBuilder.Count;
+
+                    HeightField.HeightColumn column = columns[index];
+                    ReadOnlySpan<HeightField.HeightSpan> spans = column.AsSpan();
+                    Debug.Assert(spans.Length > 0);
+
+                    int i = 0;
+                    int y = 0;
+
+                    if (spans.Length > 1)
+                    {
+                        HeightField.HeightSpan span = spans[i++];
+
+#if DEBUG
+                        bool wasSolid = span.IsSolid;
+#endif
+
+                        if (!span.IsSolid)
+                        {
+                            /* Do we actually need to add this span?
+                             * If we remove it, everything works... the output is just a bit different,
+                             * maybe it doesn't mater */
+                            const int floor = -1;
+                            int ceil = y + span.Height;
+                            spanBuilder.Add(new HeightSpan(floor, ceil));
+
+                            // Regardless we remove above span, this line must stay!
+                            y += span.Height;
+                        }
+                        else
+                        {
+                            int floor = y + span.Height;
+                            if (spans.Length > 2)
+                            {
+                                span = spans[i++];
+
+#if DEBUG
+                                Debug.Assert(wasSolid != span.IsSolid);
+                                wasSolid = span.IsSolid;
+#endif
+
+                                y += span.Height;
+                                int ceil = y;
+                                spanBuilder.Add(new HeightSpan(floor, ceil));
+                            }
+                            else
+                            {
+                                Debug.Assert(i == spans.Length - 1);
+#if DEBUG
+                                span = spans[i];
+                                Debug.Assert(wasSolid != span.IsSolid);
+#endif
+                                const int ceil = -1;
+                                spanBuilder.Add(new HeightSpan(floor, ceil));
+
+                                goto end;
+                            }
+                        }
+
+                        for (; i < spans.Length - 1; i++)
+                        {
+                            span = spans[i];
+#if DEBUG
+                            Debug.Assert(wasSolid != span.IsSolid);
+                            wasSolid = span.IsSolid;
+#endif
+                            if (!span.IsSolid)
+                            {
+                                int floor = y;
+                                y += span.Height;
+                                int ceil = y;
+                                spanBuilder.Add(new HeightSpan(floor, ceil));
+                            }
+                            else
+                                y += span.Height;
+                        }
+
+                        if (spans.Length > 2)
+                        {
+                            Debug.Assert(i == spans.Length - 1);
+                            span = spans[i];
+#if DEBUG
+                            Debug.Assert(wasSolid != span.IsSolid);
+#endif
+                            if (!span.IsSolid)
+                            {
+                                int floor = y;
+                                const int ceil = -1;
+                                spanBuilder.Add(new HeightSpan(floor, ceil));
+                            }
+                        }
+
+                        end:
+                        ;
+                    }
+
+                    this.columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
+                }
             }
         }
 
@@ -497,7 +503,7 @@ namespace Enderlook.Unity.Pathfinding2
             ArrayPool<HeightSpan>.Shared.Return(spans);
         }
 
-        public void DrawGizmosOfOpenHeightField(in Resolution resolution, bool neightbours)
+        public void DrawGizmos(in Resolution resolution, bool neightbours)
         {
             Gizmos.color = Color.blue;
             Gizmos.DrawWireCube(resolution.Center, new Vector3(resolution.CellSize.x * resolution.Width, resolution.CellSize.y * resolution.Height, resolution.CellSize.z * resolution.Depth));
