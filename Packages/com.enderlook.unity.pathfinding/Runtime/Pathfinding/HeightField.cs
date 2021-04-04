@@ -12,7 +12,7 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Represent the height field of a voxelization.
     /// </summary>
-    internal struct HeightField : IDisposable
+    internal readonly struct HeightField : IDisposable
     {
         private readonly HeightColumn[] columns;
         private readonly int columnsCount;
@@ -85,7 +85,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetIndex(in Resolution resolution, int x, int y, int z)
+        private static int GetIndex(in Resolution resolution, int x, int y, int z)
         {
             int index = (resolution.Depth * ((resolution.Height * x) + y)) + z;
             Debug.Assert(index < resolution.Width * resolution.Height * resolution.Depth);
@@ -93,7 +93,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetIndex(in Resolution resolution, int x, int z)
+        private static int GetIndex(in Resolution resolution, int x, int z)
         {
             int index = (resolution.Depth * x) + z;
             Debug.Assert(index < resolution.Width * resolution.Depth);
