@@ -43,12 +43,14 @@ namespace Enderlook.Unity.Pathfinding2
             //heightField.DrawGizmos(r, false);
 
             CompactOpenHeightField openHeighField = new CompactOpenHeightField(heightField, r, 1, 1);
-            openHeighField.DrawGizmosOfOpenHeightField(r, true);
+            //openHeighField.DrawGizmosOfOpenHeightField(r, true);
+
+            DistanceField distanceField = new DistanceField(openHeighField);
 
             /*OpenHeightField openHeightField = new OpenHeightField(heightField, 1, 1);
-            //openHeightField.DrawGizmosOfOpenHeightField(transform.position, voxelSize, true);
+            openHeightField.DrawGizmosOfOpenHeightField(transform.position, voxelSize, true);*/
 
-            openHeightField.CalculateDistanceField();
+            /*openHeightField.CalculateDistanceField();
             //openHeightField.DrawGizmosOfDistanceHeightField(transform.position, voxelSize);
 
             openHeightField.CalculateRegions(0);
