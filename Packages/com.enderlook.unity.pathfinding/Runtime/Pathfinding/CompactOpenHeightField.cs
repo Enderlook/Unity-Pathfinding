@@ -647,6 +647,17 @@ namespace Enderlook.Unity.Pathfinding2
             public int Right;
             public int Backward;
 
+            public bool IsBorder {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get {
+                    // A border is any span with less than 4 neighbours.
+                    Debug.Assert(NULL_SIDE == -1, "If this fail you fix the next line to perform 4 comparisons instead.");
+                    bool isBorder = (Left | Foward | Right | Backward) == NULL_SIDE;
+                    Debug.Assert(isBorder == (Left == NULL_SIDE || Foward == NULL_SIDE || Right == NULL_SIDE || Backward == NULL_SIDE));
+                    return isBorder;
+                }
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public HeightSpan(int floor, int ceil)
             {

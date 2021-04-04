@@ -42,36 +42,11 @@ namespace Enderlook.Unity.Pathfinding2
                 distances = ArrayPool<ushort>.Shared.Rent(spansCount);
                 try
                 {
-                    // Find initial borders.
-                    for (int i = 0; i < spans.Length; i++)
-                    {
-                        ref CompactOpenHeightField.HeightSpan span = ref spans[i];
-                        // TODO: Is this actually faster than 4 if statements?
-                        bool isBorder = (span.Left | span.Foward | span.Right | span.Backward) == -1;
-                        if (isBorder)
-                        {
-                            // A border is any span with less than 4 neighbours.
-                            status[i] = STATUS_IN_PROGRESS;
-                            distances[i] = 0;
-                            handeling.Enqueue(i);
-                        }
-                    }
-
                     maximumDistance = 0;
-                    while (handeling.TryDequeue(out int i))
-                    {
-                        ref CompactOpenHeightField.HeightSpan span = ref spans[i];
 
-                        DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Left);
-                        DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Right);
-                        DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Foward);
-                        DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Backward);
+                    FindInitialBorders(ref handeling, spans);
 
-                        if (distances[i] > maximumDistance)
-                            maximumDistance = distances[i];
-
-                        status[i] = STATUS_CLOSED;
-                    }
+                    CalculateDistances(ref maximumDistance, ref handeling, spans);
                 }
                 catch
                 {
@@ -83,6 +58,37 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 ArrayPool<byte>.Shared.Return(status);
                 throw;
+            }
+        }
+
+        private void FindInitialBorders(ref RawPooledQueue<int> handeling, Span<CompactOpenHeightField.HeightSpan> spans)
+        {
+            for (int i = 0; i < spans.Length; i++)
+            {
+                if (spans[i].IsBorder)
+                {
+                    status[i] = STATUS_IN_PROGRESS;
+                    distances[i] = 0;
+                    handeling.Enqueue(i);
+                }
+            }
+        }
+
+        private void CalculateDistances(ref ushort maximumDistance, ref RawPooledQueue<int> handeling, Span<CompactOpenHeightField.HeightSpan> spans)
+        {
+            while (handeling.TryDequeue(out int i))
+            {
+                ref CompactOpenHeightField.HeightSpan span = ref spans[i];
+
+                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Left);
+                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Right);
+                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Foward);
+                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Backward);
+
+                if (distances[i] > maximumDistance)
+                    maximumDistance = distances[i];
+
+                status[i] = STATUS_CLOSED;
             }
         }
 

@@ -23,10 +23,10 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="maxTraversableStep">Maximum amount of cells between two floors to be considered neighbours.</param>
         /// <param name="minTraversableHeight">Minimum height between a floor and a ceil to be considered traversable.</param>
         /// <returns>The open height field of the heigh field.</returns>
-        public OpenHeightField(HeightField heightField, int maxTraversableStep, int minTraversableHeight)
+        public OpenHeightField(HeightField heightField, (int x, int y, int z) resolution, int maxTraversableStep, int minTraversableHeight)
         {
             maximumDistance = 0;
-            resolution = default;// heightField.Resolution;
+            this.resolution = resolution;//heightField.Resolution;
 
             Span<HeightSpan> stack;
             HeightSpan[] stackOwner;
