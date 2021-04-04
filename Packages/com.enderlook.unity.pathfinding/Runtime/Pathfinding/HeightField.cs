@@ -15,55 +15,55 @@ namespace Enderlook.Unity.Pathfinding2
     internal struct HeightField : IDisposable
     {
         private readonly HeightColumn[] columns;
-        public readonly (int x, int y, int z) Resolution;
+        private readonly int columnsCount;
 
         /// <summary>
         /// Creates a new height field.
         /// </summary>
         /// <param name="voxels">Voxel information of the height field.</param>
         /// <param name="resolution">Resolution of the voxelization.</param>
-        public HeightField(Span<bool> voxels, (int x, int y, int z) resolution)
+        public HeightField(Span<bool> voxels, in Resolution resolution)
         {
-            if (resolution.x < 1 || resolution.y < 1 || resolution.z < 1)
+            if (resolution.Width < 1 || resolution.Height < 1 || resolution.Depth < 1)
                 throw new ArgumentOutOfRangeException(nameof(resolution), $"{nameof(resolution)} values can't be lower than 1.");
 
-            int xzLength = resolution.x * resolution.z;
-            if (voxels.Length < xzLength * resolution.y)
-                throw new ArgumentOutOfRangeException(nameof(voxels), $"Length can't be lower than {nameof(resolution)}.{nameof(resolution.x)} * {nameof(resolution)}.{nameof(resolution.y)} * {nameof(resolution)}.{nameof(resolution.z)}");
+            int xzLength = resolution.Width * resolution.Depth;
+            if (voxels.Length < xzLength * resolution.Height)
+                throw new ArgumentOutOfRangeException(nameof(voxels), $"Length can't be lower than {nameof(resolution)}.{nameof(resolution.Width)} * {nameof(resolution)}.{nameof(resolution.Height)} * {nameof(resolution)}.{nameof(resolution.Depth)}");
 
+            columnsCount = xzLength;
             columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
             try
             {
-                Resolution = resolution;
                 Span<HeightSpan> span;
                 HeightSpan[] spanOwner;
-                if (resolution.y * Unsafe.SizeOf<HeightSpan>() < sizeof(byte) * 512)
+                if (resolution.Height * Unsafe.SizeOf<HeightSpan>() < sizeof(byte) * 512)
                 {
                     spanOwner = null;
                     unsafe
                     {
-                        HeightSpan* ptr = stackalloc HeightSpan[resolution.y];
-                        span = new Span<HeightSpan>(ptr, resolution.y);
+                        HeightSpan* ptr = stackalloc HeightSpan[resolution.Height];
+                        span = new Span<HeightSpan>(ptr, resolution.Height);
                     }
                 }
                 else
                 {
-                    spanOwner = ArrayPool<HeightSpan>.Shared.Rent(resolution.y);
+                    spanOwner = ArrayPool<HeightSpan>.Shared.Rent(resolution.Height);
                     span = spanOwner;
                 }
 
                 try
                 {
                     int index = 0;
-                    for (int x = 0; x < resolution.x; x++)
+                    for (int x = 0; x < resolution.Width; x++)
                     {
-                        for (int z = 0; z < resolution.z; z++)
+                        for (int z = 0; z < resolution.Depth; z++)
                         {
                             HeightColumnBuilder column = new HeightColumnBuilder(span);
-                            for (int y = 0; y < resolution.y; y++)
-                                column.Grow(voxels[GetIndex(x, y, z)]);
+                            for (int y = 0; y < resolution.Height; y++)
+                                column.Grow(voxels[GetIndex(resolution, x, y, z)]);
 
-                            Debug.Assert(index == GetIndex(x, z));
+                            Debug.Assert(index == GetIndex(resolution, x, z));
                             columns[index++] = column.ToBuilt();
                         }
                     }
@@ -85,54 +85,53 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetIndex(int x, int y, int z)
+        private int GetIndex(in Resolution resolution, int x, int y, int z)
         {
-            int index = (Resolution.z * ((Resolution.y * x) + y)) + z;
-            Debug.Assert(index < Resolution.x * Resolution.y * Resolution.z);
+            int index = (resolution.Depth * ((resolution.Height * x) + y)) + z;
+            Debug.Assert(index < resolution.Width * resolution.Height * resolution.Depth);
             return index;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetIndex(int x, int z)
+        private int GetIndex(in Resolution resolution, int x, int z)
         {
-            int index = (Resolution.z * x) + z;
-            Debug.Assert(index < Resolution.x * Resolution.z);
+            int index = (resolution.Depth * x) + z;
+            Debug.Assert(index < resolution.Width * resolution.Depth);
             return index;
         }
 
-        public ReadOnlySpan<HeightColumn> AsSpan() => columns.AsSpan(0, Resolution.x * Resolution.z);
+        public ReadOnlySpan<HeightColumn> AsSpan() => columns.AsSpan(0, columnsCount);
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()
         {
-            int length = Resolution.x * Resolution.z;
-            for (int i = 0; i < length; i++)
+            for (int i = 0; i < columnsCount; i++)
                 columns[i].Dispose();
             ArrayPool<HeightColumn>.Shared.Return(columns);
         }
 
-        public void DrawGizmos(Vector3 center, Vector3 cellSize, bool drawOpen)
+        public void DrawGizmos(in Resolution resolution, bool drawOpen)
         {
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireCube(center, new Vector3(cellSize.x * Resolution.x, cellSize.y * Resolution.y, cellSize.z * Resolution.z));
-            Vector3 offset = (new Vector3(Resolution.x * (-cellSize.x), Resolution.y * (-cellSize.y), Resolution.z * (-cellSize).z) * .5f) + (cellSize * .5f);
-            offset.y -= cellSize.y / 2;
+            Gizmos.DrawWireCube(resolution.Center, new Vector3(resolution.CellSize.x * resolution.Width, resolution.CellSize.y * resolution.Height, resolution.CellSize.z * resolution.Depth));
+            Vector3 offset = (new Vector3(resolution.Width * (-resolution.CellSize.x), resolution.Height * (-resolution.CellSize.y), resolution.Depth * (-resolution.CellSize).z) * .5f) + (resolution.CellSize * .5f);
+            offset.y -= resolution.CellSize.y / 2;
 
             int i = 0;
-            for (int x = 0; x < Resolution.x; x++)
+            for (int x = 0; x < resolution.Width; x++)
             {
-                for (int z = 0; z < Resolution.z; z++)
+                for (int z = 0; z < resolution.Depth; z++)
                 {
-                    Vector2 position_ = new Vector2(x * cellSize.x, z * cellSize.z);
+                    Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
                     ReadOnlySpan<HeightSpan> heightSpans = columns[i++].AsSpan();
 
                     int y = 0;
                     for (int j = 0; j < heightSpans.Length; j++)
                     {
                         HeightSpan heightSpan = heightSpans[j];
-                        Vector3 position = new Vector3(position_.x, cellSize.y * (y + (heightSpan.Height / 2f)), position_.y);
-                        Vector3 center_ = offset + position + center;
-                        Vector3 size = new Vector3(cellSize.x, cellSize.y * heightSpan.Height, cellSize.z);
+                        Vector3 position = new Vector3(position_.x, resolution.CellSize.y * (y + (heightSpan.Height / 2f)), position_.y);
+                        Vector3 center_ = offset + position + resolution.Center;
+                        Vector3 size = new Vector3(resolution.CellSize.x, resolution.CellSize.y * heightSpan.Height, resolution.CellSize.z);
                         y += heightSpan.Height;
 
                         Gizmos.color = heightSpan.IsSolid ? Color.red : Color.green;

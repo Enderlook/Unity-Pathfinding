@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding2
         public OpenHeightField(HeightField heightField, int maxTraversableStep, int minTraversableHeight)
         {
             maximumDistance = 0;
-            resolution = heightField.Resolution;
+            resolution = default;// heightField.Resolution;
 
             Span<HeightSpan> stack;
             HeightSpan[] stackOwner;
