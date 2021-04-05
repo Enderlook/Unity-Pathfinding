@@ -25,8 +25,8 @@ namespace Enderlook.Unity.Pathfinding2
             if (meshFilters.Length == 0)
                 return;
 
-            (int, int, int) resolution = (20, 20, 30);
-            Bounds bounds = new Bounds(transform.position, new Vector3(5, 2, 3));
+            (int, int, int) resolution = (50, 10, 30);
+            Bounds bounds = new Bounds(transform.position, new Vector3(5, 1, 3));
             MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, bounds);
 
             foreach (MeshFilter meshFilter in meshFilters)
@@ -38,14 +38,14 @@ namespace Enderlook.Unity.Pathfinding2
 
             Vector3 voxelSize = meshVoxelizer.VoxelSize;
 
-            Resolution r = new Resolution(20, 20, 30, bounds);
+            Resolution r = new Resolution(50, 10, 30, bounds);
             HeightField heightField = new HeightField(voxels, r);
             //heightField.DrawGizmos(r, false);
 
-            OpenHeightField openHeightField = new OpenHeightField(heightField, resolution, 1, 1);
+            //OpenHeightField openHeightField = new OpenHeightField(heightField, resolution, 1, 1);
             //openHeightField.DrawGizmosOfOpenHeightField(transform.position, voxelSize, true);
 
-            openHeightField.CalculateDistanceField();
+            //openHeightField.CalculateDistanceField();
             //openHeightField.DrawGizmosOfDistanceHeightField(transform.position, voxelSize);
 
             /*openHeightField.CalculateRegions(0);
@@ -55,7 +55,10 @@ namespace Enderlook.Unity.Pathfinding2
             //openHeighField.DrawGizmos(r, true);
 
             DistanceField distanceField = new DistanceField(openHeighField);
-            distanceField.DrawGizmos(r, openHeighField);
+            //distanceField.DrawGizmos(r, openHeighField);
+
+            Regions regions = new Regions(distanceField, openHeighField, 1);
+            regions.DrawGizmos(r, openHeighField);
         }
     }
 }

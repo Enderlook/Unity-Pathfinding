@@ -13,14 +13,15 @@ namespace Enderlook.Unity.Pathfinding2
     /// </summary>
     internal readonly struct DistanceField
     {
-        private readonly ushort maximumDistance;
+        public readonly ushort MaximumDistance;
         private readonly int spansCount;
-        private readonly byte[] status;
         private readonly ushort[] distances;
+
+        public ReadOnlySpan<ushort> Distances => distances.AsSpan(0, spansCount);
 
         /* The status array must start with this value.
          * Currently in order to do that we are using Array.Empty method.
-         * If you replace this value with any other than 0, you shall replcae Array.Empty with Array.Fill. */
+         * If you replace this value with any other than 0, you shall replicate it by replacing Array.Empty with Array.Fill. */
         private const int STATUS_OPEN = 0;
         private const int STATUS_IN_PROGRESS = 1;
         private const int STATUS_CLOSED = 2;
@@ -33,9 +34,9 @@ namespace Enderlook.Unity.Pathfinding2
         {
             RawPooledQueue<int> handeling = RawPooledQueue<int>.Create();
 
-            Span<CompactOpenHeightField.HeightSpan> spans = openHeighField.Spans;
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeighField.Spans;
             spansCount = spans.Length;
-            status = ArrayPool<byte>.Shared.Rent(spansCount);
+            byte[] status = ArrayPool<byte>.Shared.Rent(spansCount);
             try
             {
                 Debug.Assert(STATUS_OPEN == 0, $"If this fail you must change the next line to perfom Array.Fill and set the content of the array to {nameof(STATUS_OPEN)}.");
@@ -43,11 +44,11 @@ namespace Enderlook.Unity.Pathfinding2
                 distances = ArrayPool<ushort>.Shared.Rent(spansCount);
                 try
                 {
-                    maximumDistance = 0;
+                    MaximumDistance = 0;
 
-                    FindInitialBorders(ref handeling, spans);
+                    FindInitialBorders(ref handeling, status, spans);
 
-                    CalculateDistances(ref maximumDistance, ref handeling, spans);
+                    CalculateDistances(ref MaximumDistance, ref handeling, status, spans);
                 }
                 catch
                 {
@@ -55,14 +56,13 @@ namespace Enderlook.Unity.Pathfinding2
                     throw;
                 }
             }
-            catch
+            finally
             {
                 ArrayPool<byte>.Shared.Return(status);
-                throw;
             }
         }
 
-        private void FindInitialBorders(ref RawPooledQueue<int> handeling, Span<CompactOpenHeightField.HeightSpan> spans)
+        private void FindInitialBorders(ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
         {
             for (int i = 0; i < spans.Length; i++)
             {
@@ -75,16 +75,16 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void CalculateDistances(ref ushort maximumDistance, ref RawPooledQueue<int> handeling, Span<CompactOpenHeightField.HeightSpan> spans)
+        private void CalculateDistances(ref ushort maximumDistance, ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
         {
             while (handeling.TryDequeue(out int i))
             {
-                ref CompactOpenHeightField.HeightSpan span = ref spans[i];
+                ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
 
-                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Left);
-                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Right);
-                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Foward);
-                DistanceFieldCheckNeigbour(ref handeling, spans, i, span.Backward);
+                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Left);
+                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Right);
+                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Foward);
+                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Backward);
 
                 if (distances[i] > maximumDistance)
                     maximumDistance = distances[i];
@@ -94,11 +94,11 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DistanceFieldCheckNeigbour(ref RawPooledQueue<int> handeling, Span<CompactOpenHeightField.HeightSpan> spans, int i, int neighbour)
+        private void DistanceFieldCheckNeigbour(ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int i, int neighbour)
         {
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
-                ref CompactOpenHeightField.HeightSpan spanNeighbour = ref spans[neighbour];
+                ref readonly CompactOpenHeightField.HeightSpan spanNeighbour = ref spans[neighbour];
 
                 switch (status[neighbour])
                 {
@@ -128,7 +128,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         public void DrawGizmos(in Resolution resolution, in CompactOpenHeightField openHeightField)
         {
-            if (maximumDistance == 0)
+            if (MaximumDistance == 0)
                 throw new InvalidOperationException();
 
             Gizmos.color = Color.blue;
@@ -137,15 +137,15 @@ namespace Enderlook.Unity.Pathfinding2
             offset.y -= resolution.CellSize.y / 2;
             offset += resolution.Center;
 
-            Span<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
-            Span<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
             int i = 0;
             for (int x = 0; x < resolution.Width; x++)
             {
                 for (int z = 0; z < resolution.Depth; z++)
                 {
                     Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
-                    ref CompactOpenHeightField.HeightColumn column = ref columns[i++];
+                    ref readonly CompactOpenHeightField.HeightColumn column = ref columns[i++];
 
                     if (!column.IsEmpty)
                     {
@@ -153,20 +153,20 @@ namespace Enderlook.Unity.Pathfinding2
 
                         CompactOpenHeightField.HeightSpan heightSpan = spans[j];
                         if (heightSpan.Floor != -1)
-                            Draw(resolution, heightSpan.Floor - .1f, distances[j] / (float)maximumDistance);
+                            Draw(resolution, heightSpan.Floor - .1f, distances[j] / (float)MaximumDistance);
                         j++;
 
                         for (; j < column.Last - 1; j++)
                         {
                             heightSpan = spans[j];
-                            Draw(resolution, heightSpan.Floor - .1f, distances[j] / (float)maximumDistance);
+                            Draw(resolution, heightSpan.Floor - .1f, distances[j] / (float)MaximumDistance);
                         }
 
                         if (column.Count > 1) // Shouldn't this be 2?
                         {
                             Debug.Assert(j == column.Last - 1);
                             heightSpan = spans[j];
-                            Draw(resolution, heightSpan.Floor, distances[j] / (float)maximumDistance);
+                            Draw(resolution, heightSpan.Floor, distances[j] / (float)MaximumDistance);
                         }
                     }
 

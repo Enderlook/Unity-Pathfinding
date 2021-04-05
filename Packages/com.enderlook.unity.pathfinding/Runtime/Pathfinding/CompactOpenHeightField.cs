@@ -18,8 +18,8 @@ namespace Enderlook.Unity.Pathfinding2
         private readonly HeightSpan[] spans;
         private readonly int spansCount;
 
-        public Span<HeightColumn> Columns => columns.AsSpan(0, columnsCount);
-        public Span<HeightSpan> Spans => spans.AsSpan(0, spansCount);
+        public ReadOnlySpan<HeightColumn> Columns => columns.AsSpan(0, columnsCount);
+        public ReadOnlySpan<HeightSpan> Spans => spans.AsSpan(0, spansCount);
 
         /// <summary>
         /// Creates a the open height field of a height field.
