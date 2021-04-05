@@ -38,6 +38,7 @@ namespace Enderlook.Unity.Pathfinding2
             status = ArrayPool<byte>.Shared.Rent(spansCount);
             try
             {
+                Debug.Assert(STATUS_OPEN == 0, $"If this fail you must change the next line to perfom Array.Fill and set the content of the array to {nameof(STATUS_OPEN)}.");
                 Array.Clear(status, 0, spansCount);
                 distances = ArrayPool<ushort>.Shared.Rent(spansCount);
                 try
@@ -99,7 +100,7 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 ref CompactOpenHeightField.HeightSpan spanNeighbour = ref spans[neighbour];
 
-                switch (status[i])
+                switch (status[neighbour])
                 {
                     case STATUS_OPEN:
                         handeling.Enqueue(neighbour);
@@ -155,7 +156,7 @@ namespace Enderlook.Unity.Pathfinding2
                             Draw(resolution, heightSpan.Floor - .1f, distances[j] / (float)maximumDistance);
                         j++;
 
-                        for (; j < column.Count - 1; j++)
+                        for (; j < column.Last - 1; j++)
                         {
                             heightSpan = spans[j];
                             Draw(resolution, heightSpan.Floor - .1f, distances[j] / (float)maximumDistance);
