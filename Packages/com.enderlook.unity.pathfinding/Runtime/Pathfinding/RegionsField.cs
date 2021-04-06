@@ -11,15 +11,18 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Stores the regions of a <see cref="DistanceField"/>.
     /// </summary>
-    internal readonly struct Regions
+    internal readonly struct RegionsField
     {
         private readonly ushort[] regions;
         private readonly int regionsCount;
+        private readonly int regionsAmount;
+
+        public ReadOnlySpan<ushort> Regions => regions.AsSpan(0, regionsCount);
 
         /* The region array must start with this value.
          * Currently in order to do that we are using Array.Empty method.
          * If you replace this value with any other than 0, you shall replicate it by replacing Array.Empty with Array.Fill. */
-        private const byte NULL_REGION = 0;
+        public const byte NULL_REGION = 0;
 
         /// <summary>
         /// Calculates the regions of the specified distance field.
@@ -27,15 +30,16 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="distanceField">Distance field whose regions is being calculated.</param>
         /// <param name="openHeightField">Open height field owner of the <paramref name="distanceField"/>.</param>
         /// <param name="agentSize">Size of the agent that will traverse this regions.</param>
-        public Regions(in DistanceField distanceField, in CompactOpenHeightField openHeightField, int agentSize)
+        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, int agentSize)
         {
             ReadOnlySpan<ushort> distances = distanceField.Distances;
+            regionsCount = distances.Length;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
-            regions = ArrayPool<ushort>.Shared.Rent(distances.Length);
+            regions = ArrayPool<ushort>.Shared.Rent(regionsCount);
             try
             {
-                Array.Clear(this.regions, 0, distances.Length);
-                regionsCount = 0;
+                Array.Clear(this.regions, 0, regionsCount);
+                regionsAmount = 0;
 
                 RawPooledList<Region> regions = RawPooledList<Region>.Create();
                 try
@@ -50,6 +54,8 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         // TODO: Handle small regions by deleting them or merging them.
+
+                        regionsAmount = regions.Count;
                     }
                     finally
                     {
@@ -90,47 +96,40 @@ namespace Enderlook.Unity.Pathfinding2
         private bool GrowRegion(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp, ref Region region)
         {
             tmp.Clear();
-            tmp = region.Swap(tmp);
+            tmp = region.SwapToBorder(tmp);
             bool change = false;
             for (int j = 0; j < tmp.Count; j++)
             {
                 int i = tmp[j];
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
 
-                bool result = GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Left);
-                change |= result;
-                bool failedToGrowInOneNeighbour = result;
+                bool canKeepGrowing = false;
 
-                result = GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Right);
-                change |= result;
-                failedToGrowInOneNeighbour &= result;
+                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Left, ref change, ref canKeepGrowing);
+                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Right, ref change, ref canKeepGrowing);
+                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Backward, ref change, ref canKeepGrowing);
+                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
 
-                result = GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Backward);
-                change |= result;
-                failedToGrowInOneNeighbour &= result;
-
-                result = GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Foward);
-                change |= result;
-                failedToGrowInOneNeighbour &= result;
-
-                if (!failedToGrowInOneNeighbour)
-                    region.AddSpan(i);
+                if (canKeepGrowing)
+                    region.AddSpanToBorder(i);
             }
             return change;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool GrowRegionCheckNeighbour(ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, int neighbour)
+        private void GrowRegionCheckNeighbour(ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, int neighbour, ref bool didGrow, ref bool canGrow)
         {
-            if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE &&
-                distances[neighbour] == waterLevel &&
-                regions[neighbour] == NULL_REGION)
+            if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE && regions[neighbour] == NULL_REGION)
             {
-                regions[neighbour] = region.id;
-                region.AddSpan(neighbour);
-                return true;
+                if (distances[neighbour] == waterLevel)
+                {
+                    regions[neighbour] = region.id;
+                    region.AddSpanToBorder(neighbour);
+                    didGrow = true;
+                }
+                else
+                    canGrow = true;
             }
-            return false;
         }
 
         private void FindNewBasins(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
@@ -141,7 +140,7 @@ namespace Enderlook.Unity.Pathfinding2
                 if (distances[i] == waterLevel && this.regions[i] == NULL_REGION)
                 {
                     regions.Add(new Region((ushort)(regions.Count + 1)));
-                    regions[regions.Count - 1].AddSpan(i);
+                    regions[regions.Count - 1].AddSpanToBorder(i);
                     this.regions[i] = (ushort)regions.Count;
                     FloodRegion(distances, spans, waterLevel, i, ref regions[regions.Count - 1], ref tmp);
                 }
@@ -161,7 +160,7 @@ namespace Enderlook.Unity.Pathfinding2
                 FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Left);
                 FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Right);
                 FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Backward);
-                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Foward);
+                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Forward);
             }
 
             tmp = stack.UnderlyingArray;
@@ -176,7 +175,7 @@ namespace Enderlook.Unity.Pathfinding2
             if (distances[neighbour] == waterLevel && regions[neighbour] == NULL_REGION)
             {
                 regions[neighbour] = region.id;
-                region.AddSpan(neighbour);
+                region.AddSpanToBorder(neighbour);
                 stack.Push(neighbour);
             }
         }
@@ -184,29 +183,124 @@ namespace Enderlook.Unity.Pathfinding2
         private struct Region : IDisposable
         {
             public readonly ushort id;
-            public RawPooledList<int> spans;
+            public RawPooledList<int> border;
 
             public Region(ushort id)
             {
                 this.id = id;
-                spans = RawPooledList<int>.Create();
+                border = RawPooledList<int>.Create();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void AddSpan(int i)
-                => spans.Add(i);
+            public void AddSpanToBorder(int i)
+                => border.Add(i);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public RawPooledList<int> Swap(RawPooledList<int> other)
+            public RawPooledList<int> SwapToBorder(RawPooledList<int> other)
             {
-                RawPooledList<int> tmp = spans;
-                spans = other;
+                RawPooledList<int> tmp = border;
+                border = other;
                 return tmp;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void Dispose() => spans.Dispose();
+            public void Dispose() => border.Dispose();
         }
+
+        /*private void FixIncompleteNullRegionConnections(in CompactOpenHeightField openHeightField)
+        {
+            /* If a region touches null region only diagonally,
+             * then contour detection algorithms may not properly detect the null region connection.
+             * This can adversely effect other algorithms in the pipeline.
+             * 
+             * Example: Before algorithm is applied:
+             *  b b a a a a
+             *  b b a a a a
+             *  a a x x x x
+             *  a a x x x x
+             * 
+             * Example: After algorithm is applied:
+             *  b b a a a a
+             *  b b b a a a <-- Span transferred to region B.
+             *  a a x x x x
+             *  a a x x x x
+             * 
+             * In order to check this, we can use the following naive algorithm (TODO: this is not very robust and can damage the regions on edge cases...):
+             * We iterate over all spans, and skip non-null regions. For example we may stop at:
+             *  b b a a a a
+             *  b b a a a a
+             *  a a(x)x x x
+             *  a a x x x x
+             * 
+             * Now we iterate over its 4 axis neighbour, for example the Left one:
+             *  b b a a a a
+             *  b b a a a a
+             *  a(a)x x x x
+             *  a a x x x x
+             * 
+             * Since Left is in the horizontal axis, we must check the vertical axis of this neighbour (to find diagonal neigbours).
+             * For example Forward:
+             *  b b a a a a
+             *  b(b)a a a a
+             *  a a x x x x
+             *  a a x x x x
+             * 
+             * The new neighbour doesn't have the same region as the old one.
+             * So it's in danger. We must check the region of the other neighbour from null that can touch this neighbour.
+             *  b b a a a a
+             *  b b(a)a a a
+             *  a a x x x x
+             *  a a x x x x
+             * 
+             * This other neighbour doesn't have the same region as the dangered one. So we replace its region to fix the other.
+             *  b b a a a a
+             *  b b(b)a a a
+             *  a a x x x x
+             *  a a x x x x
+             * 
+             * TODO: However this can fail, imagine the following case:
+             *  b b a a c c
+             *  b b a a c c
+             *  a a x c c x
+             *  a a x c c x
+             * 
+             * This algorithm would produce:
+             *  b b a a c c
+             *  b b(b)A c c
+             *  a a x c c x
+             *  a a x c c x
+             * 
+             * Which would make invalid `A`.
+             * Instead we should do:
+             *  b b a a c c
+             *  b(a)a a c c
+             *  a a x c c x
+             *  a a x c c x
+             * However we cannot just blindly replace `b` to `a`, because in other cases it could also invalidate other `b` neighbours.
+             */
+
+            /*ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            for (int index = 0; index < regionsCount; index++)
+            {
+                if (regions[index] != NULL_REGION)
+                    continue;
+
+                ref readonly CompactOpenHeightField.HeightSpan span = ref spans[index];
+
+                int neighbourIndex1 = span.Left;
+                if (neighbourIndex1 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                {
+                    int neighbourRegion1 = regions[neighbourIndex1];
+                    ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[neighbourIndex1];
+                    int neighbourIndex2 = neighbourSpan.Forward;
+                    if (neighbourIndex2 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    {
+                        int neighbourRegion2 = regions[neighbourIndex2];
+
+                    }
+                }
+            }
+        }*/
 
         public void DrawGizmos(in Resolution resolution, in CompactOpenHeightField openHeightField)
         {

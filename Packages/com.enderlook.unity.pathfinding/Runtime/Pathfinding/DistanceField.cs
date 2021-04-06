@@ -45,9 +45,7 @@ namespace Enderlook.Unity.Pathfinding2
                 try
                 {
                     MaximumDistance = 0;
-
                     FindInitialBorders(ref handeling, status, spans);
-
                     CalculateDistances(ref MaximumDistance, ref handeling, status, spans);
                 }
                 catch
@@ -83,7 +81,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Left);
                 DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Right);
-                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Foward);
+                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Forward);
                 DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Backward);
 
                 if (distances[i] > maximumDistance)
@@ -100,25 +98,34 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 ref readonly CompactOpenHeightField.HeightSpan spanNeighbour = ref spans[neighbour];
 
-                switch (status[neighbour])
+                ref byte statusNeighbour = ref status[neighbour];
+                switch (statusNeighbour)
                 {
                     case STATUS_OPEN:
                         handeling.Enqueue(neighbour);
-                        status[neighbour] = STATUS_IN_PROGRESS;
+                        statusNeighbour = STATUS_IN_PROGRESS;
                         distances[neighbour] = (ushort)(distances[i] + 1);
                         break;
                     case STATUS_IN_PROGRESS:
-                        if (distances[i] + 1 < distances[neighbour])
-                            distances[neighbour] = distances[i];
+                    {
+                        ref ushort distanceI = ref distances[i];
+                        ref ushort distanceNeighbour = ref distances[neighbour];
+                        if (distanceI + 1 < distanceNeighbour)
+                            distanceNeighbour = distanceI;
                         break;
+                    }
                     case STATUS_CLOSED:
-                        if (distances[i] + 1 < distances[neighbour])
+                    {
+                        ref ushort distanceI = ref distances[i];
+                        ref ushort distanceNeighbour = ref distances[neighbour];
+                        if (distanceI + 1 < distanceNeighbour)
                         {
-                            distances[neighbour] = (ushort)(distances[i] + 1);
-                            status[neighbour] = STATUS_IN_PROGRESS;
+                            distanceNeighbour = (ushort)(distanceI + 1);
+                            statusNeighbour = STATUS_IN_PROGRESS;
                             handeling.Enqueue(neighbour);
                         }
                         break;
+                    }
                     default:
                         Debug.Assert(false, "Impossible state.");
                         goto case STATUS_CLOSED;

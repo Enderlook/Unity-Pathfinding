@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding2
                         self.CalculateContourCheckNeighbour(ref span, xz, -self.resolution.z, span.Left, HeightSpan.LEFT_FLAG);
                         self.CalculateContourCheckNeighbour(ref span, xz, self.resolution.z, span.Right, HeightSpan.RIGHT_FLAG);
                         self.CalculateContourCheckNeighbour(ref span, xz, -1, span.Backward, HeightSpan.BACKWARD_FLAG);
-                        self.CalculateContourCheckNeighbour(ref span, xz, 1, span.Foward, HeightSpan.FOWARD_FLAG);
+                        self.CalculateContourCheckNeighbour(ref span, xz, 1, span.Forward, HeightSpan.FORWARD_FLAG);
                     }
                 }
             }

@@ -71,7 +71,7 @@ namespace Enderlook.Unity.Pathfinding2
                 FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Left, -resolution.z);
                 FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Right, resolution.z);
                 FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Backward, -1);
-                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Foward, 1);
+                FloodRegionCheckNeighbour(waterLevel, ref region, ref stack, value.xz, span.Forward, 1);
             }
 
             tmp = stack.UnderlyingArray;
@@ -129,7 +129,7 @@ namespace Enderlook.Unity.Pathfinding2
                 a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Backward, -1);
                 change |= a;
                 c &= a;
-                a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Foward, 1);
+                a = GrowRegionCheckNeighbour(waterLevel, location.xz, ref region, span.Forward, 1);
                 change |= a;
                 c &= a;
                 if (!c)

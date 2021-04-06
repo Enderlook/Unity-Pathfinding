@@ -200,7 +200,7 @@ namespace Enderlook.Unity.Pathfinding2
                     Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
                     HeightColumn backward = columns[index - 1];
                     Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-                    HeightColumn foward = columns[++index];
+                    HeightColumn forward = columns[++index];
 
                     for (int i = column.First; i < column.Last; i++)
                     {
@@ -211,7 +211,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                         CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
                         CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                        CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, foward, ref span, ref span.Foward);
+                        CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
                         CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
                     }
                 }
@@ -254,7 +254,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
                 HeightColumn backward = columns[index - 1];
                 Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-                HeightColumn foward = columns[++index];
+                HeightColumn forward = columns[++index];
 
                 for (int i = column.First, end = column.Last; i < end; i++)
                 {
@@ -264,7 +264,7 @@ namespace Enderlook.Unity.Pathfinding2
                     ref HeightSpan span = ref spans[i];
 
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, foward, ref span, ref span.Foward);
+                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
                 }
             }
@@ -288,7 +288,7 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
             HeightColumn right = columns[index + resolution.Depth];
             Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-            HeightColumn foward = columns[++index];
+            HeightColumn forward = columns[++index];
 
             for (int i = column.First, end = column.Last; i < end; i++)
             {
@@ -298,7 +298,7 @@ namespace Enderlook.Unity.Pathfinding2
                 ref HeightSpan span = ref spans[i];
 
                 CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, foward, ref span, ref span.Foward);
+                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
             }
 
             return index;
@@ -345,7 +345,7 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
             HeightColumn right = columns[index + resolution.Depth];
             Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-            HeightColumn foward = columns[++index];
+            HeightColumn forward = columns[++index];
 
             for (int i = column.First, end = column.Last; i < end; i++)
             {
@@ -356,7 +356,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
                 CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, foward, ref span, ref span.Foward);
+                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
             }
 
             return index;
@@ -411,7 +411,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
                 HeightColumn backward = columns[index - 1];
                 Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-                HeightColumn foward = columns[++index];
+                HeightColumn forward = columns[++index];
 
                 for (int i = column.First, end = column.Last; i < end; i++)
                 {
@@ -421,7 +421,7 @@ namespace Enderlook.Unity.Pathfinding2
                     ref HeightSpan span = ref spans[i];
 
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, foward, ref span, ref span.Foward);
+                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
                 }
             }
@@ -443,7 +443,7 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
             HeightColumn left = columns[index - resolution.Depth];
             Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-            HeightColumn foward = columns[++index];
+            HeightColumn forward = columns[++index];
 
             for (int i = column.First, end = column.Last; i < end; i++)
             {
@@ -453,7 +453,7 @@ namespace Enderlook.Unity.Pathfinding2
                 ref HeightSpan span = ref spans[i];
 
                 CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, foward, ref span, ref span.Foward);
+                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
             }
 
             return index;
@@ -587,10 +587,10 @@ namespace Enderlook.Unity.Pathfinding2
                                 Draw3(resolution_, span_.Floor, span.Floor, 0, HeightSpan.NULL_SIDE);
                             }
 
-                            if (span.Foward != HeightSpan.NULL_SIDE)
+                            if (span.Forward != HeightSpan.NULL_SIDE)
                             {
                                 Debug.Assert(index + 1 == GetIndex(resolution_, x, z + 1));
-                                HeightSpan span_ = spans[span.Foward];
+                                HeightSpan span_ = spans[span.Forward];
                                 Draw3(resolution_, span_.Floor, span.Floor, 0, 1);
                             }
                         }
@@ -636,14 +636,14 @@ namespace Enderlook.Unity.Pathfinding2
 
         internal struct HeightSpan
         {
-            // Value of Floor, Ceil, Left, Foward, Right, Backward when is null.
+            // Value of Floor, Ceil, Left, Forward, Right, Backward when is null.
             public const int NULL_SIDE = -1;
 
             public int Floor;
             public int Ceil;
 
             public int Left;
-            public int Foward;
+            public int Forward;
             public int Right;
             public int Backward;
 
@@ -652,8 +652,8 @@ namespace Enderlook.Unity.Pathfinding2
                 get {
                     // A border is any span with less than 4 neighbours.
                     Debug.Assert(NULL_SIDE == -1, "If this fail, you must change the next line to perform 4 comparisons instead.");
-                    bool isBorder = (Left | Foward | Right | Backward) == NULL_SIDE;
-                    Debug.Assert(isBorder == (Left == NULL_SIDE || Foward == NULL_SIDE || Right == NULL_SIDE || Backward == NULL_SIDE));
+                    bool isBorder = (Left | Forward | Right | Backward) == NULL_SIDE;
+                    Debug.Assert(isBorder == (Left == NULL_SIDE || Forward == NULL_SIDE || Right == NULL_SIDE || Backward == NULL_SIDE));
                     return isBorder;
                 }
             }
@@ -664,7 +664,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Floor = floor;
                 Ceil = ceil;
                 Left = NULL_SIDE;
-                Foward = NULL_SIDE;
+                Forward = NULL_SIDE;
                 Right = NULL_SIDE;
                 Backward = NULL_SIDE;
             }
