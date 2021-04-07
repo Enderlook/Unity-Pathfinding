@@ -176,54 +176,117 @@ namespace Enderlook.Unity.Pathfinding2
             int xM = resolution.Width - 1;
             int zM = resolution.Depth - 1;
 
-            int index = CalculateNeighboursWhenXIs0(resolution, maxTraversableStep, minTraversableHeight);
-            int x;
-            for (x = 1; x < xM; x++)
-            {
-                index = CalculateNeighboursWhenZIs0(resolution, maxTraversableStep, minTraversableHeight, index, x);
+            int index = 0;
 
-                int z;
+            int x = 0;
+            {
+                int z = 0;
+                CalculateNeighboursBody<RightForward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                for (z++; z < zM; z++)
+                    CalculateNeighboursBody<RightForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                Debug.Assert(z == zM);
+                CalculateNeighboursBody<RightBackwardIncrement>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, zM);
+            }
+
+            for (x++; x < xM; x++)
+            {
+                int z = 0;
+                CalculateNeighboursBody<LeftRightForward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 for (z = 1; z < zM; z++)
                 {
                     /* This is the true body of this function.
                      * All methods that starts with When...() are actually specializations of this body to avoid branching inside the loop.
                      * TODO: Does that actually improves perfomance? */
-
-                    Debug.Assert(index == GetIndex(resolution, x, z));
-
-                    HeightColumn column = columns[index];
-
-                    Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
-                    HeightColumn left = columns[index - resolution.Depth];
-                    Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
-                    HeightColumn right = columns[index + resolution.Depth];
-                    Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
-                    HeightColumn backward = columns[index - 1];
-                    Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-                    HeightColumn forward = columns[++index];
-
-                    for (int i = column.First; i < column.Last; i++)
-                    {
-                        // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                        // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                        ref HeightSpan span = ref spans[i];
-
-                        CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                        CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                        CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
-                        CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
-                    }
+                    CalculateNeighboursBody<LeftRightForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 }
 
                 Debug.Assert(z == zM);
-                Debug.Assert(z == resolution.Depth - 1);
-                index = CalculateNeighboursWhenZIsZM(resolution, maxTraversableStep, minTraversableHeight, index, x, zM);
+                CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, zM);
             }
 
             Debug.Assert(x == xM);
-            Debug.Assert(x == resolution.Width - 1);
-            CalculateNeighboursWhenXIsXM(resolution, maxTraversableStep, minTraversableHeight, index, x);
+            {
+                int z = 0;
+                CalculateNeighboursBody<LeftForward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                for (z++; z < zM; z++)
+                    CalculateNeighboursBody<LeftForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                Debug.Assert(z == zM);
+                CalculateNeighboursBody<LeftBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+            }
+        }
+
+        private struct LeftRightForwardBackward { }
+        private struct LeftRightForward { }
+        private struct LeftRightBackwardIncrement { }
+        private struct LeftForwardBackward { }
+        private struct LeftForward { }
+        private struct LeftBackward { }
+        private struct RightForward { }
+        private struct RightForwardBackward { }
+        private struct RightBackwardIncrement { }
+
+        private void CalculateNeighboursBody<T>(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, ref int index, int x, int z)
+        {
+            Debug.Assert(index == GetIndex(resolution, x, z));
+
+            HeightColumn column = columns[index];
+
+            HeightColumn left, right, backward, forward;
+
+            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(LeftForward) || typeof(T) == typeof(LeftBackward))
+            {
+                Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
+                left = columns[index - resolution.Depth];
+            }
+            else
+                left = default;
+
+            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(RightBackwardIncrement))
+            {
+                Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
+                right = columns[index + resolution.Depth];
+            }
+            else
+                right = default;
+
+            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightBackwardIncrement) || typeof(T) == typeof(LeftBackward))
+            {
+                Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
+                backward = columns[index - 1];
+            }
+            else
+                backward = default;
+
+            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(LeftForward))
+            {
+                Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
+                forward = columns[++index];
+            }
+            else
+                forward = default;
+
+            if (typeof(T) == typeof(RightBackwardIncrement) || typeof(T) == typeof(LeftRightBackwardIncrement))
+                index++;
+
+            for (int i = column.First; i < column.Last; i++)
+            {
+                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
+                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
+
+                ref HeightSpan span = ref spans[i];
+
+                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(LeftForward) || typeof(T) == typeof(LeftBackward))
+                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
+
+                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(RightBackwardIncrement))
+                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
+
+                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(LeftForward))
+                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
+
+                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightBackwardIncrement) || typeof(T) == typeof(LeftBackward))
+                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -232,256 +295,6 @@ namespace Enderlook.Unity.Pathfinding2
             for (int j = column.First, end = column.Last; j < end; j++)
                 if (span.PresentNeighbour(ref side, j, spans[j], maxTraversableStep, minTraversableHeight))
                     break;
-        }
-
-        private int CalculateNeighboursWhenXIs0(in Resolution resolution, int maxTraversableStep, int minTraversableHeight)
-        {
-            int index = 0;
-            const int x = 0;
-            int zM = resolution.Depth - 1;
-
-            index = CalculateNeighboursWhenXIs0AndZIs0(resolution, maxTraversableStep, minTraversableHeight, index);
-
-            int z;
-            for (z = 1; z < zM; z++)
-            {
-                Debug.Assert(index == GetIndex(resolution, x, z));
-
-                HeightColumn column = columns[index];
-
-                Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
-                HeightColumn right = columns[index + resolution.Depth];
-                Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
-                HeightColumn backward = columns[index - 1];
-                Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-                HeightColumn forward = columns[++index];
-
-                for (int i = column.First, end = column.Last; i < end; i++)
-                {
-                    // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                    // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                    ref HeightSpan span = ref spans[i];
-
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
-                }
-            }
-
-            Debug.Assert(z == zM);
-            Debug.Assert(z == resolution.Depth - 1);
-            index = CalculateNeighboursWhenXIs0AndZIsZM(resolution, maxTraversableStep, minTraversableHeight, index);
-
-            return index;
-        }
-
-        private int CalculateNeighboursWhenXIs0AndZIs0(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index)
-        {
-            const int x = 0;
-            const int z = 0;
-
-            Debug.Assert(index == GetIndex(resolution, x, z));
-
-            HeightColumn column = columns[index];
-
-            Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
-            HeightColumn right = columns[index + resolution.Depth];
-            Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-            HeightColumn forward = columns[++index];
-
-            for (int i = column.First, end = column.Last; i < end; i++)
-            {
-                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                ref HeightSpan span = ref spans[i];
-
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
-            }
-
-            return index;
-        }
-
-        private int CalculateNeighboursWhenXIs0AndZIsZM(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index)
-        {
-            const int x = 0;
-            int z = resolution.Depth - 1;
-            Debug.Assert(index == GetIndex(resolution, x, z));
-
-            HeightColumn column = columns[index];
-
-            Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
-            HeightColumn right = columns[index + resolution.Depth];
-            Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
-            HeightColumn backward = columns[index - 1];
-            index++;
-
-            for (int i = column.First, end = column.Last; i < end; i++)
-            {
-                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                ref HeightSpan span = ref spans[i];
-
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
-            }
-
-            return index;
-        }
-
-        private int CalculateNeighboursWhenZIs0(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index, int x)
-        {
-            const int z = 0;
-
-            Debug.Assert(index == GetIndex(resolution, x, z));
-
-            HeightColumn column = columns[index];
-
-            Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
-            HeightColumn left = columns[index - resolution.Depth];
-            Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
-            HeightColumn right = columns[index + resolution.Depth];
-            Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-            HeightColumn forward = columns[++index];
-
-            for (int i = column.First, end = column.Last; i < end; i++)
-            {
-                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                ref HeightSpan span = ref spans[i];
-
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
-            }
-
-            return index;
-        }
-
-        private int CalculateNeighboursWhenZIsZM(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
-        {
-            Debug.Assert(z == resolution.Depth - 1);
-            Debug.Assert(index == GetIndex(resolution, x, z));
-
-            HeightColumn column = columns[index];
-
-            Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
-            HeightColumn left = columns[index - resolution.Depth];
-            Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
-            HeightColumn right = columns[index + resolution.Depth];
-            Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
-            HeightColumn backward = columns[index - 1];
-            index++;
-
-            for (int i = column.First, end = column.Last; i < end; i++)
-            {
-                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                ref HeightSpan span = ref spans[i];
-
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
-            }
-
-            return index;
-        }
-
-        private void CalculateNeighboursWhenXIsXM(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index, int x)
-        {
-            Debug.Assert(x == resolution.Width - 1);
-            int zM = resolution.Depth - 1;
-
-            index = CalculateNeighboursWhenXIsXMAndZIs0(resolution, maxTraversableStep, minTraversableHeight, index, x);
-
-            int z;
-            for (z = 1; z < zM; z++)
-            {
-                Debug.Assert(index == GetIndex(resolution, x, z));
-
-                HeightColumn column = columns[index];
-
-                Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
-                HeightColumn left = columns[index - resolution.Depth];
-                Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
-                HeightColumn backward = columns[index - 1];
-                Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-                HeightColumn forward = columns[++index];
-
-                for (int i = column.First, end = column.Last; i < end; i++)
-                {
-                    // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                    // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                    ref HeightSpan span = ref spans[i];
-
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
-                }
-            }
-
-            Debug.Assert(z == zM);
-            Debug.Assert(z == resolution.Depth - 1);
-            CalculateNeighboursWhenXIsXMAndZIsZM(resolution, maxTraversableStep, minTraversableHeight, index, x, z);
-        }
-
-        private int CalculateNeighboursWhenXIsXMAndZIs0(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index, int x)
-        {
-            Debug.Assert(x == resolution.Width - 1);
-            const int z = 0;
-
-            Debug.Assert(index == GetIndex(resolution, x, z));
-
-            HeightColumn column = columns[index];
-
-            Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
-            HeightColumn left = columns[index - resolution.Depth];
-            Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
-            HeightColumn forward = columns[++index];
-
-            for (int i = column.First, end = column.Last; i < end; i++)
-            {
-                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                ref HeightSpan span = ref spans[i];
-
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
-            }
-
-            return index;
-        }
-
-        private void CalculateNeighboursWhenXIsXMAndZIsZM(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
-        {
-            Debug.Assert(x == resolution.Width - 1);
-            Debug.Assert(z == resolution.Depth - 1);
-            Debug.Assert(index == GetIndex(resolution, x, z));
-
-            HeightColumn column = columns[index];
-
-            Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
-            HeightColumn left = columns[index - resolution.Depth];
-            Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
-            HeightColumn backward = columns[index - 1];
-
-            for (int i = column.First, end = column.Last; i < end; i++)
-            {
-                // TODO: This can be optimized so neighbour spans must not be iterated all the time.
-                // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
-
-                ref HeightSpan span = ref spans[i];
-
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
-                CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -638,6 +451,10 @@ namespace Enderlook.Unity.Pathfinding2
         {
             // Value of Floor, Ceil, Left, Forward, Right, Backward when is null.
             public const int NULL_SIDE = -1;
+            public const int LEFT_INDEX = 0;
+            public const int FORWARD_INDEX = 1;
+            public const int RIGHT_INDEX = 2;
+            public const int BACKWARD_INDEX = 3;
 
             public int Floor;
             public int Ceil;
@@ -655,6 +472,32 @@ namespace Enderlook.Unity.Pathfinding2
                     bool isBorder = (Left | Forward | Right | Backward) == NULL_SIDE;
                     Debug.Assert(isBorder == (Left == NULL_SIDE || Forward == NULL_SIDE || Right == NULL_SIDE || Backward == NULL_SIDE));
                     return isBorder;
+                }
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int GetSide(int indexIndex)
+            {
+                Debug.Assert(indexIndex > 0 && indexIndex < 4);
+                return Unsafe.Add(ref Left, indexIndex);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int GetIndexOfSide(int currentIndex, int sideIndex, int depth)
+            {
+                switch (sideIndex)
+                {
+                    case LEFT_INDEX:
+                        return currentIndex - depth;
+                    case RIGHT_INDEX:
+                        return currentIndex + depth;
+                    case FORWARD_INDEX:
+                        return currentIndex - 1;
+                    case BACKWARD_INDEX:
+                        return currentIndex + 1;
+                    default:
+                        Debug.Assert(false, "Impossible state");
+                        goto case LEFT_INDEX;
                 }
             }
 
