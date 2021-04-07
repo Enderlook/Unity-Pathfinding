@@ -209,7 +209,7 @@ namespace Enderlook.Unity.Pathfinding2
                     break;
 
                 // TODO: This should not be required.
-                if (iter++ > 100000)
+                if (iter++ > 10000)
                     break;
             }
             while (startSpan != spanIndex || startDirection != direction);
@@ -302,13 +302,9 @@ namespace Enderlook.Unity.Pathfinding2
         {
             Gizmos.color = Color.blue;
             Gizmos.DrawWireCube(resolution.Center, new Vector3(resolution.CellSize.x * resolution.Width, resolution.CellSize.y * resolution.Height, resolution.CellSize.z * resolution.Depth));
-            Vector3 offset = (new Vector3(resolution.Width * (-resolution.CellSize.x), resolution.Height * (-resolution.CellSize.y), resolution.Depth * (-resolution.CellSize).z) * .5f) + (resolution.CellSize * .5f);
+            Vector3 offset = (new Vector3(resolution.Width * (-resolution.CellSize.x), resolution.Height * (-resolution.CellSize.y), resolution.Depth * (-resolution.CellSize).z) * .5f);// + (resolution.CellSize * .5f);
             offset.y -= resolution.CellSize.y / 2;
             offset += resolution.Center;
-
-            ReadOnlySpan<ushort> regions = regionsField.Regions;
-            ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
 
             for (int i = 0; i < contours.Count; i++)
             {
@@ -319,7 +315,26 @@ namespace Enderlook.Unity.Pathfinding2
 
                 RawPooledList<(int x, int z, int y)> contour = contours[i];
 
-                foreach ((int x, int z, int y) in contour)
+                (int x, int z, int y) = contour[0];
+                Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
+                Vector3 position = new Vector3(position_.x, resolution.CellSize.y * y, position_.y);
+                Vector3 center_ = offset + position;
+                Vector3 center_1 = center_;
+                Vector3 center_2 = center_;
+                for (int j = 1; j < contour.Count; j++)
+                {
+                    (x, z, y) = contour[j];
+                    position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
+                    position = new Vector3(position_.x, resolution.CellSize.y * y, position_.y);
+                    center_2 = offset + position;
+                    Gizmos.DrawLine(center_, center_2);
+                    center_ = center_2;
+                }
+                Gizmos.DrawLine(center_2, center_1);
+                Gizmos.DrawCube(center_1, Vector3.one * .1f);
+                Gizmos.DrawCube(center_2, Vector3.one * .1f);
+
+                /*foreach ((int x, int z, int y) in contour)
                 {
                     Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
                     Draw(resolution, y);
@@ -331,7 +346,7 @@ namespace Enderlook.Unity.Pathfinding2
                         Vector3 size = new Vector3(resolution_.CellSize.x, resolution_.CellSize.y * .1f, resolution_.CellSize.z);
                         Gizmos.DrawCube(center_, size);
                     }
-                }
+                }*/
             }
         }
 

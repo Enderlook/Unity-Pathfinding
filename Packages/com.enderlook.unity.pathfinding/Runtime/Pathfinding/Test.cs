@@ -13,15 +13,12 @@ namespace Enderlook.Unity.Pathfinding2
 
         public void OnDrawGizmos()
         {
-            NativeLeakDetection.Mode = NativeLeakDetectionMode.EnabledWithStackTrace;
-
             MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
             foreach (MeshFilter meshFilter in meshFilters)
             {
                 Mesh mesh = meshFilter.sharedMesh;
                 mesh.RecalculateBounds();
             }
-
             if (meshFilters.Length == 0)
                 return;
 
@@ -61,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding2
             //regions.DrawGizmos(r, openHeighField);
 
             Contours contours = new Contours(regions, openHeighField, r);
-            //contours.DrawGizmos(r, openHeighField, regions);
+            contours.DrawGizmos(r, openHeighField, regions);
 
             meshVoxelizer.Dispose();
             heightField.Dispose();
