@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-using Unity.Collections;
-
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding2
@@ -21,6 +19,8 @@ namespace Enderlook.Unity.Pathfinding2
         private const byte FORWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.FORWARD_INDEX + 1);
         private const byte RIGHT_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.RIGHT_INDEX + 1);
         private const byte BACKWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.BACKWARD_INDEX + 1);
+        private const byte IS_USED = 1 << 7;
+        private readonly RawPooledList<RawPooledList<(int x, int z, int y)>> contours;
 
         /// <summary>
         /// Calculates the contours of the specified regions.
@@ -30,7 +30,6 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="resolution">Resolution of the <paramref name="regionsField"/>.</param>
         public Contours(in RegionsField regionsField, in CompactOpenHeightField openHeightField, in Resolution resolution)
         {
-            this = default;
             ReadOnlySpan<ushort> regions = regionsField.Regions;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
             ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
@@ -39,14 +38,25 @@ namespace Enderlook.Unity.Pathfinding2
             byte[] edgeFlags = CreateFlags(regions, spans);
             try
             {
-                RawPooledList<(int x, int z, int y, int neighbour)> edgeContour = RawPooledList<(int x, int z, int y, int neighbour)>.Create();
+                contours = RawPooledList<RawPooledList<(int x, int z, int y)>>.Create();
                 try
                 {
-                    FindContours(resolution, spans, columns, edgeFlags, ref edgeContour);
+                    RawPooledList<(int x, int z, int y)> edgeContour = RawPooledList<(int x, int z, int y)>.Create();
+                    try
+                    {
+                        FindContours(resolution, spans, columns, edgeFlags, ref edgeContour, ref contours);
+                    }
+                    finally
+                    {
+                        edgeContour.Dispose();
+                    }
                 }
-                finally
+                catch
                 {
-                    edgeContour.Dispose();
+                    for (int i = 0; i < contours.Count; i++)
+                        contours[i].Dispose();
+                    contours.Dispose();
+                    throw;
                 }
             }
             finally
@@ -55,7 +65,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y, int neighbour)> edgeContour)
+        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, ref RawPooledList<RawPooledList<(int x, int z, int y)>> contours)
         {
             int spanIndex = 0;
             int columnIndex = 0;
@@ -69,17 +79,55 @@ namespace Enderlook.Unity.Pathfinding2
                     for (int i = column.First; i < column.Last; i++)
                     {
                         byte flags = edgeFlags[spanIndex];
-                        if ((flags & (LEFT_IS_REGIONAL | FORWARD_IS_REGIONAL | RIGHT_IS_REGIONAL | BACKWARD_IS_REGIONAL)) == 0)
+                        if (flags == 0 || (flags & IS_USED) != 0)
                         {
                             spanIndex++;
                             continue;
                         }
 
-                        WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags);
+                        WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags);
                         spanIndex++;
+
+                        // TODO: this could be executed in another thread since it's not required by the rest of the method.
+                        TryAddToContours(ref contours, SortedStart(edgeContour));
                     }
                 }
             }
+        }
+
+        private static void TryAddToContours(ref RawPooledList<RawPooledList<(int x, int z, int y)>> contours, RawPooledList<(int x, int z, int y)> contour)
+        {
+            /*for (int j = 0; j < contours.Count; j++)
+            {
+                if (contour.AsSpan().SequenceEqual(contours[j].AsSpan()))
+                {
+                    contour.Dispose();
+                    return;
+                }
+            }*/
+
+            contours.Add(contour);
+        }
+
+        private static RawPooledList<(int x, int z, int y)> SortedStart(RawPooledList<(int x, int z, int y)> edgeContour)
+        {
+            return RawPooledList<(int x, int z, int y)>.Create(edgeContour.AsSpan());
+            RawPooledList<(int x, int z, int y)> contour = RawPooledList<(int x, int z, int y)>.Create(edgeContour.Count);
+            (int x, int z, int y) old = edgeContour[0];
+            int index = 0;
+            for (int j = 1; j < edgeContour.Count; j++)
+            {
+                (int x, int z, int y) other = edgeContour[j];
+                if (other.CompareTo(old) > 0)
+                {
+                    old = other;
+                    index = j;
+                }
+            }
+            int count = edgeContour.Count - index;
+            edgeContour.CopyTo(index, contour.UnderlyingArray, 0, count);
+            edgeContour.CopyTo(0, contour.UnderlyingArray, count, index);
+            return RawPooledList<(int x, int z, int y)>.From(contour.UnderlyingArray, edgeContour.Count);
         }
 
         private static byte[] CreateFlags(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
@@ -87,6 +135,7 @@ namespace Enderlook.Unity.Pathfinding2
             byte[] edgeFlags = ArrayPool<byte>.Shared.Rent(spans.Length);
             try
             {
+                Array.Clear(edgeFlags, 0, spans.Length);
                 for (int i = 0; i < spans.Length; i++)
                 {
                     ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
@@ -136,17 +185,17 @@ namespace Enderlook.Unity.Pathfinding2
 
         }
 
-        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y, int neighbour)> edgeContour, int x, int z, int spanIndex, byte flags)
+        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, int x, int z, int spanIndex, ref byte initialFlags)
         {
             // Choose first edge.
             int direction;
-            if (IsRegion(flags, LEFT_IS_REGIONAL))
+            if (IsRegion(initialFlags, LEFT_IS_REGIONAL))
                 direction = CompactOpenHeightField.HeightSpan.LEFT_INDEX;
-            else if (IsRegion(flags, FORWARD_IS_REGIONAL))
+            else if (IsRegion(initialFlags, FORWARD_IS_REGIONAL))
                 direction = CompactOpenHeightField.HeightSpan.FORWARD_INDEX;
-            else if (IsRegion(flags, RIGHT_IS_REGIONAL))
+            else if (IsRegion(initialFlags, RIGHT_IS_REGIONAL))
                 direction = CompactOpenHeightField.HeightSpan.RIGHT_INDEX;
-            else if (IsRegion(flags, BACKWARD_IS_REGIONAL))
+            else if (IsRegion(initialFlags, BACKWARD_IS_REGIONAL))
                 direction = CompactOpenHeightField.HeightSpan.BACKWARD_INDEX;
             else
             {
@@ -157,7 +206,8 @@ namespace Enderlook.Unity.Pathfinding2
             edgeContour.Clear();
             int py = spans[spanIndex].Ceil;
             GetPoints(x, z, direction, out int px, out int pz);
-            edgeContour.Add((px, pz, py, direction));
+            edgeContour.Add((px, pz, py));
+            initialFlags |= IS_USED;
 
             int startSpan = spanIndex;
             int startDirection = direction;
@@ -165,30 +215,31 @@ namespace Enderlook.Unity.Pathfinding2
             int iter = 0;
             do
             {
-                flags = edgeFlags[spanIndex];
+                ref byte flags = ref edgeFlags[spanIndex];
 
                 if (!IsRegion(flags, ToFlag(direction)))
                     goto end;
                 GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py, direction));
+                edgeContour.Add((px, pz, py));
+                direction = RotateClockwise(direction);
+                flags |= IS_USED;
+
+                if (!IsRegion(flags, ToFlag(direction)))
+                    goto end;
+                GetPoints(x, z, direction, out px, out pz);
+                edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
 
                 if (!IsRegion(flags, ToFlag(direction)))
                     goto end;
                 GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py, direction));
+                edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
 
                 if (!IsRegion(flags, ToFlag(direction)))
                     goto end;
                 GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py, direction));
-                direction = RotateClockwise(direction);
-
-                if (!IsRegion(flags, ToFlag(direction)))
-                    goto end;
-                GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py, direction));
+                edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
 
                 end:
@@ -279,13 +330,7 @@ namespace Enderlook.Unity.Pathfinding2
                 ushort regionNeighbour = regions[neighbour];
                 if (regionNeighbour == RegionsField.NULL_REGION)
                     edgeFlags[i] |= isRegional;
-                else if (regionNeighbour == regions[i])
-                {
-                    ref byte edgeFlag = ref edgeFlags[i];
-                    edgeFlag &= (byte)~isRegional;
-                    return;
-                }
-                else
+                else if (regionNeighbour != regions[i])
                 {
                     ref byte edgeFlag = ref edgeFlags[i];
                     edgeFlag |= isRegional;
@@ -307,17 +352,16 @@ namespace Enderlook.Unity.Pathfinding2
             ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
 
-
-            /*for (int i = 0; i < a.Count; i++)
+            for (int i = 0; i < contours.Count; i++)
             {
                // https://gamedev.stackexchange.com/a/46469/99234 from https://gamedev.stackexchange.com/questions/46463/how-can-i-find-an-optimum-set-of-colors-for-10-players
                 const float goldenRatio = 1.61803398874989484820458683436f; // (1 + Math.Sqrt(5)) / 2
                 const float div = 1 / goldenRatio;
                 Gizmos.color = Color.HSVToRGB(i * div % 1f, .5f, Mathf.Sqrt(1 - (i * div % .5f)));
 
-                var c = a[i];
+                RawPooledList<(int x, int z, int y)> contour = contours[i];
 
-                foreach ((int x, int z, int y, int neighbour) in c)
+                foreach ((int x, int z, int y) in contour)
                 {
                     Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
                     Draw(resolution, y);
@@ -330,7 +374,7 @@ namespace Enderlook.Unity.Pathfinding2
                         Gizmos.DrawCube(center_, size);
                     }
                 }
-            }*/
+            }
         }
     }
 }
