@@ -35,6 +35,7 @@ namespace Enderlook.Unity.Pathfinding2
             ReadOnlySpan<ushort> distances = distanceField.Distances;
             regionsCount = distances.Length;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            Debug.Assert(distances.Length == spans.Length);
             regions = ArrayPool<ushort>.Shared.Rent(regionsCount);
             try
             {
@@ -106,9 +107,9 @@ namespace Enderlook.Unity.Pathfinding2
                 bool canKeepGrowing = false;
 
                 GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Left, ref change, ref canKeepGrowing);
+                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
                 GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Right, ref change, ref canKeepGrowing);
                 GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Backward, ref change, ref canKeepGrowing);
-                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
 
                 if (canKeepGrowing)
                     region.AddSpanToBorder(i);

@@ -80,8 +80,8 @@ namespace Enderlook.Unity.Pathfinding2
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
 
                 DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Left);
-                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Right);
                 DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Forward);
+                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Right);
                 DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Backward);
 
                 if (distances[i] > maximumDistance)
