@@ -58,7 +58,10 @@ namespace Enderlook.Unity.Pathfinding2
             //distanceField.DrawGizmos(r, openHeighField);
 
             RegionsField regions = new RegionsField(distanceField, openHeighField, 0);
-            regions.DrawGizmos(r, openHeighField);
+            //regions.DrawGizmos(r, openHeighField);
+
+            Contours contours = new Contours(regions, openHeighField, r);
+            contours.DrawGizmos(r, openHeighField, regions);
         }
     }
 }
