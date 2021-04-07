@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
+using Unity.Collections;
+
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding2
@@ -56,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding2
                                 continue;
                             }
 
-                            WalkContour(resolution, spans, edgeFlags, ref edgeContour, x, i, z, spanIndex, flags);
+                            WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags);
                             spanIndex++;
                         }
                     }
@@ -122,15 +124,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         }
 
-        private void WalkContour(in Resolution resolution,
-                                 ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans,
-                                 byte[] edgeFlags,
-                                 ref RawPooledList<(int x, int z, int y, int neighbour)> edgeContour,
-                                 int x,
-                                 int i,
-                                 int z,
-                                 int spanIndex,
-                                 byte flags)
+        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y, int neighbour)> edgeContour, int x, int z, int spanIndex, byte flags)
         {
             // Choose first edge.
             int direction;
@@ -160,18 +154,32 @@ namespace Enderlook.Unity.Pathfinding2
             do
             {
                 flags = edgeFlags[spanIndex];
-                for (int j = 0; j < 4; j++)
-                {
-                    if (IsRegion(flags, ToFlag(direction)))
-                    {
-                        GetPoints(x, z, direction, out px, out pz);
-                        edgeContour.Add((px, pz, py, direction));
-                        direction = RotateClockwise(direction);
-                    }
-                    else
-                        break;
-                }
 
+                if (!IsRegion(flags, ToFlag(direction)))
+                    goto end;
+                GetPoints(x, z, direction, out px, out pz);
+                edgeContour.Add((px, pz, py, direction));
+                direction = RotateClockwise(direction);
+
+                if (!IsRegion(flags, ToFlag(direction)))
+                    goto end;
+                GetPoints(x, z, direction, out px, out pz);
+                edgeContour.Add((px, pz, py, direction));
+                direction = RotateClockwise(direction);
+
+                if (!IsRegion(flags, ToFlag(direction)))
+                    goto end;
+                GetPoints(x, z, direction, out px, out pz);
+                edgeContour.Add((px, pz, py, direction));
+                direction = RotateClockwise(direction);
+
+                if (!IsRegion(flags, ToFlag(direction)))
+                    goto end;
+                GetPoints(x, z, direction, out px, out pz);
+                edgeContour.Add((px, pz, py, direction));
+                direction = RotateClockwise(direction);
+
+                end:
                 GetIndexOfSide(spans, ref spanIndex, ref x, ref z, out py, direction);
 
                 direction = RotateCounterClockwise(direction);
