@@ -87,6 +87,11 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndex(in Resolution resolution, int x, int y, int z)
         {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < resolution.Width);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < resolution.Depth);
+            Debug.Assert(y >= 0);
             int index = (resolution.Depth * ((resolution.Height * x) + y)) + z;
             Debug.Assert(index < resolution.Width * resolution.Height * resolution.Depth);
             return index;
@@ -95,6 +100,10 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndex(in Resolution resolution, int x, int z)
         {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < resolution.Width);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < resolution.Depth);
             int index = (resolution.Depth * x) + z;
             Debug.Assert(index < resolution.Width * resolution.Depth);
             return index;

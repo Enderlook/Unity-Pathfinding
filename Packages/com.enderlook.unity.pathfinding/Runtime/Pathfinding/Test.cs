@@ -52,13 +52,13 @@ namespace Enderlook.Unity.Pathfinding2
             openHeightField.DrawGizmosOfRegions(transform.position, voxelSize);*/
 
             CompactOpenHeightField openHeighField = new CompactOpenHeightField(heightField, r, 1, 1);
-            openHeighField.DrawGizmos(r, true);
+            //openHeighField.DrawGizmos(r, true);
 
             DistanceField distanceField = new DistanceField(openHeighField);
             //distanceField.DrawGizmos(r, openHeighField);
 
             RegionsField regions = new RegionsField(distanceField, openHeighField, 0);
-            //regions.DrawGizmos(r, openHeighField);
+            regions.DrawGizmos(r, openHeighField);
         }
     }
 }

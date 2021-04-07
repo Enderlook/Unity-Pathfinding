@@ -524,22 +524,33 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int GetIndexOfSide(int currentIndex, int sideIndex, int depth)
+            public void GetIndexOfSide(ReadOnlySpan<HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int sideIndex)
             {
+                ref readonly HeightSpan span = ref spans[spanIndex];
+                y = span.Ceil;
                 switch (sideIndex)
                 {
                     case LEFT_INDEX:
-                        return currentIndex - depth;
+                        spanIndex = span.Left;
+                        x--;
+                        break;
                     case RIGHT_INDEX:
-                        return currentIndex + depth;
+                        spanIndex = span.Right;
+                        x++;
+                        break;
                     case FORWARD_INDEX:
-                        return currentIndex - 1;
+                        spanIndex = span.Forward;
+                        z--;
+                        break;
                     case BACKWARD_INDEX:
-                        return currentIndex + 1;
+                        spanIndex = span.Backward;
+                        z++;
+                        break;
                     default:
                         Debug.Assert(false, "Impossible state");
                         goto case LEFT_INDEX;
                 }
+                y = Mathf.Max(y, spans[spanIndex].Ceil);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

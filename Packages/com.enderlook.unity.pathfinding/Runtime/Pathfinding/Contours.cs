@@ -28,6 +28,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             ReadOnlySpan<ushort> regions = regionsField.Regions;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
             Debug.Assert(regions.Length == spans.Length);
 
             byte[] edgeFlags = ArrayPool<byte>.Shared.Rent(spans.Length);
@@ -41,16 +42,67 @@ namespace Enderlook.Unity.Pathfinding2
                 NeighbourMarkFlag(regions, edgeFlags, i, span.Backward, BACKWARD_IS_REGIONAL);
             }
 
-            for (int i = 0; i < spans.Length; i++)
+            RawPooledList<(int x, int z, int neighbour)> edgeContour = RawPooledList<(int x, int z, int neighbour)>.Create();
+            int spanIndex = 0;
+            int columnIndex = 0;
+            for (int x = 0; x < resolution.Width; x++)
             {
-                byte flags = edgeFlags[i];
-                if ((flags & (LEFT_IS_REGIONAL | FORWARD_IS_REGIONAL | RIGHT_IS_REGIONAL | BACKWARD_IS_REGIONAL)) == 0)
-                    continue;
-                RawPooledList<(int span, int neighbour)> contour = WalkContour(resolution, regions, spans, edgeFlags, i, flags);
+                for (int z = 0; z < resolution.Depth; z++)
+                {
+                    Debug.Assert(columnIndex == GetIndex(resolution, x, z));
+                    CompactOpenHeightField.HeightColumn column = columns[columnIndex++];
+
+                    for (int i = column.First; i < column.Last; i++)
+                    {
+                        byte flags = edgeFlags[spanIndex];
+                        if ((flags & (LEFT_IS_REGIONAL | FORWARD_IS_REGIONAL | RIGHT_IS_REGIONAL | BACKWARD_IS_REGIONAL)) == 0)
+                            continue;
+
+                        WalkContour(resolution, spans, edgeFlags, ref edgeContour, x, i, z, spanIndex, flags);
+
+                        spanIndex++;
+                    }
+                }
             }
         }
 
-        private RawPooledList<(int span, int neighbour)> WalkContour(in Resolution resolution, ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, int i, byte flags)
+        public void DrawGizmos(Resolution r, CompactOpenHeightField openHeighField)
+        {
+
+        }
+
+        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetIndex(in Resolution resolution, int x, int y, int z)
+        {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < resolution.Width);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < resolution.Depth);
+            Debug.Assert(y >= 0);
+            int index = (resolution.Depth * ((resolution.Height * x) + y)) + z;
+            Debug.Assert(index < resolution.Width * resolution.Height * resolution.Depth);
+            return index;
+        }*/
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetIndex(in Resolution resolution, int x, int z)
+        {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < resolution.Width);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < resolution.Depth);
+            int index_ = (resolution.Depth * x) + z;
+            Debug.Assert(index_ < resolution.Width * resolution.Depth);
+            return index_;
+        }
+
+
+        private void FromEdgeToVertices(ref RawPooledList<(int span, int neighbour)> edgeContour)
+        {
+
+        }
+
+        private void WalkContour(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int neighbour)> edgeContour, int x, int i, int z, int spanIndex, byte flags)
         {
             // Choose first edge.
             int direction;
@@ -68,64 +120,70 @@ namespace Enderlook.Unity.Pathfinding2
                 direction = 0;
             }
 
-            RawPooledList<(int span, int neighbour)> contour = RawPooledList<(int span, int neighbour)>.Create();
-            contour.Add((i, direction));
+            edgeContour.Clear();
+            GetPoints(x, z, direction, out int px, out int pz);
+            edgeContour.Add((px, pz, direction));
 
-            int startSpan = i;
+            int startSpan = spanIndex;
             int startDirection = direction;
 
-            while (true)
+            do
             {
-                flags = edgeFlags[i];
-                direction = RotateClockwise(direction);
-                if (CheckFlag(flags, ToFlag(direction)))
+                flags = edgeFlags[spanIndex];
+                for (int j = 0; j < 4; j++)
                 {
-                    contour.Add((i, direction));
-
                     direction = RotateClockwise(direction);
                     if (CheckFlag(flags, ToFlag(direction)))
                     {
-                        contour.Add((i, direction));
-
-                        direction = RotateClockwise(direction);
-                        if (CheckFlag(flags, ToFlag(direction)))
-                        {
-                            contour.Add((i, direction));
-
-                            direction = RotateClockwise(direction);
-                            if (CheckFlag(flags, ToFlag(direction)))
-                            {
-                                contour.Add((i, direction));
-                            }
-                        }
+                        GetPoints(x, z, direction, out px, out pz);
+                        edgeContour.Add((px, pz, direction));
                     }
+                    else
+                        break;
                 }
 
-                i = spans[i].GetIndexOfSide(i, direction, resolution.Depth);
+                spans[spanIndex].GetIndexOfSide(spans, ref spanIndex, ref x, ref z, out int y, direction);
+
                 direction = RotateCounterClockwise(direction);
-
-                if (i == startSpan && direction == startDirection)
-                    break;
             }
-
-            return contour;
+            while (startSpan != spanIndex || startDirection != direction);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CheckFlag(byte value, byte flag) => (value & flag) != 0;
+        private static void GetPoints(int x, int z, int direction, out int px, out int pz)
+        {
+            px = x;
+            pz = z;
+            switch (direction)
+            {
+                case CompactOpenHeightField.HeightSpan.LEFT_INDEX:
+                    pz++;
+                    break;
+                case CompactOpenHeightField.HeightSpan.FORWARD_INDEX:
+                    px++;
+                    pz++;
+                    break;
+                case CompactOpenHeightField.HeightSpan.RIGHT_INDEX:
+                    px++;
+                    break;
+            }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte ToFlag(int direction)
+        private static bool CheckFlag(byte value, byte flag) => (value & flag) != 0;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static byte ToFlag(int direction)
         {
             Debug.Assert(direction < 3);
             return (byte)(1 << (direction + 1));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int RotateClockwise(int direction) => (direction + 1) & 0x3;
+        private static int RotateClockwise(int direction) => (direction + 1) & 0x3;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int RotateCounterClockwise(int direction) => (direction + 3) & 0x3;
+        private static int RotateCounterClockwise(int direction) => (direction + 3) & 0x3;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void NeighbourMarkFlag(ReadOnlySpan<ushort> regions, byte[] edgeFlags, int i, int neighbour, byte isRegional)

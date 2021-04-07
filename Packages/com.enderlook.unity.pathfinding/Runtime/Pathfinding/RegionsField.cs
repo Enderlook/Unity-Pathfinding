@@ -15,7 +15,6 @@ namespace Enderlook.Unity.Pathfinding2
     {
         private readonly ushort[] regions;
         private readonly int regionsCount;
-        private readonly int regionsAmount;
 
         public ReadOnlySpan<ushort> Regions => regions.AsSpan(0, regionsCount);
 
@@ -40,7 +39,6 @@ namespace Enderlook.Unity.Pathfinding2
             try
             {
                 Array.Clear(this.regions, 0, regionsCount);
-                regionsAmount = 0;
 
                 RawPooledList<Region> regions = RawPooledList<Region>.Create();
                 try
@@ -55,8 +53,6 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         // TODO: Handle small regions by deleting them or merging them.
-
-                        regionsAmount = regions.Count;
                     }
                     finally
                     {
