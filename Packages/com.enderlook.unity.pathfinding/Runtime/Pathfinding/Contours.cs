@@ -40,33 +40,45 @@ namespace Enderlook.Unity.Pathfinding2
             try
             {
                 RawPooledList<(int x, int z, int y, int neighbour)> edgeContour = RawPooledList<(int x, int z, int y, int neighbour)>.Create();
-                int spanIndex = 0;
-                int columnIndex = 0;
-                for (int x = 0; x < resolution.Width; x++)
+                try
                 {
-                    for (int z = 0; z < resolution.Depth; z++)
-                    {
-                        Debug.Assert(columnIndex == GetIndex(resolution, x, z));
-                        CompactOpenHeightField.HeightColumn column = columns[columnIndex++];
-
-                        for (int i = column.First; i < column.Last; i++)
-                        {
-                            byte flags = edgeFlags[spanIndex];
-                            if ((flags & (LEFT_IS_REGIONAL | FORWARD_IS_REGIONAL | RIGHT_IS_REGIONAL | BACKWARD_IS_REGIONAL)) == 0)
-                            {
-                                spanIndex++;
-                                continue;
-                            }
-
-                            WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags);
-                            spanIndex++;
-                        }
-                    }
+                    FindContours(resolution, spans, columns, edgeFlags, ref edgeContour);
+                }
+                finally
+                {
+                    edgeContour.Dispose();
                 }
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(edgeFlags);
+            }
+        }
+
+        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y, int neighbour)> edgeContour)
+        {
+            int spanIndex = 0;
+            int columnIndex = 0;
+            for (int x = 0; x < resolution.Width; x++)
+            {
+                for (int z = 0; z < resolution.Depth; z++)
+                {
+                    Debug.Assert(columnIndex == GetIndex(resolution, x, z));
+                    CompactOpenHeightField.HeightColumn column = columns[columnIndex++];
+
+                    for (int i = column.First; i < column.Last; i++)
+                    {
+                        byte flags = edgeFlags[spanIndex];
+                        if ((flags & (LEFT_IS_REGIONAL | FORWARD_IS_REGIONAL | RIGHT_IS_REGIONAL | BACKWARD_IS_REGIONAL)) == 0)
+                        {
+                            spanIndex++;
+                            continue;
+                        }
+
+                        WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags);
+                        spanIndex++;
+                    }
+                }
             }
         }
 
@@ -150,7 +162,7 @@ namespace Enderlook.Unity.Pathfinding2
             int startSpan = spanIndex;
             int startDirection = direction;
 
-            int o = 0;
+            int iter = 0;
             do
             {
                 flags = edgeFlags[spanIndex];
@@ -187,7 +199,8 @@ namespace Enderlook.Unity.Pathfinding2
                 if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                     break;
 
-                if (o++ > 10000)
+                // TODO: This should not be required.
+                if (iter++ > 100000)
                     break;
             }
             while (startSpan != spanIndex || startDirection != direction);
