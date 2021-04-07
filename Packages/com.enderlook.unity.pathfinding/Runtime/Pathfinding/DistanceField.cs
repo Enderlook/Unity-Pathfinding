@@ -11,7 +11,7 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Stores the distance field of a <see cref="CompactOpenHeightField"/>.
     /// </summary>
-    internal readonly struct DistanceField
+    internal readonly struct DistanceField : IDisposable
     {
         public readonly ushort MaximumDistance;
         private readonly int spansCount;
@@ -191,5 +191,8 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
         }
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose() => ArrayPool<ushort>.Shared.Return(distances);
     }
 }

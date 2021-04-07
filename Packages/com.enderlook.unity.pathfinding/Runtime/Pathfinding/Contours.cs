@@ -2,8 +2,6 @@
 
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -13,7 +11,7 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Stores the contours of <see cref="RegionsField"/>.
     /// </summary>
-    internal readonly struct Contours
+    internal readonly struct Contours : IDisposable
     {
         private const byte LEFT_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.LEFT_INDEX + 1);
         private const byte FORWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.FORWARD_INDEX + 1);
@@ -88,46 +86,19 @@ namespace Enderlook.Unity.Pathfinding2
                         WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags);
                         spanIndex++;
 
-                        // TODO: this could be executed in another thread since it's not required by the rest of the method.
-                        TryAddToContours(ref contours, SortedStart(edgeContour));
+                        RawPooledList<(int x, int z, int y)> copy = RawPooledList<(int x, int z, int y)>.Create(edgeContour.AsSpan());
+                        try
+                        {
+                            contours.Add(copy);
+                        }
+                        catch
+                        {
+                            copy.Dispose();
+                            throw;
+                        }
                     }
                 }
             }
-        }
-
-        private static void TryAddToContours(ref RawPooledList<RawPooledList<(int x, int z, int y)>> contours, RawPooledList<(int x, int z, int y)> contour)
-        {
-            /*for (int j = 0; j < contours.Count; j++)
-            {
-                if (contour.AsSpan().SequenceEqual(contours[j].AsSpan()))
-                {
-                    contour.Dispose();
-                    return;
-                }
-            }*/
-
-            contours.Add(contour);
-        }
-
-        private static RawPooledList<(int x, int z, int y)> SortedStart(RawPooledList<(int x, int z, int y)> edgeContour)
-        {
-            return RawPooledList<(int x, int z, int y)>.Create(edgeContour.AsSpan());
-            RawPooledList<(int x, int z, int y)> contour = RawPooledList<(int x, int z, int y)>.Create(edgeContour.Count);
-            (int x, int z, int y) old = edgeContour[0];
-            int index = 0;
-            for (int j = 1; j < edgeContour.Count; j++)
-            {
-                (int x, int z, int y) other = edgeContour[j];
-                if (other.CompareTo(old) > 0)
-                {
-                    old = other;
-                    index = j;
-                }
-            }
-            int count = edgeContour.Count - index;
-            edgeContour.CopyTo(index, contour.UnderlyingArray, 0, count);
-            edgeContour.CopyTo(0, contour.UnderlyingArray, count, index);
-            return RawPooledList<(int x, int z, int y)>.From(contour.UnderlyingArray, edgeContour.Count);
         }
 
         private static byte[] CreateFlags(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
@@ -153,19 +124,6 @@ namespace Enderlook.Unity.Pathfinding2
             }
             return edgeFlags;
         }
-
-        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(in Resolution resolution, int x, int y, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.Depth);
-            Debug.Assert(y >= 0);
-            int index = (resolution.Depth * ((resolution.Height * x) + y)) + z;
-            Debug.Assert(index < resolution.Width * resolution.Height * resolution.Depth);
-            return index;
-        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndex(in Resolution resolution, int x, int z)
@@ -376,5 +334,8 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
         }
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose() => contours.Dispose();
     }
 }

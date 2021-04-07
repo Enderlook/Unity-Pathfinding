@@ -61,7 +61,14 @@ namespace Enderlook.Unity.Pathfinding2
             //regions.DrawGizmos(r, openHeighField);
 
             Contours contours = new Contours(regions, openHeighField, r);
-            contours.DrawGizmos(r, openHeighField, regions);
+            //contours.DrawGizmos(r, openHeighField, regions);
+
+            meshVoxelizer.Dispose();
+            heightField.Dispose();
+            openHeighField.Dispose();
+            distanceField.Dispose();
+            regions.Dispose();
+            contours.Dispose();
         }
     }
 }

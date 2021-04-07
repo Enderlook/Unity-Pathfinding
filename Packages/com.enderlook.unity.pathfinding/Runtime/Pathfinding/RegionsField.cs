@@ -11,7 +11,7 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Stores the regions of a <see cref="DistanceField"/>.
     /// </summary>
-    internal readonly struct RegionsField
+    internal readonly struct RegionsField : IDisposable
     {
         private readonly ushort[] regions;
         private readonly int regionsCount;
@@ -356,5 +356,8 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
         }
+
+        /// <inheritdoc cref="IDisposable.Dispose"/>
+        public void Dispose() => ArrayPool<ushort>.Shared.Return(regions);
     }
 }
