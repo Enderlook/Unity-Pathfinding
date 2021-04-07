@@ -233,7 +233,12 @@ namespace Enderlook.Unity.Pathfinding2
 
             HeightColumn left, right, backward, forward;
 
-            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(LeftForward) || typeof(T) == typeof(LeftBackward))
+            if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                typeof(T) == typeof(LeftRightForward) ||
+                typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                typeof(T) == typeof(LeftForwardBackward) ||
+                typeof(T) == typeof(LeftForward) ||
+                typeof(T) == typeof(LeftBackward))
             {
                 Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
                 left = columns[index - resolution.Depth];
@@ -241,7 +246,12 @@ namespace Enderlook.Unity.Pathfinding2
             else
                 left = default;
 
-            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(RightBackwardIncrement))
+            if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                typeof(T) == typeof(LeftRightForward) ||
+                typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                typeof(T) == typeof(RightForwardBackward) ||
+                typeof(T) == typeof(RightForward) ||
+                typeof(T) == typeof(RightBackwardIncrement))
             {
                 Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
                 right = columns[index + resolution.Depth];
@@ -249,7 +259,12 @@ namespace Enderlook.Unity.Pathfinding2
             else
                 right = default;
 
-            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightBackwardIncrement) || typeof(T) == typeof(LeftBackward))
+            if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                typeof(T) == typeof(RightForwardBackward) ||
+                typeof(T) == typeof(LeftForwardBackward) ||
+                typeof(T) == typeof(RightBackwardIncrement) ||
+                typeof(T) == typeof(LeftBackward))
             {
                 Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
                 backward = columns[index - 1];
@@ -257,7 +272,12 @@ namespace Enderlook.Unity.Pathfinding2
             else
                 backward = default;
 
-            if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(LeftForward))
+            if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                typeof(T) == typeof(LeftRightForward) ||
+                typeof(T) == typeof(RightForwardBackward) ||
+                typeof(T) == typeof(LeftForwardBackward) ||
+                typeof(T) == typeof(RightForward) ||
+                typeof(T) == typeof(LeftForward))
             {
                 Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
                 forward = columns[++index];
@@ -265,7 +285,8 @@ namespace Enderlook.Unity.Pathfinding2
             else
                 forward = default;
 
-            if (typeof(T) == typeof(RightBackwardIncrement) || typeof(T) == typeof(LeftRightBackwardIncrement))
+            if (typeof(T) == typeof(RightBackwardIncrement) ||
+                typeof(T) == typeof(LeftRightBackwardIncrement))
                 index++;
 
             for (int i = column.First; i < column.Last; i++)
@@ -275,16 +296,36 @@ namespace Enderlook.Unity.Pathfinding2
 
                 ref HeightSpan span = ref spans[i];
 
-                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(LeftForward) || typeof(T) == typeof(LeftBackward))
+                if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                    typeof(T) == typeof(LeftRightForward) ||
+                    typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                    typeof(T) == typeof(LeftForwardBackward) ||
+                    typeof(T) == typeof(LeftForward) ||
+                    typeof(T) == typeof(LeftBackward))
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
 
-                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(RightBackwardIncrement))
+                if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                    typeof(T) == typeof(LeftRightForward) ||
+                    typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                    typeof(T) == typeof(RightForwardBackward) ||
+                    typeof(T) == typeof(RightForward) ||
+                    typeof(T) == typeof(RightBackwardIncrement))
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
 
-                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightForward) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightForward) || typeof(T) == typeof(LeftForward))
+                if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                    typeof(T) == typeof(LeftRightForward) ||
+                    typeof(T) == typeof(RightForwardBackward) ||
+                    typeof(T) == typeof(LeftForwardBackward) ||
+                    typeof(T) == typeof(RightForward) ||
+                    typeof(T) == typeof(LeftForward))
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
 
-                if (typeof(T) == typeof(LeftRightForwardBackward) || typeof(T) == typeof(LeftRightBackwardIncrement) || typeof(T) == typeof(RightForwardBackward) || typeof(T) == typeof(LeftForwardBackward) || typeof(T) == typeof(RightBackwardIncrement) || typeof(T) == typeof(LeftBackward))
+                if (typeof(T) == typeof(LeftRightForwardBackward) ||
+                    typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                    typeof(T) == typeof(RightForwardBackward) ||
+                    typeof(T) == typeof(LeftForwardBackward) ||
+                    typeof(T) == typeof(RightBackwardIncrement) ||
+                    typeof(T) == typeof(LeftBackward))
                     CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
             }
         }
