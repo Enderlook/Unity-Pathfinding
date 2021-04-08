@@ -170,8 +170,7 @@ namespace Enderlook.Unity.Pathfinding2
             int startSpan = spanIndex;
             int startDirection = direction;
 
-            int iter = 0;
-            do
+            while (true)
             {
                 ref byte flags = ref edgeFlags[spanIndex];
 
@@ -181,38 +180,41 @@ namespace Enderlook.Unity.Pathfinding2
                 edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
                 flags |= IS_USED;
+                if (startSpan == spanIndex && startDirection == direction)
+                    break;
 
                 if (!IsRegion(flags, ToFlag(direction)))
                     goto end;
                 GetPoints(x, z, direction, out px, out pz);
                 edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
+                if (startSpan == spanIndex && startDirection == direction)
+                    break;
 
                 if (!IsRegion(flags, ToFlag(direction)))
                     goto end;
                 GetPoints(x, z, direction, out px, out pz);
                 edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
+                if (startSpan == spanIndex && startDirection == direction)
+                    break;
 
                 if (!IsRegion(flags, ToFlag(direction)))
                     goto end;
                 GetPoints(x, z, direction, out px, out pz);
                 edgeContour.Add((px, pz, py));
                 direction = RotateClockwise(direction);
+                if (startSpan == spanIndex && startDirection == direction)
+                    break;
 
                 end:
                 GetIndexOfSide(spans, ref spanIndex, ref x, ref z, out py, direction);
 
-                direction = RotateCounterClockwise(direction);
-
                 if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                     break;
 
-                // TODO: This should not be required.
-                if (iter++ > 10000)
-                    break;
+                direction = RotateCounterClockwise(direction);
             }
-            while (startSpan != spanIndex || startDirection != direction);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -331,8 +333,6 @@ namespace Enderlook.Unity.Pathfinding2
                     center_ = center_2;
                 }
                 Gizmos.DrawLine(center_2, center_1);
-                Gizmos.DrawCube(center_1, Vector3.one * .1f);
-                Gizmos.DrawCube(center_2, Vector3.one * .1f);
 
                 /*foreach ((int x, int z, int y) in contour)
                 {
