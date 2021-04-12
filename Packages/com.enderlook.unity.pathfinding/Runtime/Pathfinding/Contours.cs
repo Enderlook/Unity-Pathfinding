@@ -162,7 +162,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             edgeContour.Clear();
-            int py = spans[spanIndex].Ceil;
+            int py = spans[spanIndex].Floor;
             GetPoints(x, z, direction, out int px, out int pz);
             edgeContour.Add((px, pz, py));
             initialFlags |= IS_USED;
@@ -220,6 +220,17 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void GetIndexOfSide(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
         {
+            /* This function parameters to point to the specified spans.
+             * We must also return the Y value of the corner.
+             * However each corner can be composed up to 4 spans (neighbours). E.g:
+             * s s
+             *  .
+             * s s
+             * That means we have from 1 to 4 different Y values, which one we must choose?
+             * We choose the highest value of them.
+             * This ensures that te final vertex is above the surface of the source mesh.
+             * And provides a common selection mechanism so that all contours that use the vertex will use the same height.
+             */
             ref readonly CompactOpenHeightField.HeightSpan span = ref spans[spanIndex];
             y = span.Floor;
             switch (direction)
@@ -227,23 +238,89 @@ namespace Enderlook.Unity.Pathfinding2
                 case CompactOpenHeightField.HeightSpan.LEFT_INDEX:
                     spanIndex = span.Left;
                     x--;
-                    break;
-                case CompactOpenHeightField.HeightSpan.RIGHT_INDEX:
-                    spanIndex = span.Right;
-                    x++;
+                    y = GetIndexOfSideCheckNeighbours<Left>(spans, spanIndex, y, in span);
                     break;
                 case CompactOpenHeightField.HeightSpan.FORWARD_INDEX:
                     spanIndex = span.Forward;
                     z++;
+                    y = GetIndexOfSideCheckNeighbours<Forward>(spans, spanIndex, y, in span);
+                    break;
+                case CompactOpenHeightField.HeightSpan.RIGHT_INDEX:
+                    spanIndex = span.Right;
+                    x++;
+                    y = GetIndexOfSideCheckNeighbours<Right>(spans, spanIndex, y, in span);
                     break;
                 case CompactOpenHeightField.HeightSpan.BACKWARD_INDEX:
                     spanIndex = span.Backward;
                     z--;
+                    y = GetIndexOfSideCheckNeighbours<Backward>(spans, spanIndex, y, in span);
                     break;
                 default:
                     Debug.Assert(false, "Impossible state");
                     goto case CompactOpenHeightField.HeightSpan.LEFT_INDEX;
             }
+        }
+
+        private struct Left { }
+        private struct Right { }
+        private struct Forward { }
+        private struct Backward { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetIndexOfSideCheckNeighbours<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int y, in CompactOpenHeightField.HeightSpan span)
+        {
+            if (spanIndex != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+            {
+                ref readonly CompactOpenHeightField.HeightSpan neighbour = ref spans[spanIndex];
+                y = Mathf.Max(y, neighbour.Floor);
+
+                int index1, index2, index3 = -1;
+
+                if (typeof(T) == typeof(Left))
+                {
+                    index1 = neighbour.Forward;
+                    index2 = span.Forward;
+                }
+                else if (typeof(T) == typeof(Forward))
+                {
+                    index1 = neighbour.Right;
+                    index2 = span.Right;
+                }
+                else if (typeof(T) == typeof(Right))
+                {
+                    index1 = neighbour.Backward;
+                    index2 = span.Backward;
+                }
+                else if (typeof(T) == typeof(Backward))
+                {
+                    index1 = neighbour.Left;
+                    index2 = span.Left;
+                }
+                else
+                {
+                    index1 = index2 = default;
+                    Debug.Assert(false, "Impossible state.");
+                }
+
+                if (index1 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    y = Mathf.Max(y, spans[index1].Floor);
+                if (index2 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                {
+                    ref readonly CompactOpenHeightField.HeightSpan neighbour2 = ref spans[index2];
+                    if (typeof(T) == typeof(Left))
+                        index3 = neighbour2.Left;
+                    else if (typeof(T) == typeof(Forward))
+                        index3 = neighbour2.Forward;
+                    else if (typeof(T) == typeof(Right))
+                        index3 = neighbour2.Right;
+                    else if (typeof(T) == typeof(Backward))
+                        index3 = neighbour2.Backward;
+                }
+                if (index3 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    y = Mathf.Max(y, spans[index2].Floor);
+            }
+
+            return y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
