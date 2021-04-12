@@ -145,16 +145,30 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, int x, int z, int spanIndex, ref byte initialFlags)
         {
+            ref readonly CompactOpenHeightField.HeightSpan heightSpan = ref spans[spanIndex];
+            int py = heightSpan.Floor;
             // Choose first edge.
             int direction;
             if (IsRegion(initialFlags, LEFT_IS_REGIONAL))
+            {
                 direction = CompactOpenHeightField.HeightSpan.LEFT_INDEX;
+                py = GetIndexOfSideCheckNeighbours<Left>(spans, spanIndex, py, heightSpan);
+            }
             else if (IsRegion(initialFlags, FORWARD_IS_REGIONAL))
+            {
                 direction = CompactOpenHeightField.HeightSpan.FORWARD_INDEX;
+                py = GetIndexOfSideCheckNeighbours<Forward>(spans, spanIndex, py, heightSpan);
+            }
             else if (IsRegion(initialFlags, RIGHT_IS_REGIONAL))
+            {
                 direction = CompactOpenHeightField.HeightSpan.RIGHT_INDEX;
+                py = GetIndexOfSideCheckNeighbours<Right>(spans, spanIndex, py, heightSpan);
+            }
             else if (IsRegion(initialFlags, BACKWARD_IS_REGIONAL))
+            {
                 direction = CompactOpenHeightField.HeightSpan.BACKWARD_INDEX;
+                py = GetIndexOfSideCheckNeighbours<Backward>(spans, spanIndex, py, heightSpan);
+            }
             else
             {
                 Debug.Assert(false, "Impossible state.");
@@ -162,7 +176,6 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             edgeContour.Clear();
-            int py = spans[spanIndex].Floor;
             GetPoints(x, z, direction, out int px, out int pz);
             edgeContour.Add((px, pz, py));
             initialFlags |= IS_USED;
