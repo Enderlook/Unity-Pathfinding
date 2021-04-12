@@ -55,7 +55,9 @@ namespace Enderlook.Unity.Pathfinding2
         {
             this.resolution = resolution;
             this.bounds = bounds;
-            voxels = ArrayPool<bool>.Shared.Rent(resolution.x * resolution.y * resolution.z);
+            int length = resolution.x * resolution.y * resolution.z;
+            voxels = ArrayPool<bool>.Shared.Rent(length);
+            Array.Clear(voxels, 0, length);
             vertices = new List<Vector3>();
             stack = RawPooledList<(Memory<Vector3> vertices, int[] triangles)>.Create();
         }
@@ -105,7 +107,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 int count = stack_.Count;
                 int count_ = count / 2 * 2;
-                JobHandle[] handles = ArrayPool<JobHandle>.Shared.Rent(count_  + 1);
+                JobHandle[] handles = ArrayPool<JobHandle>.Shared.Rent(count_ + 1);
                 try
                 {
                     int handlesIndex = 0;
@@ -114,8 +116,10 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         (Memory<Vector3> vertices, int[] triangles) = stack_[i++];
                         JobHandle jobHandle1 = new VoxelizeJob(box, resolution, vertices, triangles, center, size).Schedule();
+
                         (vertices, triangles) = stack_[i++];
                         JobHandle jobHandle2 = new VoxelizeJob(box, resolution, vertices, triangles, center, size).Schedule();
+
                         Debug.Assert(handlesIndex <= count_);
                         handles[handlesIndex++] = new OrJob(box, voxelsLength).Schedule(JobHandle.CombineDependencies(jobHandle1, jobHandle2));
                     }
@@ -123,15 +127,21 @@ namespace Enderlook.Unity.Pathfinding2
                     int c = handlesIndex;
                     while (c > 1)
                     {
-                        Debug.Assert(c % 2 == 0);
+                        int c_ = c / 2 * 2;
                         int i = 0;
-                        for (int j = 0; j < c;)
+                        for (int j = 0; j < c_;)
                             handles[i++] = new OrJob(box, voxelsLength).Schedule(JobHandle.CombineDependencies(handles[j++], handles[j++]));
+                        if (c % 2 == 1)
+                        {
+                            Debug.Assert(c - 1 == c_);
+                            handles[i++] = handles[c_];
+                        }
+
                         c = i;
                     }
 
                     JobHandle lastJob;
-                    if (count != count_)
+                    if (count % 2 == 1)
                     {
                         Debug.Assert(count - 1 == count_);
                         (Memory<Vector3> vertices, int[] triangles) = stack_[count_];

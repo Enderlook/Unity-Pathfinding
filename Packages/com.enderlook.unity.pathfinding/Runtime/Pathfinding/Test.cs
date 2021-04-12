@@ -1,7 +1,5 @@
 ﻿using System;
 
-using Unity.Collections;
-
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding2
@@ -22,8 +20,8 @@ namespace Enderlook.Unity.Pathfinding2
             if (meshFilters.Length == 0)
                 return;
 
-            (int, int, int) resolution = (25, 5, 15);
-            Bounds bounds = new Bounds(transform.position, new Vector3(5, 1, 3));
+            (int, int, int) resolution = (60, 12, 60);
+            Bounds bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
             MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, bounds);
 
             foreach (MeshFilter meshFilter in meshFilters)
@@ -39,17 +37,8 @@ namespace Enderlook.Unity.Pathfinding2
             HeightField heightField = new HeightField(voxels, r);
             //heightField.DrawGizmos(r, false);
 
-            //OpenHeightField openHeightField = new OpenHeightField(heightField, resolution, 1, 1);
-            //openHeightField.DrawGizmosOfOpenHeightField(transform.position, voxelSize, true);
-
-            //openHeightField.CalculateDistanceField();
-            //openHeightField.DrawGizmosOfDistanceHeightField(transform.position, voxelSize);
-
-            /*openHeightField.CalculateRegions(0);
-            openHeightField.DrawGizmosOfRegions(transform.position, voxelSize);*/
-
             CompactOpenHeightField openHeighField = new CompactOpenHeightField(heightField, r, 1, 1);
-            //openHeighField.DrawGizmos(r, true);
+            //openHeighField.DrawGizmos(r, false, true);
 
             DistanceField distanceField = new DistanceField(openHeighField);
             //distanceField.DrawGizmos(r, openHeighField);
@@ -58,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding2
             //regions.DrawGizmos(r, openHeighField);
 
             Contours contours = new Contours(regions, openHeighField, r);
-            contours.DrawGizmos(r, openHeighField, regions);
+            //contours.DrawGizmos(r, openHeighField, regions);
 
             meshVoxelizer.Dispose();
             heightField.Dispose();

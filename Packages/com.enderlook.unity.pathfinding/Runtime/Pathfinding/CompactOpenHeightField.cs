@@ -357,7 +357,7 @@ namespace Enderlook.Unity.Pathfinding2
             ArrayPool<HeightSpan>.Shared.Return(spans);
         }
 
-        public void DrawGizmos(in Resolution resolution, bool neightbours)
+        public void DrawGizmos(in Resolution resolution, bool surfaces, bool neightbours)
         {
             Gizmos.color = Color.blue;
             Gizmos.DrawWireCube(resolution.Center, new Vector3(resolution.CellSize.x * resolution.Width, resolution.CellSize.y * resolution.Height, resolution.CellSize.z * resolution.Depth));
@@ -406,6 +406,8 @@ namespace Enderlook.Unity.Pathfinding2
 
                     void Draw(in Resolution resolution_, float y, Color color)
                     {
+                        if (!surfaces)
+                            return;
                         Gizmos.color = color;
                         Vector3 position = new Vector3(position_.x, resolution_.CellSize.y * y, position_.y);
                         Vector3 center_ = offset + position;
