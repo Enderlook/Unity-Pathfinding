@@ -183,50 +183,55 @@ namespace Enderlook.Unity.Pathfinding2
             int startSpan = spanIndex;
             int startDirection = direction;
 
-            while (true)
+            Loop(spans, ref edgeContour);
+
+            void Loop(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<(int x, int z, int y)> edgeContour_)
             {
-                ref byte flags = ref edgeFlags[spanIndex];
+                while (true)
+                {
+                    ref byte flags = ref edgeFlags[spanIndex];
 
-                if (!IsRegion(flags, ToFlag(direction)))
-                    goto end;
-                GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py));
-                direction = RotateClockwise(direction);
-                flags |= IS_USED;
-                if (startSpan == spanIndex && startDirection == direction)
-                    break;
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = RotateClockwise(direction);
+                    flags |= IS_USED;
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
 
-                if (!IsRegion(flags, ToFlag(direction)))
-                    goto end;
-                GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py));
-                direction = RotateClockwise(direction);
-                if (startSpan == spanIndex && startDirection == direction)
-                    break;
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = RotateClockwise(direction);
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
 
-                if (!IsRegion(flags, ToFlag(direction)))
-                    goto end;
-                GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py));
-                direction = RotateClockwise(direction);
-                if (startSpan == spanIndex && startDirection == direction)
-                    break;
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = RotateClockwise(direction);
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
 
-                if (!IsRegion(flags, ToFlag(direction)))
-                    goto end;
-                GetPoints(x, z, direction, out px, out pz);
-                edgeContour.Add((px, pz, py));
-                direction = RotateClockwise(direction);
-                if (startSpan == spanIndex && startDirection == direction)
-                    break;
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = RotateClockwise(direction);
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
 
-                end:
-                GetIndexOfSide(spans, ref spanIndex, ref x, ref z, out py, direction);
+                    end:
+                    GetIndexOfSide(spans_, ref spanIndex, ref x, ref z, out py, direction);
 
-                if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
-                    break;
+                    if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                        break;
 
-                direction = RotateCounterClockwise(direction);
+                    direction = RotateCounterClockwise(direction);
+                }
             }
         }
 
