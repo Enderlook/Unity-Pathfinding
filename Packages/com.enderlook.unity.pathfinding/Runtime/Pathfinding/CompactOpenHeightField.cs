@@ -162,8 +162,7 @@ namespace Enderlook.Unity.Pathfinding2
                             }
                         }
 
-                        end:
-                        ;
+                        end:;
                     }
 
                     this.columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
@@ -195,7 +194,7 @@ namespace Enderlook.Unity.Pathfinding2
                 for (z = 1; z < zM; z++)
                 {
                     /* This is the true body of this function.
-                     * All methods that starts with When...() are actually specializations of this body to avoid branching inside the loop.
+                     * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
                      * TODO: Does that actually improves perfomance? */
                     CalculateNeighboursBody<LeftRightForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 }
@@ -294,7 +293,8 @@ namespace Enderlook.Unity.Pathfinding2
                 // TODO: This can be optimized so neighbour spans must not be iterated all the time.
                 // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
 
-                ref HeightSpan span = ref spans[i];
+                // Hack, HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
+                ref HeightSpanBuilder span = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref spans[i]);
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightForward) ||
@@ -331,7 +331,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CalculateNeighboursLoop(int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span, ref int side)
+        private void CalculateNeighboursLoop(int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpanBuilder span, ref int side)
         {
             for (int j = column.First, end = column.Last; j < end; j++)
                 if (span.PresentNeighbour(ref side, j, spans[j], maxTraversableStep, minTraversableHeight))
@@ -488,7 +488,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        internal struct HeightSpan
+        internal readonly struct HeightSpan
         {
             // Value of Floor, Ceil, Left, Forward, Right, Backward when is null.
             public const int NULL_SIDE = -1;
@@ -497,19 +497,19 @@ namespace Enderlook.Unity.Pathfinding2
             public const int RIGHT_INDEX = 2;
             public const int BACKWARD_INDEX = 3;
 
-            public int Floor;
-            public int Ceil;
+            public readonly int Floor;
+            public readonly int Ceil;
 
-            public int Left;
-            public int Forward;
-            public int Right;
-            public int Backward;
+            public readonly int Left;
+            public readonly int Forward;
+            public readonly int Right;
+            public readonly int Backward;
 
             public bool IsBorder {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get {
                     // A border is any span with less than 4 neighbours.
-                    Debug.Assert(NULL_SIDE == -1, "If this fail, you must change the next line to perform 4 comparisons instead.");
+                    Debug.Assert(NULL_SIDE == -1, "If this fail, you must change the next line to perform 4 comparisons instead, since we can no longer rely in our current trick.");
                     bool isBorder = (Left | Forward | Right | Backward) == NULL_SIDE;
                     Debug.Assert(isBorder == (Left == NULL_SIDE || Forward == NULL_SIDE || Right == NULL_SIDE || Backward == NULL_SIDE));
                     return isBorder;
@@ -520,7 +520,7 @@ namespace Enderlook.Unity.Pathfinding2
             public int GetSide(int indexIndex)
             {
                 Debug.Assert(indexIndex > 0 && indexIndex < 4);
-                return Unsafe.Add(ref Left, indexIndex);
+                return Unsafe.Add(ref Unsafe.AsRef(Left), indexIndex);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -533,18 +533,31 @@ namespace Enderlook.Unity.Pathfinding2
                 Right = NULL_SIDE;
                 Backward = NULL_SIDE;
             }
+        }
+
+        private struct HeightSpanBuilder
+        {
+            // Must have same layout as HeightSpan
+
+            public int Floor;
+            public int Ceil;
+
+            public int Left;
+            public int Forward;
+            public int Right;
+            public int Backward;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool PresentNeighbour(ref int side, int neighbourIndex, HeightSpan neighbourSpan, int maxTraversableStep, int minTraversableHeight)
             {
-                if (Floor == NULL_SIDE || neighbourSpan.Floor == NULL_SIDE)
+                if (Floor == HeightSpan.NULL_SIDE || neighbourSpan.Floor == HeightSpan.NULL_SIDE)
                     return false;
 
                 if (Math.Abs(Floor - neighbourSpan.Floor) <= maxTraversableStep)
                 {
-                    if (Ceil == NULL_SIDE || neighbourSpan.Ceil == NULL_SIDE || Math.Min(Ceil, neighbourSpan.Ceil) - Math.Max(Floor, neighbourSpan.Floor) >= minTraversableHeight)
+                    if (Ceil == HeightSpan.NULL_SIDE || neighbourSpan.Ceil == HeightSpan.NULL_SIDE || Math.Min(Ceil, neighbourSpan.Ceil) - Math.Max(Floor, neighbourSpan.Floor) >= minTraversableHeight)
                     {
-                        Debug.Assert(side == NULL_SIDE);
+                        Debug.Assert(side == HeightSpan.NULL_SIDE);
                         side = neighbourIndex;
                         return true;
                     }
