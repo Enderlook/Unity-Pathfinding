@@ -428,20 +428,6 @@ namespace Enderlook.Unity.Pathfinding2
                     center_ = center_2;
                 }
                 Gizmos.DrawLine(center_2, center_1);
-
-                /*foreach ((int x, int z, int y) in contour)
-                {
-                    Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
-                    Draw(resolution, y);
-
-                    void Draw(in Resolution resolution_, float y_)
-                    {
-                        Vector3 position = new Vector3(position_.x, resolution_.CellSize.y * y_, position_.y);
-                        Vector3 center_ = offset + position;
-                        Vector3 size = new Vector3(resolution_.CellSize.x, resolution_.CellSize.y * .1f, resolution_.CellSize.z);
-                        Gizmos.DrawCube(center_, size);
-                    }
-                }*/
             }
         }
 
