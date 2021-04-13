@@ -40,9 +40,9 @@ namespace Enderlook.Unity.Pathfinding2
             Profiler.BeginSample("Enderlook.HeightField");
             HeightField heightField = new HeightField(voxels, r);
             Profiler.EndSample();
-            heightField.DrawGizmos(r, false);
+            //heightField.DrawGizmos(r, false);
 
-            /*Profiler.BeginSample("Enderlook.OpenHeightField");
+            Profiler.BeginSample("Enderlook.OpenHeightField");
             CompactOpenHeightField openHeighField = new CompactOpenHeightField(heightField, r, 1, 1);
             Profiler.EndSample();
             //openHeighField.DrawGizmos(r, false, true);
@@ -65,10 +65,10 @@ namespace Enderlook.Unity.Pathfinding2
             Profiler.BeginSample("Enderlook.Dispose");
             meshVoxelizer.Dispose();
             heightField.Dispose();
-            /*openHeighField.Dispose();
+            openHeighField.Dispose();
             distanceField.Dispose();
             regions.Dispose();
-            contours.Dispose();*/
+            contours.Dispose();
             Profiler.EndSample();
         }
     }
