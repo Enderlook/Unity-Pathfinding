@@ -89,6 +89,11 @@
             "name": "com.enderlook.unity.async",
             "hash": "8357dc551856cfcfbd64d5cda884e930ce960232",
             "url": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.async#com.enderlook.unity.async/v0.1.0"
+        },
+        {
+            "name": "com.enderlook.collections.pooled",
+            "hash": "7c363e786af68bccc8e42a8261cf649eb0a20dd2",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled#com.enderlook.collections.pooled/v0.2.0"
         }
     ]
 }

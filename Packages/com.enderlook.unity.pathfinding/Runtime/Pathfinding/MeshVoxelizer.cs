@@ -1,4 +1,5 @@
-﻿using Enderlook.Collections.Pooled.LowLevel;
+﻿using Enderlook.Collections.Pooled;
+using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Unity.Jobs;
 using Enderlook.Voxelization;
 
@@ -17,7 +18,7 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// A voxelizer of multiple meshes.
     /// </summary>
-    internal struct MeshVoxelizer : IDisposable
+    internal partial struct MeshVoxelizer : IDisposable
     {
         private readonly (int x, int y, int z) resolution;
         private readonly Bounds bounds;
@@ -95,9 +96,30 @@ namespace Enderlook.Unity.Pathfinding2
             RawPooledList<(Memory<Vector3> vertices, int[] triangles)> stack_ = stack;
             stack = RawPooledList<(Memory<Vector3> vertices, int[] triangles)>.Create();
 
+            if (stack_.Count == 0)
+                return default;
+
             int voxelsLength = VoxelsLength;
             Vector3 center = bounds.center;
             Vector3 size = bounds.size;
+
+            {
+                PooledStack<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs = new PooledStack<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)>(stack_.Count);
+                JobHandle[] handles = ArrayPool<JobHandle>.Shared.Rent(stack_.Count);
+                for (int i = 0; i < stack_.Count; i++)
+                {
+                    (Memory<Vector3> vertices, int[] triangles) = stack_[i];
+                    new NewVoxelizeJob(orJobs, resolution, voxelsLength, vertices, triangles, center, size).A();
+                    //handles[i] = new NewVoxelizeJob(orJobs, resolution, voxelsLength, vertices, triangles, center, size).Schedule();
+                }
+                return default;
+
+                JobHandle lastJob = handles[0];
+                JobHandle _ = handles[stack_.Count - 1];
+                for (int i = 1; i < stack_.Count; i++)
+                    lastJob = new NewOrJob(voxels, resolution, orJobs).Schedule(JobHandle.CombineDependencies(lastJob, handles[i]));
+                return lastJob;
+            }
 
             if (Application.platform == RuntimePlatform.WebGLPlayer || stack_.Count == 1)
                 return new SimpleJob(resolution, stack_, voxelsLength, center, size, voxels).Schedule();

@@ -1,6 +1,7 @@
 ﻿using System;
 
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace Enderlook.Unity.Pathfinding2
 {
@@ -27,34 +28,48 @@ namespace Enderlook.Unity.Pathfinding2
             foreach (MeshFilter meshFilter in meshFilters)
                 meshVoxelizer.Enqueue(meshFilter);
 
+            Profiler.BeginSample("Enderlook.MeshVoxelizer");
             meshVoxelizer.Process().Complete();
+            Profiler.EndSample();
 
             Span<bool> voxels = meshVoxelizer.Voxels;
 
             Vector3 voxelSize = meshVoxelizer.VoxelSize;
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
+            Profiler.BeginSample("Enderlook.HeightField");
             HeightField heightField = new HeightField(voxels, r);
-            //heightField.DrawGizmos(r, false);
+            Profiler.EndSample();
+            heightField.DrawGizmos(r, false);
 
+            /*Profiler.BeginSample("Enderlook.OpenHeightField");
             CompactOpenHeightField openHeighField = new CompactOpenHeightField(heightField, r, 1, 1);
+            Profiler.EndSample();
             //openHeighField.DrawGizmos(r, false, true);
 
+            Profiler.BeginSample("Enderlook.DistanceField");
             DistanceField distanceField = new DistanceField(openHeighField);
+            Profiler.EndSample();
             //distanceField.DrawGizmos(r, openHeighField);
 
+            Profiler.BeginSample("Enderlook.RegionsField");
             RegionsField regions = new RegionsField(distanceField, openHeighField, 0);
+            Profiler.EndSample();
             //regions.DrawGizmos(r, openHeighField);
 
+            Profiler.BeginSample("Enderlook.Contours");
             Contours contours = new Contours(regions, openHeighField, r);
-            //contours.DrawGizmos(r, openHeighField, regions);
+            Profiler.EndSample();
+            //contours.DrawGizmos(r, openHeighField, regions);*/
 
+            Profiler.BeginSample("Enderlook.Dispose");
             meshVoxelizer.Dispose();
             heightField.Dispose();
-            openHeighField.Dispose();
+            /*openHeighField.Dispose();
             distanceField.Dispose();
             regions.Dispose();
-            contours.Dispose();
+            contours.Dispose();*/
+            Profiler.EndSample();
         }
     }
 }

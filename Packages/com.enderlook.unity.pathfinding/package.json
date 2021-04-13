@@ -9,6 +9,7 @@
   ],
   "dependencies": {
     "com.enderlook.collections": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections#com.enderlook.collections/v0.1.0",
+    "com.enderlook.collections.pooled": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled#com.enderlook.collections.pooled/v0.2.0",
     "com.enderlook.collections.pooled.low_level": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled.low_level#com.enderlook.collections.pooled.low_level/v0.1.0",
     "com.enderlook.unity.threading": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.threading#com.enderlook.unity.threading/v0.5.0",
     "com.enderlook.unity.jobs": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.jobs#com.enderlook.unity.jobs/v0.1.0",
