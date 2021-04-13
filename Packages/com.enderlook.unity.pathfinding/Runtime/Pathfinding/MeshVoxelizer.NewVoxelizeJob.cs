@@ -13,6 +13,16 @@ namespace Enderlook.Unity.Pathfinding2
 {
     internal partial struct MeshVoxelizer
     {
+        private struct FinalizeJob : IManagedJob
+        {
+            private PooledStack<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> stack;
+
+            public FinalizeJob(PooledStack<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> stack)
+                => this.stack = stack;
+
+            public void Execute() => stack.Dispose();
+        }
+
         private struct NewOrJob : IManagedJob
         {
             private bool[] destination;
@@ -157,8 +167,8 @@ namespace Enderlook.Unity.Pathfinding2
                     max = Vector3.Max(max, vertice);
                 }
 
-                min = Vector3.Max(min, center - size);
-                max = Vector3.Min(max, center + size);
+                //min = Vector3.Max(min, center - size);
+                //max = Vector3.Min(max, center + size);
 
                 // Fit bounds to global resolution
                 Vector3 cellSize = new Vector3(size.x / resolution.x, size.y / resolution.y, size.z / resolution.z);
@@ -170,6 +180,22 @@ namespace Enderlook.Unity.Pathfinding2
                 int xMaxMultiple = Mathf.CeilToInt(max.x / cellSize.x);
                 int yMaxMultiple = Mathf.CeilToInt(max.y / cellSize.y);
                 int zMaxMultiple = Mathf.CeilToInt(max.z / cellSize.z);
+
+                // Fix offset
+                xMinMultiple += resolution.x / 2;
+                yMinMultiple += resolution.y / 2;
+                zMinMultiple += resolution.z / 2;
+                xMaxMultiple += resolution.x / 2;
+                yMaxMultiple += resolution.y / 2;
+                zMaxMultiple += resolution.z / 2;
+
+                // Clamp values because a part of the mesh may be outside the voxelization area.
+                xMinMultiple = Mathf.Max(xMinMultiple, 0);
+                yMinMultiple = Mathf.Max(yMinMultiple, 0);
+                zMinMultiple = Mathf.Max(zMinMultiple, 0);
+                xMaxMultiple = Mathf.Min(xMaxMultiple, resolution.x);
+                yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.y);
+                zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.z);
 
                 bool[] voxels = ArrayPool<bool>.Shared.Rent(voxelsCount);
                 Span<Voxelizer.VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels);
@@ -195,7 +221,7 @@ namespace Enderlook.Unity.Pathfinding2
                 }
 
                 lock (stack)
-                    stack.Push((voxels, xMinMultiple, xMaxMultiple, yMinMultiple, yMaxMultiple, zMinMultiple, zMaxMultiple));
+                    stack.Push((voxels, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple));
             }
         }
 

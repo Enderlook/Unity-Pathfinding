@@ -106,19 +106,29 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 PooledStack<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs = new PooledStack<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)>(stack_.Count);
                 JobHandle[] handles = ArrayPool<JobHandle>.Shared.Rent(stack_.Count);
-                for (int i = 0; i < stack_.Count; i++)
+                try
                 {
-                    (Memory<Vector3> vertices, int[] triangles) = stack_[i];
-                    new NewVoxelizeJob(orJobs, resolution, voxelsLength, vertices, triangles, center, size).A();
-                    //handles[i] = new NewVoxelizeJob(orJobs, resolution, voxelsLength, vertices, triangles, center, size).Schedule();
-                }
-                return default;
+                    for (int i = 0; i < stack_.Count; i++)
+                    {
+                        (Memory<Vector3> vertices, int[] triangles) = stack_[i];
+                        //new NewVoxelizeJob(orJobs, resolution, voxelsLength, vertices, triangles, center, size).A();
+                        handles[i] = new NewVoxelizeJob(orJobs, resolution, voxelsLength, vertices, triangles, center, size).Schedule();
+                    }
+                    //return default;
 
-                JobHandle lastJob = handles[0];
-                JobHandle _ = handles[stack_.Count - 1];
-                for (int i = 1; i < stack_.Count; i++)
-                    lastJob = new NewOrJob(voxels, resolution, orJobs).Schedule(JobHandle.CombineDependencies(lastJob, handles[i]));
-                return lastJob;
+                    JobHandle lastJob = default;
+                    JobHandle _ = handles[stack_.Count - 1];
+                    for (int i = 0; i < stack_.Count; i++)
+                    {
+                        lastJob = new NewOrJob(voxels, resolution, orJobs).Schedule(JobHandle.CombineDependencies(lastJob, handles[i]));
+                    }
+
+                    return new FinalizeJob(orJobs).Schedule(lastJob);
+                }
+                finally
+                {
+                    ArrayPool<JobHandle>.Shared.Return(handles);
+                }
             }
 
             if (Application.platform == RuntimePlatform.WebGLPlayer || stack_.Count == 1)
