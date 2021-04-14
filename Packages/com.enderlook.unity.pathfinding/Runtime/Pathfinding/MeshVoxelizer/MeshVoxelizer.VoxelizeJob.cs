@@ -89,34 +89,27 @@ namespace Enderlook.Unity.Pathfinding2
                     resolution
                 );
 
+                int index = resolution.z * (resolution.y * xMinMultiple);
                 for (int x = xMinMultiple; x < xMaxMultiple; x++)
                 {
+                    index += resolution.z * yMinMultiple;
                     for (int y = yMinMultiple; y < yMaxMultiple; y++)
                     {
+                        index += zMinMultiple;
                         for (int z = zMinMultiple; z < zMaxMultiple; z++)
                         {
-                            int i = GetIndex(ref resolution, x, y, z);
-                            voxels[i] = voxelsInfo[i].Fill;
+                            Debug.Assert(index == GetIndex(ref resolution, x, y, z));
+                            voxels[index] = voxelsInfo[index].Fill;
+                            index++;
                         }
+                        index += resolution.z - zMaxMultiple;
                     }
+                    index += resolution.z * (resolution.y - yMaxMultiple);
                 }
 
                 lock (stack)
                     stack.Push((voxels, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple));
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(ref (int x, int y, int z) resolution, int x, int y, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.x);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.z);
-            Debug.Assert(y >= 0);
-            int index = (resolution.z * ((resolution.y * x) + y)) + z;
-            Debug.Assert(index < resolution.x * resolution.y * resolution.z);
-            return index;
         }
     }
 }

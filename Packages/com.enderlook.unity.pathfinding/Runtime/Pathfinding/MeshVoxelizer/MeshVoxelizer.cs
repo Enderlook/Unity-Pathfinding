@@ -5,6 +5,7 @@ using Enderlook.Unity.Jobs;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using Unity.Jobs;
 
@@ -135,6 +136,19 @@ namespace Enderlook.Unity.Pathfinding2
         {
             stack.Dispose();
             ArrayPool<bool>.Shared.Return(voxels);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetIndex(ref (int x, int y, int z) resolution, int x, int y, int z)
+        {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < resolution.x);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < resolution.z);
+            Debug.Assert(y >= 0);
+            int index = (resolution.z * ((resolution.y * x) + y)) + z;
+            Debug.Assert(index < resolution.x * resolution.y * resolution.z);
+            return index;
         }
     }
 }

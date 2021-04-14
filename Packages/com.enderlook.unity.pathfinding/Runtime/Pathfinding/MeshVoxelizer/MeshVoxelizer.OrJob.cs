@@ -3,6 +3,8 @@ using Enderlook.Unity.Jobs;
 
 using System.Buffers;
 
+using UnityEngine;
+
 namespace Enderlook.Unity.Pathfinding2
 {
     internal partial struct MeshVoxelizer
@@ -29,16 +31,22 @@ namespace Enderlook.Unity.Pathfinding2
 
                 try
                 {
+                    int index = resolution.z * (resolution.y * tuple.xMinMultiple);
                     for (int x = tuple.xMinMultiple; x < tuple.xMaxMultiple; x++)
                     {
+                        index += resolution.z * tuple.yMinMultiple;
                         for (int y = tuple.yMinMultiple; y < tuple.yMaxMultiple; y++)
                         {
+                            index += tuple.zMinMultiple;
                             for (int z = tuple.zMinMultiple; z < tuple.zMaxMultiple; z++)
                             {
-                                int i = GetIndex(ref resolution, x, y, z);
-                                destination[i] |= tuple.voxels[i];
+                                Debug.Assert(index == GetIndex(ref resolution, x, y, z));
+                                destination[index] |= tuple.voxels[index];
+                                index++;
                             }
+                            index += resolution.z - tuple.zMaxMultiple;
                         }
+                        index += resolution.z * (resolution.y - tuple.yMaxMultiple);
                     }
                 }
                 finally
