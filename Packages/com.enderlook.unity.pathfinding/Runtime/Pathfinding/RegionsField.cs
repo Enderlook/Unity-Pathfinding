@@ -29,7 +29,8 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="distanceField">Distance field whose regions is being calculated.</param>
         /// <param name="openHeightField">Open height field owner of the <paramref name="distanceField"/>.</param>
         /// <param name="agentSize">Size of the agent that will traverse this regions.</param>
-        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, int agentSize)
+        /// <param name="minRegionSurface">Regions with less that this amount of voxels are nullified.</param>
+        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, int agentSize, int minRegionSurface)
         {
             ReadOnlySpan<ushort> distances = distanceField.Distances;
             regionsCount = distances.Length;
@@ -53,6 +54,9 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         // TODO: Handle small regions by deleting them or merging them.
+
+                        Debug.Assert(regions.Count < ushort.MaxValue);
+                        NullifySmallRegions((ushort)regions.Count, minRegionSurface);
                     }
                     finally
                     {
@@ -306,28 +310,62 @@ namespace Enderlook.Unity.Pathfinding2
              * However we cannot just blindly replace `b` to `a`, because in other cases it could also invalidate other `b` neighbours.
              */
 
-            /*ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
-            for (int index = 0; index < regionsCount; index++)
+        /*ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+        for (int index = 0; index < regionsCount; index++)
+        {
+            if (regions[index] != NULL_REGION)
+                continue;
+
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[index];
+
+            int neighbourIndex1 = span.Left;
+            if (neighbourIndex1 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
-                if (regions[index] != NULL_REGION)
-                    continue;
-
-                ref readonly CompactOpenHeightField.HeightSpan span = ref spans[index];
-
-                int neighbourIndex1 = span.Left;
-                if (neighbourIndex1 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                int neighbourRegion1 = regions[neighbourIndex1];
+                ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[neighbourIndex1];
+                int neighbourIndex2 = neighbourSpan.Forward;
+                if (neighbourIndex2 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 {
-                    int neighbourRegion1 = regions[neighbourIndex1];
-                    ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[neighbourIndex1];
-                    int neighbourIndex2 = neighbourSpan.Forward;
-                    if (neighbourIndex2 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
-                    {
-                        int neighbourRegion2 = regions[neighbourIndex2];
+                    int neighbourRegion2 = regions[neighbourIndex2];
 
-                    }
                 }
             }
-        }*/
+        }
+    }*/
+
+        /// <summary>
+        /// Removes all regions which consists on less than <paramref name="minRegionSurface"/> voxels.
+        /// </summary>
+        /// <param name="highestRegionId">The highest region id number.</param>
+        /// <param name="minRegionSurface">Minimal amount of voxels required by a region to survive.</param>
+        private void NullifySmallRegions(ushort highestRegionId, int minRegionSurface)
+        {
+            if (minRegionSurface < 1)
+                return;
+            if (highestRegionId == NULL_REGION)
+                return;
+
+            ushort[] regionsAmount = ArrayPool<ushort>.Shared.Rent(highestRegionId);
+            try
+            {
+                Array.Clear(regionsAmount, 0, highestRegionId);
+
+                ushort _ = regions[regionsCount - 1];
+                for (int i = 0; i < regionsCount; i++)
+                    regionsAmount[regions[i]]++;
+
+                for (int i = 0; i < regionsCount; i++)
+                {
+                    ref ushort region = ref regions[i];
+                    if (regionsAmount[region] < minRegionSurface)
+                        region = NULL_REGION;
+                }
+            }
+            finally
+            {
+                ArrayPool<ushort>.Shared.Return(regions);
+            }
+        }
 
         public void DrawGizmos(in Resolution resolution, in CompactOpenHeightField openHeightField)
         {
@@ -373,10 +411,15 @@ namespace Enderlook.Unity.Pathfinding2
 
                     void Draw(in Resolution resolution_, float y, int region)
                     {
-                        // https://gamedev.stackexchange.com/a/46469/99234 from https://gamedev.stackexchange.com/questions/46463/how-can-i-find-an-optimum-set-of-colors-for-10-players
-                        const float goldenRatio = 1.61803398874989484820458683436f; // (1 + Math.Sqrt(5)) / 2
-                        const float div = 1 / goldenRatio;
-                        Gizmos.color = Color.HSVToRGB(region * div % 1f, .5f, Mathf.Sqrt(1 - (region * div % .5f)));
+                        if (region == NULL_REGION)
+                            Gizmos.color = Color.black;
+                        else
+                        {
+                            // https://gamedev.stackexchange.com/a/46469/99234 from https://gamedev.stackexchange.com/questions/46463/how-can-i-find-an-optimum-set-of-colors-for-10-players
+                            const float goldenRatio = 1.61803398874989484820458683436f; // (1 + Math.Sqrt(5)) / 2
+                            const float div = 1 / goldenRatio;
+                            Gizmos.color = Color.HSVToRGB(region * div % 1f, .5f, Mathf.Sqrt(1 - (region * div % .5f)));
+                        }
 
                         Vector3 position = new Vector3(position_.x, resolution_.CellSize.y * y, position_.y);
                         Vector3 center_ = offset + position;

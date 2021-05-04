@@ -53,14 +53,14 @@ namespace Enderlook.Unity.Pathfinding2
             //distanceField.DrawGizmos(r, openHeighField);
 
             Profiler.BeginSample("Enderlook.RegionsField");
-            RegionsField regions = new RegionsField(distanceField, openHeighField, 0);
+            RegionsField regions = new RegionsField(distanceField, openHeighField, 0, 0);
             Profiler.EndSample();
             regions.DrawGizmos(r, openHeighField);
 
-            /*Profiler.BeginSample("Enderlook.Contours");
+            Profiler.BeginSample("Enderlook.Contours");
             Contours contours = new Contours(regions, openHeighField, r);
             Profiler.EndSample();
-            contours.DrawGizmos(r, openHeighField, regions);*/
+            //contours.DrawGizmos(r, openHeighField, regions);
 
             Profiler.BeginSample("Enderlook.Dispose");
             meshVoxelizer.Dispose();
@@ -68,7 +68,7 @@ namespace Enderlook.Unity.Pathfinding2
             openHeighField.Dispose();
             distanceField.Dispose();
             regions.Dispose();
-            //contours.Dispose();
+            contours.Dispose();
             Profiler.EndSample();
         }
     }
