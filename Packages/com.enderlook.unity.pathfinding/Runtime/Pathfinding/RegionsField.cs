@@ -135,6 +135,8 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void FindNewBasins(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
         {
+            // TODO: If we stored a sorted copy of distances span, this would not require to loop the whole span. Research if it's worth the optimization.
+
             for (int i = 0; i < distances.Length; i++)
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];

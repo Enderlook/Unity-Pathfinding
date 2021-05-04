@@ -55,7 +55,7 @@ namespace Enderlook.Unity.Pathfinding2
             Profiler.BeginSample("Enderlook.RegionsField");
             RegionsField regions = new RegionsField(distanceField, openHeighField, 0, 0);
             Profiler.EndSample();
-            regions.DrawGizmos(r, openHeighField);
+            //regions.DrawGizmos(r, openHeighField);
 
             Profiler.BeginSample("Enderlook.Contours");
             Contours contours = new Contours(regions, openHeighField, r);
