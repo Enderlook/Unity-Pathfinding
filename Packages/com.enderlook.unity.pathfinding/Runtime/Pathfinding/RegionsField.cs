@@ -93,7 +93,7 @@ namespace Enderlook.Unity.Pathfinding2
         private bool GrowRegion(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp, ref Region region)
         {
             tmp.Clear();
-            tmp = region.SwapToBorder(tmp);
+            tmp = region.SwapBorder(tmp);
             bool change = false;
             for (int j = 0; j < tmp.Count; j++)
             {
@@ -154,13 +154,43 @@ namespace Enderlook.Unity.Pathfinding2
             while (stack.TryPop(out int value))
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[value];
-                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Left);
-                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Right);
-                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Backward);
-                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Forward);
+                FloodRegionCheckNeighbour<Left>(spans, distances, waterLevel, ref region, ref stack, span.Left);
+                FloodRegionCheckNeighbour<Forward>(spans, distances, waterLevel, ref region, ref stack, span.Forward);
+                FloodRegionCheckNeighbour<Right>(spans, distances, waterLevel, ref region, ref stack, span.Right);
+                FloodRegionCheckNeighbour<Backward>(spans, distances, waterLevel, ref region, ref stack, span.Backward);
             }
 
             tmp = stack.UnderlyingArray;
+        }
+
+        private struct Left { }
+        private struct Forward { }
+        private struct Right { }
+        private struct Backward { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void FloodRegionCheckNeighbour<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, ref RawPooledStack<int> stack, int neighbour)
+        {
+            if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                return;
+
+            if (distances[neighbour] == waterLevel && regions[neighbour] == NULL_REGION)
+            {
+                regions[neighbour] = region.id;
+                region.AddSpanToBorder(neighbour);
+                stack.Push(neighbour);
+            }
+
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[neighbour];
+
+            if (typeof(T) == typeof(Left))
+                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Forward);
+            else if (typeof(T) == typeof(Forward))
+                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Right);
+            else if (typeof(T) == typeof(Right))
+                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Backward);
+            else if (typeof(T) == typeof(Backward))
+                FloodRegionCheckNeighbour(distances, waterLevel, ref region, ref stack, span.Left);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -193,7 +223,7 @@ namespace Enderlook.Unity.Pathfinding2
                 => border.Add(i);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public RawPooledList<int> SwapToBorder(RawPooledList<int> other)
+            public RawPooledList<int> SwapBorder(RawPooledList<int> other)
             {
                 RawPooledList<int> tmp = border;
                 border = other;
