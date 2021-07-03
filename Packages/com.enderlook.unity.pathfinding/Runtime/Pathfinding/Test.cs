@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -10,8 +12,13 @@ namespace Enderlook.Unity.Pathfinding2
         [SerializeField]
         public Configuration conf;
 
+        private List<long> q = new List<long>();
+
         public void OnDrawGizmos()
         {
+            System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+            stopwatch.Start();
+
             MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
             foreach (MeshFilter meshFilter in meshFilters)
             {
@@ -53,9 +60,9 @@ namespace Enderlook.Unity.Pathfinding2
             //distanceField.DrawGizmos(r, openHeighField);
 
             Profiler.BeginSample("Enderlook.RegionsField");
-            RegionsField regions = new RegionsField(distanceField, openHeighField, 0, 0);
+            RegionsField regions = new RegionsField(distanceField, openHeighField, 0, 2);
             Profiler.EndSample();
-            //regions.DrawGizmos(r, openHeighField);
+            regions.DrawGizmos(r, openHeighField);
 
             Profiler.BeginSample("Enderlook.Contours");
             Contours contours = new Contours(regions, openHeighField, r);
@@ -70,6 +77,10 @@ namespace Enderlook.Unity.Pathfinding2
             regions.Dispose();
             contours.Dispose();
             Profiler.EndSample();
+
+            long elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
+            q.Add(elapsedMilliseconds);
+            Debug.Log($"{q.Average()} {elapsedMilliseconds}");
         }
     }
 }

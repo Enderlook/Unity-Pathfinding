@@ -18,9 +18,8 @@ namespace Enderlook.Unity.Pathfinding2
 
         public ReadOnlySpan<ushort> Regions => regions.AsSpan(0, regionsCount);
 
-        /* The region array must start with this value.
-         * Currently in order to do that we are using Array.Empty method.
-         * If you replace this value with any other than 0, you shall replicate it by replacing Array.Empty with Array.Fill. */
+        /* Do not change this value!
+         * We are taking advantage that this value is 0 to perform some operations.*/
         public const byte NULL_REGION = 0;
 
         /// <summary>
@@ -39,7 +38,11 @@ namespace Enderlook.Unity.Pathfinding2
             regions = ArrayPool<ushort>.Shared.Rent(regionsCount);
             try
             {
+                if (regionsCount == 0)
+                    return;
+
                 Array.Clear(this.regions, 0, regionsCount);
+                Debug.Assert(this.regions[0] == NULL_REGION);
 
                 RawPooledList<Region> regions = RawPooledList<Region>.Create();
                 try
@@ -56,7 +59,7 @@ namespace Enderlook.Unity.Pathfinding2
                         // TODO: Handle small regions by deleting them or merging them.
 
                         Debug.Assert(regions.Count < ushort.MaxValue);
-                        NullifySmallRegions((ushort)regions.Count, minRegionSurface);
+                        NullifySmallRegions(ref regions, (ushort)regions.Count, minRegionSurface);
                     }
                     finally
                     {
@@ -124,8 +127,10 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 if (distances[neighbour] == waterLevel)
                 {
+                    Debug.Assert(regions[neighbour] != region.id);
                     regions[neighbour] = region.id;
                     region.AddSpanToBorder(neighbour);
+                    region.count++;
                     didGrow = true;
                 }
                 else
@@ -143,7 +148,10 @@ namespace Enderlook.Unity.Pathfinding2
                 if (distances[i] == waterLevel && this.regions[i] == NULL_REGION)
                 {
                     regions.Add(new Region((ushort)(regions.Count + 1)));
-                    regions[regions.Count - 1].AddSpanToBorder(i);
+                    ref Region region = ref regions[regions.Count - 1];
+                    region.AddSpanToBorder(i);
+                    Debug.Assert(this.regions[i] != (ushort)regions.Count);
+                    region.count++;
                     this.regions[i] = (ushort)regions.Count;
                     FloodRegion(distances, spans, waterLevel, i, ref regions[regions.Count - 1], ref tmp);
                 }
@@ -182,7 +190,9 @@ namespace Enderlook.Unity.Pathfinding2
 
             if (distances[neighbour] == waterLevel && regions[neighbour] == NULL_REGION)
             {
+                Debug.Assert(regions[neighbour] != region.id);
                 regions[neighbour] = region.id;
+                region.count++;
                 region.AddSpanToBorder(neighbour);
                 stack.Push(neighbour);
             }
@@ -207,7 +217,9 @@ namespace Enderlook.Unity.Pathfinding2
 
             if (distances[neighbour] == waterLevel && regions[neighbour] == NULL_REGION)
             {
+                Debug.Assert(regions[neighbour] != region.id);
                 regions[neighbour] = region.id;
+                region.count++;
                 region.AddSpanToBorder(neighbour);
                 stack.Push(neighbour);
             }
@@ -217,16 +229,17 @@ namespace Enderlook.Unity.Pathfinding2
         {
             public readonly ushort id;
             public RawPooledList<int> border;
+            public int count;
 
             public Region(ushort id)
             {
                 this.id = id;
                 border = RawPooledList<int>.Create();
+                count = 0;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void AddSpanToBorder(int i)
-                => border.Add(i);
+            public void AddSpanToBorder(int i) => border.Add(i);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public RawPooledList<int> SwapBorder(RawPooledList<int> other)
@@ -340,32 +353,22 @@ namespace Enderlook.Unity.Pathfinding2
         /// </summary>
         /// <param name="highestRegionId">The highest region id number.</param>
         /// <param name="minRegionSurface">Minimal amount of voxels required by a region to survive.</param>
-        private void NullifySmallRegions(ushort highestRegionId, int minRegionSurface)
+        private void NullifySmallRegions(ref RawPooledList<Region> regionsBuilder, ushort highestRegionId, int minRegionSurface)
         {
             if (minRegionSurface < 1)
                 return;
             if (highestRegionId == NULL_REGION)
                 return;
 
-            ushort[] regionsAmount = ArrayPool<ushort>.Shared.Rent(highestRegionId);
-            try
+            for (int i = 0; i < regionsCount; i++)
             {
-                Array.Clear(regionsAmount, 0, highestRegionId);
-
-                ushort _ = regions[regionsCount - 1];
-                for (int i = 0; i < regionsCount; i++)
-                    regionsAmount[regions[i]]++;
-
-                for (int i = 0; i < regionsCount; i++)
-                {
-                    ref ushort region = ref regions[i];
-                    if (regionsAmount[region] < minRegionSurface)
-                        region = NULL_REGION;
-                }
-            }
-            finally
-            {
-                ArrayPool<ushort>.Shared.Return(regions);
+                ref ushort region = ref regions[i];
+                if (region == NULL_REGION)
+                    continue;
+                Debug.Assert(NULL_REGION == 0);
+                // The -1 is because NULL_REGION is 0.
+                if (regionsBuilder[region - 1].count < minRegionSurface)
+                    region = NULL_REGION;
             }
         }
 
