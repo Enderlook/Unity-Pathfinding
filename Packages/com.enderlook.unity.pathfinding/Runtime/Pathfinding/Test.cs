@@ -67,7 +67,7 @@ namespace Enderlook.Unity.Pathfinding2
             Profiler.BeginSample("Enderlook.Contours");
             Contours contours = new Contours(regions, openHeighField, r);
             Profiler.EndSample();
-            //contours.DrawGizmos(r, openHeighField, regions);
+            contours.DrawGizmos(r, openHeighField, regions);
 
             Profiler.BeginSample("Enderlook.Dispose");
             meshVoxelizer.Dispose();
@@ -80,7 +80,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             long elapsedMilliseconds = stopwatch.ElapsedMilliseconds;
             q.Add(elapsedMilliseconds);
-            Debug.Log($"{q.Average()} {elapsedMilliseconds}");
+            Debug.Log($"{q.Average()} {q.Count} {elapsedMilliseconds}");
         }
     }
 }

@@ -61,9 +61,9 @@ namespace Enderlook.Unity.Pathfinding2
                         {
                             HeightColumnBuilder column = new HeightColumnBuilder(span);
                             for (int y = 0; y < resolution.Height; y++)
-                                column.Grow(voxels[GetIndex(resolution, x, y, z)]);
+                                column.Grow(voxels[resolution.GetIndex(x, y, z)]);
 
-                            Debug.Assert(index == GetIndex(resolution, x, z));
+                            Debug.Assert(index == resolution.GetIndex(x, z));
                             columns[index++] = column.ToBuilt();
                         }
                     }
@@ -82,31 +82,6 @@ namespace Enderlook.Unity.Pathfinding2
                 ArrayPool<HeightColumn>.Shared.Return(columns);
                 throw;
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(in Resolution resolution, int x, int y, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.Depth);
-            Debug.Assert(y >= 0);
-            int index = (resolution.Depth * ((resolution.Height * x) + y)) + z;
-            Debug.Assert(index < resolution.Width * resolution.Height * resolution.Depth);
-            return index;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(in Resolution resolution, int x, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.Depth);
-            int index = (resolution.Depth * x) + z;
-            Debug.Assert(index < resolution.Width * resolution.Depth);
-            return index;
         }
 
         public ReadOnlySpan<HeightColumn> AsSpan() => columns.AsSpan(0, columnsCount);

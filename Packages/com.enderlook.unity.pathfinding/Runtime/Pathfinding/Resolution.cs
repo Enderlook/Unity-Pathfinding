@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using System.Runtime.CompilerServices;
+
+using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding2
 {
@@ -53,6 +55,31 @@ namespace Enderlook.Unity.Pathfinding2
             Depth = depth;
             Center = bounds.center;
             Size = bounds.size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetIndex(int x, int y, int z)
+        {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < Width);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < Depth);
+            Debug.Assert(y >= 0);
+            int index = (Depth * ((Height * x) + y)) + z;
+            Debug.Assert(index < Width * Height * Depth);
+            return index;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int GetIndex(int x, int z)
+        {
+            Debug.Assert(x >= 0);
+            Debug.Assert(x < Width);
+            Debug.Assert(z >= 0);
+            Debug.Assert(z < Depth);
+            int index = (Depth * x) + z;
+            Debug.Assert(index < Width * Depth);
+            return index;
         }
     }
 }

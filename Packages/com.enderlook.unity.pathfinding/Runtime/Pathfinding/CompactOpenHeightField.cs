@@ -69,7 +69,7 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 for (int z = 0; z < resolution.Depth; z++)
                 {
-                    Debug.Assert(index == GetIndex(resolution, x, z));
+                    Debug.Assert(index == resolution.GetIndex(x, z));
                     int startIndex = spanBuilder.Count;
 
                     HeightField.HeightColumn column = columns[index];
@@ -226,7 +226,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void CalculateNeighboursBody<T>(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, ref int index, int x, int z)
         {
-            Debug.Assert(index == GetIndex(resolution, x, z));
+            Debug.Assert(index == resolution.GetIndex(x, z));
 
             HeightColumn column = columns[index];
 
@@ -239,7 +239,7 @@ namespace Enderlook.Unity.Pathfinding2
                 typeof(T) == typeof(LeftForward) ||
                 typeof(T) == typeof(LeftBackward))
             {
-                Debug.Assert(index - resolution.Depth == GetIndex(resolution, x - 1, z));
+                Debug.Assert(index - resolution.Depth == resolution.GetIndex(x - 1, z));
                 left = columns[index - resolution.Depth];
             }
             else
@@ -252,7 +252,7 @@ namespace Enderlook.Unity.Pathfinding2
                 typeof(T) == typeof(RightForward) ||
                 typeof(T) == typeof(RightBackwardIncrement))
             {
-                Debug.Assert(index + resolution.Depth == GetIndex(resolution, x + 1, z));
+                Debug.Assert(index + resolution.Depth == resolution.GetIndex(x + 1, z));
                 right = columns[index + resolution.Depth];
             }
             else
@@ -265,7 +265,7 @@ namespace Enderlook.Unity.Pathfinding2
                 typeof(T) == typeof(RightBackwardIncrement) ||
                 typeof(T) == typeof(LeftBackward))
             {
-                Debug.Assert(index - 1 == GetIndex(resolution, x, z - 1));
+                Debug.Assert(index - 1 == resolution.GetIndex(x, z - 1));
                 backward = columns[index - 1];
             }
             else
@@ -278,7 +278,7 @@ namespace Enderlook.Unity.Pathfinding2
                 typeof(T) == typeof(RightForward) ||
                 typeof(T) == typeof(LeftForward))
             {
-                Debug.Assert(index + 1 == GetIndex(resolution, x, z + 1));
+                Debug.Assert(index + 1 == resolution.GetIndex(x, z + 1));
                 forward = columns[++index];
             }
             else
@@ -336,18 +336,6 @@ namespace Enderlook.Unity.Pathfinding2
             for (int j = column.First, end = column.Last; j < end; j++)
                 if (span.PresentNeighbour(ref side, j, spans[j], maxTraversableStep, minTraversableHeight))
                     break;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(in Resolution resolution, int x, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.Depth);
-            int index_ = (resolution.Depth * x) + z;
-            Debug.Assert(index_ < resolution.Width * resolution.Depth);
-            return index_;
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
@@ -424,38 +412,31 @@ namespace Enderlook.Unity.Pathfinding2
                         {
                             if (span.Left != HeightSpan.NULL_SIDE)
                             {
-                                Debug.Assert(index - resolution_.Depth == GetIndex(resolution_, x - 1, z));
+                                Debug.Assert(index - resolution_.Depth == resolution_.GetIndex(x - 1, z));
                                 HeightSpan span_ = spans[span.Left];
                                 Draw3(resolution_, span_.Floor, span.Floor, HeightSpan.NULL_SIDE, 0);
                             }
 
                             if (span.Right != HeightSpan.NULL_SIDE)
                             {
-                                Debug.Assert(index + resolution_.Depth == GetIndex(resolution_, x + 1, z));
+                                Debug.Assert(index + resolution_.Depth == resolution_.GetIndex(x + 1, z));
                                 HeightSpan span_ = spans[span.Right];
                                 Draw3(resolution_, span_.Floor, span.Floor, 1, 0);
                             }
 
                             if (span.Backward != HeightSpan.NULL_SIDE)
                             {
-                                Debug.Assert(index - 1 == GetIndex(resolution_, x, z - 1));
+                                Debug.Assert(index - 1 == resolution_.GetIndex(x, z - 1));
                                 HeightSpan span_ = spans[span.Backward];
                                 Draw3(resolution_, span_.Floor, span.Floor, 0, HeightSpan.NULL_SIDE);
                             }
 
                             if (span.Forward != HeightSpan.NULL_SIDE)
                             {
-                                Debug.Assert(index + 1 == GetIndex(resolution_, x, z + 1));
+                                Debug.Assert(index + 1 == resolution_.GetIndex(x, z + 1));
                                 HeightSpan span_ = spans[span.Forward];
                                 Draw3(resolution_, span_.Floor, span.Floor, 0, 1);
                             }
-                        }
-
-                        int GetIndex(in Resolution resolution__, int x_, int z_)
-                        {
-                            int index_ = (resolution__.Depth * x_) + z_;
-                            Debug.Assert(index_ < resolution__.Width * resolution__.Depth);
-                            return index_;
                         }
 
                         void Draw3(in Resolution resolution__, int yTo, float yFrom, int x_, int z_)
