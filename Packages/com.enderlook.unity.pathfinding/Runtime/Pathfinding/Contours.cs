@@ -399,10 +399,11 @@ namespace Enderlook.Unity.Pathfinding2
         {
             Gizmos.color = Color.blue;
             Gizmos.DrawWireCube(resolution.Center, new Vector3(resolution.CellSize.x * resolution.Width, resolution.CellSize.y * resolution.Height, resolution.CellSize.z * resolution.Depth));
-            Vector3 offset = (new Vector3(resolution.Width * (-resolution.CellSize.x), resolution.Height * (-resolution.CellSize.y), resolution.Depth * (-resolution.CellSize).z) * .5f);// + (resolution.CellSize * .5f);
+            Vector3 offset = new Vector3(resolution.Width * (-resolution.CellSize.x), resolution.Height * (-resolution.CellSize.y), resolution.Depth * (-resolution.CellSize).z) * .5f;// + (resolution.CellSize * .5f);
             offset.y -= resolution.CellSize.y / 2;
             offset += resolution.Center;
 
+            RawPooledList<RawPooledList<(int x, int z, int y)>> contours = this.contours;
             for (int i = 0; i < contours.Count; i++)
             {
                // https://gamedev.stackexchange.com/a/46469/99234 from https://gamedev.stackexchange.com/questions/46463/how-can-i-find-an-optimum-set-of-colors-for-10-players

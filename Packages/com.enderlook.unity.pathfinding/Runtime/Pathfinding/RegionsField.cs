@@ -142,17 +142,18 @@ namespace Enderlook.Unity.Pathfinding2
         {
             // TODO: If we stored a sorted copy of distances span, this would not require to loop the whole span. Research if it's worth the optimization.
 
+            ushort[] thisRegions = this.regions;
             for (int i = 0; i < distances.Length; i++)
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
-                if (distances[i] == waterLevel && this.regions[i] == NULL_REGION)
+                if (distances[i] == waterLevel && thisRegions[i] == NULL_REGION)
                 {
                     regions.Add(new Region((ushort)(regions.Count + 1)));
                     ref Region region = ref regions[regions.Count - 1];
                     region.AddSpanToBorder(i);
-                    Debug.Assert(this.regions[i] != (ushort)regions.Count);
+                    Debug.Assert(thisRegions[i] != (ushort)regions.Count);
                     region.count++;
-                    this.regions[i] = (ushort)regions.Count;
+                    thisRegions[i] = (ushort)regions.Count;
                     FloodRegion(distances, spans, waterLevel, i, ref regions[regions.Count - 1], ref tmp);
                 }
             }

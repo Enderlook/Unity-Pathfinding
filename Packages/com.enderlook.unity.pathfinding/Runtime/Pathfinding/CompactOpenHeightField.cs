@@ -293,7 +293,7 @@ namespace Enderlook.Unity.Pathfinding2
                 // TODO: This can be optimized so neighbour spans must not be iterated all the time.
                 // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
 
-                // Hack, HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
+                // Hack: HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
                 ref HeightSpanBuilder span = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref spans[i]);
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -539,7 +539,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         private struct HeightSpanBuilder
         {
-            // Must have same layout as HeightSpan
+            // Must have same layout as HeightSpan.
 
             public int Floor;
             public int Ceil;
@@ -566,13 +566,6 @@ namespace Enderlook.Unity.Pathfinding2
                 }
                 return false;
             }
-        }
-
-        internal enum SpanStatus : byte
-        {
-            Open = 0,
-            InProgress = 1,
-            Closed = 2,
         }
     }
 }

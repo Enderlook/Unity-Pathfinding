@@ -62,6 +62,13 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void FindInitialBorders(ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
         {
+            ushort[] distances = this.distances;
+            if (unchecked((uint)spans.Length > (uint)distances.Length))
+            {
+                Debug.Assert(false, "Index out of range.");
+                return;
+            }
+
             for (int i = 0; i < spans.Length; i++)
             {
                 if (spans[i].IsBorder)
@@ -75,6 +82,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void CalculateDistances(ref ushort maximumDistance, ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
         {
+            ushort[] distances = this.distances;
             while (handeling.TryDequeue(out int i))
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
@@ -144,6 +152,7 @@ namespace Enderlook.Unity.Pathfinding2
             offset.y -= resolution.CellSize.y / 2;
             offset += resolution.Center;
 
+            ushort[] distances = this.distances;
             ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
             int i = 0;

@@ -126,6 +126,8 @@ namespace Enderlook.Unity.Pathfinding2
             Vector3 offset = (new Vector3(resolution.Width * (-resolution.CellSize.x), resolution.Height * (-resolution.CellSize.y), resolution.Depth * (-resolution.CellSize).z) * .5f) + (resolution.CellSize * .5f);
             offset.y -= resolution.CellSize.y / 2;
 
+            HeightColumn[] columns = this.columns;
+
             int i = 0;
             for (int x = 0; x < resolution.Width; x++)
             {
