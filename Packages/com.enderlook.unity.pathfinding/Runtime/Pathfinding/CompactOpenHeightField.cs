@@ -195,7 +195,7 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     /* This is the true body of this function.
                      * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
-                     * TODO: Does that actually improves perfomance? */
+                     * TODO: Does this actually improves perfomance? */
                     CalculateNeighboursBody<LeftRightForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 }
 
@@ -226,6 +226,17 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void CalculateNeighboursBody<T>(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, ref int index, int x, int z)
         {
+            Debug.Assert(
+                typeof(T) == typeof(LeftRightForwardBackward) ||
+                typeof(T) == typeof(LeftRightForward) ||
+                typeof(T) == typeof(LeftRightBackwardIncrement) ||
+                typeof(T) == typeof(LeftForwardBackward) ||
+                typeof(T) == typeof(LeftForward) ||
+                typeof(T) == typeof(LeftBackward) ||
+                typeof(T) == typeof(RightForward) ||
+                typeof(T) == typeof(RightForwardBackward) ||
+                typeof(T) == typeof(RightBackwardIncrement)
+            );
             Debug.Assert(index == resolution.GetIndex(x, z));
 
             HeightColumn column = columns[index];
@@ -488,6 +499,11 @@ namespace Enderlook.Unity.Pathfinding2
             public readonly int Right;
             public readonly int Backward;
 
+            public struct LeftSide { }
+            public struct ForwardSide { }
+            public struct RightSide { }
+            public struct BackwardSide { }
+
             public bool IsBorder {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get {
@@ -507,6 +523,24 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int GetSide<T>()
+            {
+                if (typeof(T) == typeof(LeftSide))
+                    return Left;
+                else if (typeof(T) == typeof(RightSide))
+                    return Right;
+                else if (typeof(T) == typeof(ForwardSide))
+                    return Forward;
+                else if (typeof(T) == typeof(BackwardSide))
+                    return Backward;
+                else
+                {
+                    Debug.Assert(false);
+                    return 0;
+                }
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public HeightSpan(int floor, int ceil)
             {
                 Floor = floor;
@@ -522,6 +556,30 @@ namespace Enderlook.Unity.Pathfinding2
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static int RotateCounterClockwise(int side) => (side + 3) & 0x3;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int RotateClockwise<T>() => RotateClockwise(GetSide_<T>());
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int RotateCounterClockwise<T>() => RotateCounterClockwise(GetSide_<T>());
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static int GetSide_<T>()
+            {
+                if (typeof(T) == typeof(LeftSide))
+                    return 0;
+                else if (typeof(T) == typeof(RightSide))
+                    return 1;
+                else if (typeof(T) == typeof(ForwardSide))
+                    return 2;
+                else if (typeof(T) == typeof(BackwardSide))
+                    return 3;
+                else
+                {
+                    Debug.Assert(false);
+                    return 0;
+                }
+            }
         }
 
         private struct HeightSpanBuilder

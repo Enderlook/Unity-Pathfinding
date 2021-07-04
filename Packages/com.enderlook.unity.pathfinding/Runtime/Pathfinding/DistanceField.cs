@@ -91,15 +91,21 @@ namespace Enderlook.Unity.Pathfinding2
 
                             int accumulatedDistance = distance;
                             int doubleDistance = distance * 2;
-                            for (int direction = 0; direction < 4; direction++)
+                            Work<CompactOpenHeightField.HeightSpan.LeftSide>(spans, span);
+                            Work<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, span);
+                            Work<CompactOpenHeightField.HeightSpan.RightSide>(spans, span);
+                            Work<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, span);
+
+                            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                            void Work<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, in CompactOpenHeightField.HeightSpan span_)
                             {
-                                int j = span.GetSide(direction);
+                                int j = span_.GetSide<T>();
                                 if (j == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                                     accumulatedDistance += doubleDistance;
                                 else
                                 {
-                                    ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[j];
-                                    int direction2 = CompactOpenHeightField.HeightSpan.RotateClockwise(j);
+                                    ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans_[j];
+                                    int direction2 = CompactOpenHeightField.HeightSpan.RotateClockwise<T>();
                                     int k = neighbourSpan.GetSide(direction2);
                                     if (k == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                                         accumulatedDistance += distance;
