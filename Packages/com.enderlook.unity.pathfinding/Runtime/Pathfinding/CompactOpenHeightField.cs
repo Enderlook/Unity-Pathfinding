@@ -558,22 +558,16 @@ namespace Enderlook.Unity.Pathfinding2
             public static int RotateCounterClockwise(int side) => (side + 3) & 0x3;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static int RotateClockwise<T>() => RotateClockwise(GetSide_<T>());
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static int RotateCounterClockwise<T>() => RotateCounterClockwise(GetSide_<T>());
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private static int GetSide_<T>()
+            public int GetSideRotatedClockwise<T>()
             {
                 if (typeof(T) == typeof(LeftSide))
-                    return 0;
+                    return Right;
                 else if (typeof(T) == typeof(RightSide))
-                    return 1;
+                    return Forward;
                 else if (typeof(T) == typeof(ForwardSide))
-                    return 2;
+                    return Backward;
                 else if (typeof(T) == typeof(BackwardSide))
-                    return 3;
+                    return Left;
                 else
                 {
                     Debug.Assert(false);
