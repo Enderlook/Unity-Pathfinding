@@ -50,29 +50,34 @@ namespace Enderlook.Unity.Pathfinding2
             //heightField.DrawGizmos(r, false);
 
             Profiler.BeginSample("Enderlook.OpenHeightField");
-            CompactOpenHeightField openHeighField = new CompactOpenHeightField(heightField, r, 1, 1);
+            CompactOpenHeightField openHeightField = new CompactOpenHeightField(heightField, r, 1, 1);
             Profiler.EndSample();
-            //openHeighField.DrawGizmos(r, false, true);
+            //openHeightField.DrawGizmos(r, false, true);
 
             Profiler.BeginSample("Enderlook.DistanceField");
-            DistanceField distanceField = new DistanceField(openHeighField);
+            DistanceField distanceField = new DistanceField(openHeightField);
             Profiler.EndSample();
-            //distanceField.DrawGizmos(r, openHeighField);
+            distanceField.DrawGizmos(r, openHeightField);
 
-            Profiler.BeginSample("Enderlook.RegionsField");
-            RegionsField regions = new RegionsField(distanceField, openHeighField, 0, 2);
+            Profiler.BeginSample("Enderlook.DistanceField2");
+            DistanceField distanceField2 = new DistanceField(openHeightField, distanceField, r, 1);
             Profiler.EndSample();
-            regions.DrawGizmos(r, openHeighField);
+            distanceField2.DrawGizmos(r, openHeightField);
+            return;
+            Profiler.BeginSample("Enderlook.RegionsField");
+            RegionsField regions = new RegionsField(distanceField2, openHeightField, 0, 2);
+            Profiler.EndSample();
+            regions.DrawGizmos(r, openHeightField);
 
             Profiler.BeginSample("Enderlook.Contours");
-            Contours contours = new Contours(regions, openHeighField, r);
+            Contours contours = new Contours(regions, openHeightField, r);
             Profiler.EndSample();
-            contours.DrawGizmos(r, openHeighField, regions);
+            contours.DrawGizmos(r, openHeightField, regions);
 
             Profiler.BeginSample("Enderlook.Dispose");
             meshVoxelizer.Dispose();
             heightField.Dispose();
-            openHeighField.Dispose();
+            openHeightField.Dispose();
             distanceField.Dispose();
             regions.Dispose();
             contours.Dispose();

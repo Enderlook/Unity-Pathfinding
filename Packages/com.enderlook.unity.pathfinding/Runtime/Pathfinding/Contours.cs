@@ -195,7 +195,7 @@ namespace Enderlook.Unity.Pathfinding2
                         goto end;
                     GetPoints(x, z, direction, out px, out pz);
                     edgeContour_.Add((px, pz, py));
-                    direction = RotateClockwise(direction);
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     flags |= IS_USED;
                     if (startSpan == spanIndex && startDirection == direction)
                         break;
@@ -204,7 +204,7 @@ namespace Enderlook.Unity.Pathfinding2
                         goto end;
                     GetPoints(x, z, direction, out px, out pz);
                     edgeContour_.Add((px, pz, py));
-                    direction = RotateClockwise(direction);
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     if (startSpan == spanIndex && startDirection == direction)
                         break;
 
@@ -212,7 +212,7 @@ namespace Enderlook.Unity.Pathfinding2
                         goto end;
                     GetPoints(x, z, direction, out px, out pz);
                     edgeContour_.Add((px, pz, py));
-                    direction = RotateClockwise(direction);
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     if (startSpan == spanIndex && startDirection == direction)
                         break;
 
@@ -220,7 +220,7 @@ namespace Enderlook.Unity.Pathfinding2
                         goto end;
                     GetPoints(x, z, direction, out px, out pz);
                     edgeContour_.Add((px, pz, py));
-                    direction = RotateClockwise(direction);
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     if (startSpan == spanIndex && startDirection == direction)
                         break;
 
@@ -230,7 +230,7 @@ namespace Enderlook.Unity.Pathfinding2
                     if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                         break;
 
-                    direction = RotateCounterClockwise(direction);
+                    direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
                 }
             }
         }
@@ -370,12 +370,6 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(direction <= 3);
             return (byte)(1 << (direction + 1));
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int RotateClockwise(int direction) => (direction + 1) & 0x3;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int RotateCounterClockwise(int direction) => (direction + 3) & 0x3;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void NeighbourMarkFlag(ReadOnlySpan<ushort> regions, byte[] edgeFlags, int i, int neighbour, byte isRegional)

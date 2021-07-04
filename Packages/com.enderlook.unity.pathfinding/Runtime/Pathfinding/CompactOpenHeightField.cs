@@ -502,7 +502,7 @@ namespace Enderlook.Unity.Pathfinding2
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int GetSide(int indexIndex)
             {
-                Debug.Assert(indexIndex > 0 && indexIndex < 4);
+                Debug.Assert(indexIndex >= 0 && indexIndex < 4);
                 return Unsafe.Add(ref Unsafe.AsRef(Left), indexIndex);
             }
 
@@ -516,6 +516,12 @@ namespace Enderlook.Unity.Pathfinding2
                 Right = NULL_SIDE;
                 Backward = NULL_SIDE;
             }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int RotateClockwise(int side) => (side + 1) & 0x3;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static int RotateCounterClockwise(int side) => (side + 3) & 0x3;
         }
 
         private struct HeightSpanBuilder

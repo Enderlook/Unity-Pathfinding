@@ -29,12 +29,12 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Calculates the distance field of the specified open height field.
         /// </summary>
-        /// <param name="openHeighField">Open heigh field whose distance field is being calculated.</param>
-        public DistanceField(in CompactOpenHeightField openHeighField)
+        /// <param name="openHeightField">Open heigh field whose distance field is being calculated.</param>
+        public DistanceField(in CompactOpenHeightField openHeightField)
         {
             RawPooledQueue<int> handeling = RawPooledQueue<int>.Create();
 
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeighField.Spans;
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
             spansCount = spans.Length;
             byte[] status = ArrayPool<byte>.Shared.Rent(spansCount);
             try
@@ -57,6 +57,68 @@ namespace Enderlook.Unity.Pathfinding2
             finally
             {
                 ArrayPool<byte>.Shared.Return(status);
+            }
+        }
+
+        public DistanceField(in CompactOpenHeightField openHeightField, in DistanceField other, in Resolution resolution, int threshold)
+        {
+            threshold *= 2;
+            ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            ushort[] otherDistances = other.distances;
+
+            spansCount = other.spansCount;
+            distances = ArrayPool<ushort>.Shared.Rent(spansCount);
+            MaximumDistance = default;
+            try
+            {
+                for (int y = 0; y < resolution.Height; y++)
+                {
+                    for (int x = 0; x < resolution.Width; x++)
+                    {
+                        int index = resolution.GetIndex(x, y);
+                        ref readonly CompactOpenHeightField.HeightColumn column = ref columns[index];
+                        for (int i = column.First; i < column.Last; i++)
+                        {
+                            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+                            ushort distance = otherDistances[i];
+                            if (distance <= threshold)
+                            {
+                                distances[i] = distance;
+                                MaximumDistance = Math.Max(MaximumDistance, distance);
+                                continue;
+                            }
+
+                            int accumulatedDistance = distance;
+                            int doubleDistance = distance * 2;
+                            for (int direction = 0; direction < 4; direction++)
+                            {
+                                int j = span.GetSide(direction);
+                                if (j == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                                    accumulatedDistance += doubleDistance;
+                                else
+                                {
+                                    ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[j];
+                                    int direction2 = CompactOpenHeightField.HeightSpan.RotateClockwise(j);
+                                    int k = neighbourSpan.GetSide(direction2);
+                                    if (k == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                                        accumulatedDistance += distance;
+                                    else
+                                        accumulatedDistance += otherDistances[j];
+                                }
+                            }
+
+                            ushort newDistance = (ushort)((accumulatedDistance + 5) / 9);
+                            distances[i] = newDistance;
+                            MaximumDistance = Math.Max(MaximumDistance, newDistance);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                ArrayPool<ushort>.Shared.Return(distances);
+                throw;
             }
         }
 
