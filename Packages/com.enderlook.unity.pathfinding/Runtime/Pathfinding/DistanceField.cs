@@ -60,69 +60,81 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        public DistanceField(in CompactOpenHeightField openHeightField, in DistanceField other, in Resolution resolution, int threshold)
+        private DistanceField(int spansCount, ushort[] distances, ushort maximumDistance)
+        {
+            this.spansCount = spansCount;
+            this.distances = distances;
+            this.MaximumDistance = maximumDistance;
+        }
+
+        /// <summary>
+        /// Creawtes a new distance field blurred.
+        /// </summary>
+        /// <param name="openHeightField">Open heigh field whose distance field is being calculated.</param>
+        /// <param name="threshold">Minimum distance</param>
+        /// <returns>New blurred distance field.</returns>
+        public DistanceField WithBlur(in CompactOpenHeightField openHeightField, int threshold)
         {
             threshold *= 2;
-            ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
-            ushort[] otherDistances = other.distances;
 
-            spansCount = other.spansCount;
-            distances = ArrayPool<ushort>.Shared.Rent(spansCount);
-            MaximumDistance = default;
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            ushort[] distances = this.distances;
+
+            ushort newMaximumDistance = default;
+            ushort[] newDistances = ArrayPool<ushort>.Shared.Rent(spansCount);
             try
             {
                 for (int i = 0; i < spans.Length; i++)
                 {
                     ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
-                    ushort distance = otherDistances[i];
+                    ushort distance = distances[i];
                     if (distance <= threshold)
+                        newDistances[i] = distance;
+                    else
                     {
-                        distances[i] = distance;
-                        MaximumDistance = Math.Max(MaximumDistance, distance);
-                        continue;
+                        int accumulatedDistance = distance;
+                        int doubleDistance = distance * 2;
+
+                        AcummulateDistance<CompactOpenHeightField.HeightSpan.LeftSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<CompactOpenHeightField.HeightSpan.RightSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+
+                        distance = (ushort)((accumulatedDistance + 5) / 9);
+                        newDistances[i] = distance;
                     }
-
-                    int accumulatedDistance = distance;
-                    int doubleDistance = distance * 2;
-
-                    AcummulateDistance<CompactOpenHeightField.HeightSpan.LeftSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-                    AcummulateDistance<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-                    AcummulateDistance<CompactOpenHeightField.HeightSpan.RightSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-                    AcummulateDistance<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-
-                    ushort newDistance = (ushort)((accumulatedDistance + 5) / 9);
-                    distances[i] = newDistance;
-                    MaximumDistance = Math.Max(MaximumDistance, newDistance);
+                    newMaximumDistance = Math.Max(newMaximumDistance, distance);
                 }
+
+                return new DistanceField(spansCount, newDistances, newMaximumDistance);
             }
             catch
             {
-                ArrayPool<ushort>.Shared.Return(distances);
+                ArrayPool<ushort>.Shared.Return(newDistances);
                 throw;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void AcummulateDistance<T>(
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_,
-            in CompactOpenHeightField.HeightSpan span_,
+        private static void AcummulateDistance<T>(
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans,
+            in CompactOpenHeightField.HeightSpan span,
             ref int accumulatedDistance,
             int distance,
             int doubleDistance,
-            ushort[] otherDistances)
+            ushort[] distances)
         {
-            int j = span_.GetSide<T>();
+            int j = span.GetSide<T>();
             if (j == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 accumulatedDistance += doubleDistance;
             else
             {
-                ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans_[j];
+                ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[j];
                 int k = neighbourSpan.GetSideRotatedClockwise<T>();
                 if (k == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                     accumulatedDistance += distance;
                 else
-                    accumulatedDistance += otherDistances[j];
+                    accumulatedDistance += distances[j];
             }
         }
 
