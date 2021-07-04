@@ -72,36 +72,28 @@ namespace Enderlook.Unity.Pathfinding2
             MaximumDistance = default;
             try
             {
-                for (int y = 0; y < resolution.Height; y++)
+                for (int i = 0; i < spans.Length; i++)
                 {
-                    for (int x = 0; x < resolution.Width; x++)
+                    ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+                    ushort distance = otherDistances[i];
+                    if (distance <= threshold)
                     {
-                        int index = resolution.GetIndex(x, y);
-                        ref readonly CompactOpenHeightField.HeightColumn column = ref columns[index];
-                        for (int i = column.First; i < column.Last; i++)
-                        {
-                            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
-                            ushort distance = otherDistances[i];
-                            if (distance <= threshold)
-                            {
-                                distances[i] = distance;
-                                MaximumDistance = Math.Max(MaximumDistance, distance);
-                                continue;
-                            }
-
-                            int accumulatedDistance = distance;
-                            int doubleDistance = distance * 2;
-
-                            AcummulateDistance<CompactOpenHeightField.HeightSpan.LeftSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-                            AcummulateDistance<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-                            AcummulateDistance<CompactOpenHeightField.HeightSpan.RightSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-                            AcummulateDistance<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
-
-                            ushort newDistance = (ushort)((accumulatedDistance + 5) / 9);
-                            distances[i] = newDistance;
-                            MaximumDistance = Math.Max(MaximumDistance, newDistance);
-                        }
+                        distances[i] = distance;
+                        MaximumDistance = Math.Max(MaximumDistance, distance);
+                        continue;
                     }
+
+                    int accumulatedDistance = distance;
+                    int doubleDistance = distance * 2;
+
+                    AcummulateDistance<CompactOpenHeightField.HeightSpan.LeftSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
+                    AcummulateDistance<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
+                    AcummulateDistance<CompactOpenHeightField.HeightSpan.RightSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
+                    AcummulateDistance<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, otherDistances);
+
+                    ushort newDistance = (ushort)((accumulatedDistance + 5) / 9);
+                    distances[i] = newDistance;
+                    MaximumDistance = Math.Max(MaximumDistance, newDistance);
                 }
             }
             catch
