@@ -73,7 +73,7 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 for (int z = 0; z < resolution.Depth; z++)
                 {
-                    Debug.Assert(columnIndex == GetIndex(resolution, x, z));
+                    Debug.Assert(columnIndex == resolution.GetIndex(x, z));
                     CompactOpenHeightField.HeightColumn column = columns[columnIndex++];
 
                     for (int i = column.First; i < column.Last; i++)
@@ -127,19 +127,6 @@ namespace Enderlook.Unity.Pathfinding2
             }
             return edgeFlags;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(in Resolution resolution, int x, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.Depth);
-            int index_ = (resolution.Depth * x) + z;
-            Debug.Assert(index_ < resolution.Width * resolution.Depth);
-            return index_;
-        }
-
 
         private void FromEdgeToVertices(ref RawPooledList<(int span, int neighbour)> edgeContour)
         {
