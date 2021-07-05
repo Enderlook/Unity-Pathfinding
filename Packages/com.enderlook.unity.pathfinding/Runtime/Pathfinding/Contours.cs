@@ -26,7 +26,8 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="regionsField">Regions whose contours is being calculated.</param>
         /// <param name="openHeightField">Open height field owner of the <paramref name="regionsField"/>.</param>
         /// <param name="resolution">Resolution of the <paramref name="regionsField"/>.</param>
-        public Contours(in RegionsField regionsField, in CompactOpenHeightField openHeightField, in Resolution resolution)
+        /// <param name="maxIterations">Maximum amount of iterations used to walk along the contours.</param>
+        public Contours(in RegionsField regionsField, in CompactOpenHeightField openHeightField, in Resolution resolution, int maxIterations = 40000)
         {
             ReadOnlySpan<ushort> regions = regionsField.Regions;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
@@ -42,7 +43,7 @@ namespace Enderlook.Unity.Pathfinding2
                     RawPooledList<(int x, int z, int y)> edgeContour = RawPooledList<(int x, int z, int y)>.Create();
                     try
                     {
-                        FindContours(resolution, spans, columns, edgeFlags, ref edgeContour, ref contours);
+                        FindContours(resolution, spans, columns, edgeFlags, ref edgeContour, ref contours, maxIterations);
                     }
                     finally
                     {
@@ -63,10 +64,11 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, ref RawPooledList<RawPooledList<(int x, int z, int y)>> contours)
+        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, ref RawPooledList<RawPooledList<(int x, int z, int y)>> contours, int maxIterations)
         {
             int spanIndex = 0;
             int columnIndex = 0;
+            int w = 0;
             for (int x = 0; x < resolution.Width; x++)
             {
                 for (int z = 0; z < resolution.Depth; z++)
@@ -83,7 +85,8 @@ namespace Enderlook.Unity.Pathfinding2
                             continue;
                         }
 
-                        WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags);
+                        w++;
+                        WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
                         spanIndex++;
 
                         RawPooledList<(int x, int z, int y)> copy = RawPooledList<(int x, int z, int y)>.Create(edgeContour.AsSpan());
@@ -143,7 +146,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         }
 
-        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, int x, int z, int spanIndex, ref byte initialFlags)
+        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
         {
             ref readonly CompactOpenHeightField.HeightSpan heightSpan = ref spans[spanIndex];
             int py = heightSpan.Floor;
@@ -187,7 +190,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             void Loop(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<(int x, int z, int y)> edgeContour_)
             {
-                while (true)
+                int iterations = 0;
+                while (iterations++ < maxIterations)
                 {
                     ref byte flags = ref edgeFlags[spanIndex];
 
@@ -228,7 +232,11 @@ namespace Enderlook.Unity.Pathfinding2
                     GetIndexOfSide(spans_, ref spanIndex, ref x, ref z, out py, direction);
 
                     if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    {
+                        // Should not happen?
+                        Debug.Assert(false);
                         break;
+                    }
 
                     direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
                 }
