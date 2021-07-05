@@ -19,7 +19,7 @@ namespace Enderlook.Unity.Pathfinding2
         private const byte BACKWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.BACKWARD_INDEX + 1);
         private const byte IS_USED = 1 << 7;
 
-        private readonly RawPooledList<RawPooledList<(int x, int z, int y)>> contours;
+        private readonly RawPooledList<RawPooledList<ContourPoint>> contours;
 
         /// <summary>
         /// Calculates the contours of the specified regions.
@@ -38,10 +38,10 @@ namespace Enderlook.Unity.Pathfinding2
             byte[] edgeFlags = CreateFlags(regions, spans);
             try
             {
-                contours = RawPooledList<RawPooledList<(int x, int z, int y)>>.Create();
+                contours = RawPooledList<RawPooledList<ContourPoint>>.Create();
                 try
                 {
-                    RawPooledList<(int x, int z, int y)> edgeContour = RawPooledList<(int x, int z, int y)>.Create();
+                    RawPooledList<ContourPoint> edgeContour = RawPooledList<ContourPoint>.Create();
                     try
                     {
                         FindContours(resolution, spans, columns, edgeFlags, ref edgeContour, ref contours, maxIterations);
@@ -65,7 +65,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, ref RawPooledList<RawPooledList<(int x, int z, int y)>> contours, int maxIterations)
+        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<RawPooledList<ContourPoint>> contours, int maxIterations)
         {
             int spanIndex = 0;
             int columnIndex = 0;
@@ -88,7 +88,7 @@ namespace Enderlook.Unity.Pathfinding2
                         WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
                         spanIndex++;
 
-                        RawPooledList<(int x, int z, int y)> copy = RawPooledList<(int x, int z, int y)>.Create(edgeContour.AsSpan());
+                        RawPooledList<ContourPoint> copy = RawPooledList<ContourPoint>.Create(edgeContour.AsSpan());
                         try
                         {
                             contours.Add(copy);
@@ -127,12 +127,7 @@ namespace Enderlook.Unity.Pathfinding2
             return edgeFlags;
         }
 
-        private void FromEdgeToVertices(ref RawPooledList<(int span, int neighbour)> edgeContour)
-        {
-
-        }
-
-        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<(int x, int z, int y)> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
+        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
         {
             ref readonly CompactOpenHeightField.HeightSpan heightSpan = ref spans[spanIndex];
             int py = heightSpan.Floor;
@@ -166,7 +161,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             edgeContour.Clear();
             GetPoints(x, z, direction, out int px, out int pz);
-            edgeContour.Add((px, pz, py));
+            edgeContour.Add(new ContourPoint(px, py, pz));
             initialFlags |= IS_USED;
 
             int startSpan = spanIndex;
@@ -174,7 +169,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             Loop(spans, ref edgeContour);
 
-            void Loop(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<(int x, int z, int y)> edgeContour_)
+            void Loop(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<ContourPoint> edgeContour_)
             {
                 int iterations = 0;
                 do
@@ -184,7 +179,7 @@ namespace Enderlook.Unity.Pathfinding2
                     if (IsRegion(flags, ToFlag(direction)))
                     {
                         GetPoints(x, z, direction, out px, out pz);
-                        edgeContour_.Add((px, pz, py));
+                        edgeContour_.Add(new ContourPoint(px, py, pz));
                         flags |= IS_USED;
                         direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     }
@@ -258,6 +253,17 @@ namespace Enderlook.Unity.Pathfinding2
                 }*/
             }
         }
+
+        private void SimplifyContour(ref RawPooledList<(int x, int z, int y)> edgeContour, int maximumError, int maximumEdgeLength)
+        {
+            // Add initial points.
+            bool hasConnections = false;
+            for (int i = 0; i < edgeContour.Count; i++)
+            {
+
+            }
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void GetIndexOfSide(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
@@ -421,7 +427,7 @@ namespace Enderlook.Unity.Pathfinding2
             offset.y -= resolution.CellSize.y / 2;
             offset += resolution.Center;
 
-            RawPooledList<RawPooledList<(int x, int z, int y)>> contours = this.contours;
+            RawPooledList<RawPooledList<ContourPoint>> contours = this.contours;
             for (int i = 0; i < contours.Count; i++)
             {
                // https://gamedev.stackexchange.com/a/46469/99234 from https://gamedev.stackexchange.com/questions/46463/how-can-i-find-an-optimum-set-of-colors-for-10-players
@@ -429,19 +435,19 @@ namespace Enderlook.Unity.Pathfinding2
                 const float div = 1 / goldenRatio;
                 Gizmos.color = Color.HSVToRGB(i * div % 1f, .5f, Mathf.Sqrt(1 - (i * div % .5f)));
 
-                RawPooledList<(int x, int z, int y)> contour = contours[i];
+                RawPooledList<ContourPoint> contour = contours[i];
 
-                (int x, int z, int y) = contour[0];
-                Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
-                Vector3 position = new Vector3(position_.x, resolution.CellSize.y * y, position_.y);
+                ContourPoint point = contour[0];
+                Vector2 position_ = new Vector2(point.X * resolution.CellSize.x, point.Z * resolution.CellSize.z);
+                Vector3 position = new Vector3(position_.x, resolution.CellSize.y * point.Y, position_.y);
                 Vector3 center_ = offset + position;
                 Vector3 center_1 = center_;
                 Vector3 center_2 = center_;
                 for (int j = 1; j < contour.Count; j++)
                 {
-                    (x, z, y) = contour[j];
-                    position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
-                    position = new Vector3(position_.x, resolution.CellSize.y * y, position_.y);
+                    point = contour[j];
+                    position_ = new Vector2(point.X * resolution.CellSize.x, point.Z * resolution.CellSize.z);
+                    position = new Vector3(position_.x, resolution.CellSize.y * point.Y, position_.y);
                     center_2 = offset + position;
                     Gizmos.DrawLine(center_, center_2);
                     center_ = center_2;
@@ -452,5 +458,19 @@ namespace Enderlook.Unity.Pathfinding2
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose() => contours.Dispose();
+
+        private readonly struct ContourPoint
+        {
+            public readonly int X;
+            public readonly int Y;
+            public readonly int Z;
+
+            public ContourPoint(int x, int y, int z)
+            {
+                X = x;
+                Y = y;
+                Z = z;
+            }
+        }
     }
 }
