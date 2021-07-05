@@ -516,10 +516,10 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int GetSide(int indexIndex)
+            public int GetSide(int index)
             {
-                Debug.Assert(indexIndex >= 0 && indexIndex < 4);
-                return Unsafe.Add(ref Unsafe.AsRef(Left), indexIndex);
+                Debug.Assert(index >= 0 && index < 4);
+                return Unsafe.Add(ref Unsafe.AsRef(Left), index);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
