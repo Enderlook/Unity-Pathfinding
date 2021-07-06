@@ -47,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding2
                     RawPooledList<ContourPoint> edgeContour = RawPooledList<ContourPoint>.Create();
                     try
                     {
-                        FindContours(resolution, spans, columns, edgeFlags, ref edgeContour, ref contours, maxIterations);
+                        FindContours(resolution, regions, spans, columns, edgeFlags, ref edgeContour, ref contours, maxIterations);
                     }
                     finally
                     {
@@ -68,7 +68,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindContours(in Resolution resolution, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<RawPooledList<ContourPoint>> contours, int maxIterations)
+        private void FindContours(in Resolution resolution, ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<RawPooledList<ContourPoint>> contours, int maxIterations)
         {
             int spanIndex = 0;
             int columnIndex = 0;
@@ -88,7 +88,7 @@ namespace Enderlook.Unity.Pathfinding2
                             continue;
                         }
 
-                        WalkContour(spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
+                        WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
                         spanIndex++;
 
                         RawPooledList<ContourPoint> copy = RawPooledList<ContourPoint>.Create(edgeContour.AsSpan());
@@ -130,7 +130,7 @@ namespace Enderlook.Unity.Pathfinding2
             return edgeFlags;
         }
 
-        private void WalkContour(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
+        private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
         {
             ref readonly CompactOpenHeightField.HeightSpan heightSpan = ref spans[spanIndex];
             int py = heightSpan.Floor;
@@ -267,9 +267,8 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void GetIndexOfSide(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
+        public static void GetIndexOfSide(/*ReadOnlySpan<ushort> regions,*/ ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
         {
             /* This function parameters to point to the specified spans.
              * We must also return the Y value of the corner.
@@ -310,6 +309,24 @@ namespace Enderlook.Unity.Pathfinding2
                     Debug.Assert(false, "Impossible state");
                     goto case CompactOpenHeightField.HeightSpan.LEFT_INDEX;
             }
+
+            /*// Check if the vertex is special edge vertex, these vertices will be removed later.
+            for (int j = 0; j < 4; ++j)
+            {
+                ushort regionA = regions[j];
+                ushort regionB = regions[(j + 1) & 0x3];
+                ushort regionC = regions[(j + 2) & 0x3];
+                ushort regionD = regions[(j + 3) & 0x3];
+
+                // The vertex is a border vertex if there are two same exterior cells in a row,
+                // followed by two interior cells and none of the regions are out of bounds.
+                bool twoSameExts = (regionA & regionB & RC_BORDER_REG) != 0 && regionA == regionB;
+                bool twoInts = ((regionC | regionD) & RC_BORDER_REG) == 0;
+                bool intsSameArea = regionC >> 16 == regionD >> 16;
+                bool noZeros = regionA != 0 && regionB != 0 && regionC != 0 && regionD != 0;
+                if (twoSameExts && twoInts && intsSameArea && noZeros)
+                    return true;
+            }*/
         }
 
         private struct Left { }
