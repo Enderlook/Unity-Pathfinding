@@ -30,6 +30,9 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="maxIterations">Maximum amount of iterations used to walk along the contours.</param>
         public Contours(in RegionsField regionsField, in CompactOpenHeightField openHeightField, in Resolution resolution, int maxIterations = 40000)
         {
+            regionsField.DebugAssert(nameof(regionsField));
+            openHeightField.DebugAssert(nameof(openHeightField), resolution, nameof(resolution));
+
             ReadOnlySpan<ushort> regions = regionsField.Regions;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
             ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns = openHeightField.Columns;
