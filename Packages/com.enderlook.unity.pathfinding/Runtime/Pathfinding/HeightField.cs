@@ -18,6 +18,14 @@ namespace Enderlook.Unity.Pathfinding2
         private readonly int columnsCount;
 
         /// <summary>
+        /// Columns of this height field.
+        /// </summary>
+        public ReadOnlySpan<HeightColumn> Columns {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => columns.AsSpan(0, columnsCount);
+        }
+
+        /// <summary>
         /// Creates a new height field.
         /// </summary>
         /// <param name="voxels">Voxel information of the height field.</param>
@@ -82,8 +90,6 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        public ReadOnlySpan<HeightColumn> AsSpan() => columns.AsSpan(0, columnsCount);
-
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()
         {
@@ -101,7 +107,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             Debug.Assert(!(columns is null), $"{parameterName} is default");
             if (!(columns is null))
-                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName}.{nameof(AsSpan)}.{nameof(Span<HeightColumn>.Length)} must be equal to {resolutionParameterName}.{resolution.Cells}.");
+                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName}.{nameof(Columns)}.{nameof(Span<HeightColumn>.Length)} must be equal to {resolutionParameterName}.{resolution.Cells}.");
         }
 
         public void DrawGizmos(in Resolution resolution, bool drawOpen)
@@ -119,7 +125,7 @@ namespace Enderlook.Unity.Pathfinding2
                 for (int z = 0; z < resolution.Depth; z++)
                 {
                     Vector2 position_ = new Vector2(x * resolution.CellSize.x, z * resolution.CellSize.z);
-                    ReadOnlySpan<HeightSpan> heightSpans = columns[i++].AsSpan();
+                    ReadOnlySpan<HeightSpan> heightSpans = columns[i++].Spans;
 
                     int y = 0;
                     for (int j = 0; j < heightSpans.Length; j++)
@@ -172,10 +178,21 @@ namespace Enderlook.Unity.Pathfinding2
             public HeightColumn ToBuilt() => new HeightColumn(spans.Slice(0, count));
         }
 
+        /// <summary>
+        /// Represent the column of a <see cref="HeightField"/>.
+        /// </summary>
         public struct HeightColumn : IDisposable
         {
             private HeightSpan[] spans;
             private int count;
+
+            /// <summary>
+            /// Spans of this column.
+            /// </summary>
+            public ReadOnlySpan<HeightSpan> Spans {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => spans.AsSpan(0, count);
+            }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public HeightColumn(Span<HeightSpan> span)
@@ -184,9 +201,6 @@ namespace Enderlook.Unity.Pathfinding2
                 span.CopyTo(spans.AsSpan());
                 count = span.Length;
             }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public ReadOnlySpan<HeightSpan> AsSpan() => spans.AsSpan(0, count);
 
             /// <inheritdoc cref="IDisposable.Dispose"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -199,9 +213,19 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
+        /// <summary>
+        /// Represent the span of a <see cref="HeightColumn"/>.
+        /// </summary>
         public struct HeightSpan
         {
+            /// <summary>
+            /// Height of this span.
+            /// </summary>
             public int Height;
+
+            /// <summary>
+            /// Whenever this span is solid.
+            /// </summary>
             public bool IsSolid;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

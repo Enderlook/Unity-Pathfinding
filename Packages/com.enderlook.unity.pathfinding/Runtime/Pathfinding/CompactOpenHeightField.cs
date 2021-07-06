@@ -66,7 +66,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void Initialize(in HeightField heightField, in Resolution resolution, ref RawPooledList<HeightSpan> spanBuilder)
         {
-            ReadOnlySpan<HeightField.HeightColumn> columns = heightField.AsSpan();
+            ReadOnlySpan<HeightField.HeightColumn> columns = heightField.Columns;
             int index = 0;
             for (int x = 0; x < resolution.Width; x++)
             {
@@ -76,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding2
                     int startIndex = spanBuilder.Count;
 
                     HeightField.HeightColumn column = columns[index];
-                    ReadOnlySpan<HeightField.HeightSpan> spans = column.AsSpan();
+                    ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans;
                     Debug.Assert(spans.Length > 0);
 
                     int i = 0;

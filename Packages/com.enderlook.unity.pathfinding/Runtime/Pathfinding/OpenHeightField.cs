@@ -47,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             try
             {
-                ReadOnlySpan<HeightField.HeightColumn> columns = heightField.AsSpan();
+                ReadOnlySpan<HeightField.HeightColumn> columns = heightField.Columns;
                 HeightColumn[] openColumns = ArrayPool<HeightColumn>.Shared.Rent(resolution.x * resolution.z);
                 this.columns = openColumns;
                 int index = 0;
@@ -57,7 +57,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         Debug.Assert(index == GetIndex(x, z));
                         HeightField.HeightColumn column = columns[index];
-                        ReadOnlySpan<HeightField.HeightSpan> spans = column.AsSpan();
+                        ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans;
                         Debug.Assert(spans.Length > 0);
 
                         HeightColumnBuilder openColumn = new HeightColumnBuilder(stack);
