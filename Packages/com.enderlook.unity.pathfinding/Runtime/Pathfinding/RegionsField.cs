@@ -182,10 +182,10 @@ namespace Enderlook.Unity.Pathfinding2
             while (stack.TryPop(out int value))
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[value];
-                FloodRegionCheckNeighbour<CompactOpenHeightField.HeightSpan.LeftSide>(spans, distances, waterLevel, ref region, ref stack, span.Left);
-                FloodRegionCheckNeighbour<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, distances, waterLevel, ref region, ref stack, span.Forward);
-                FloodRegionCheckNeighbour<CompactOpenHeightField.HeightSpan.RightSide>(spans, distances, waterLevel, ref region, ref stack, span.Right);
-                FloodRegionCheckNeighbour<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, distances, waterLevel, ref region, ref stack, span.Backward);
+                FloodRegionCheckNeighbour<Side.Left>(spans, distances, waterLevel, ref region, ref stack, span.Left);
+                FloodRegionCheckNeighbour<Side.Forward>(spans, distances, waterLevel, ref region, ref stack, span.Forward);
+                FloodRegionCheckNeighbour<Side.Right>(spans, distances, waterLevel, ref region, ref stack, span.Right);
+                FloodRegionCheckNeighbour<Side.Backward>(spans, distances, waterLevel, ref region, ref stack, span.Backward);
             }
 
             tmp = stack.UnderlyingArray;
@@ -210,13 +210,13 @@ namespace Enderlook.Unity.Pathfinding2
 
             int neighbour_;
 
-            if (typeof(T) == typeof(CompactOpenHeightField.HeightSpan.LeftSide))
+            if (typeof(T) == typeof(Side.Left))
                 neighbour_ = span.Forward;
-            else if (typeof(T) == typeof(CompactOpenHeightField.HeightSpan.ForwardSide))
+            else if (typeof(T) == typeof(Side.Forward))
                 neighbour_ = span.Right;
-            else if (typeof(T) == typeof(CompactOpenHeightField.HeightSpan.RightSide))
+            else if (typeof(T) == typeof(Side.Right))
                 neighbour_ = span.Backward;
-            else if (typeof(T) == typeof(CompactOpenHeightField.HeightSpan.BackwardSide))
+            else if (typeof(T) == typeof(Side.Backward))
                 neighbour_ = span.Left;
             else
             {

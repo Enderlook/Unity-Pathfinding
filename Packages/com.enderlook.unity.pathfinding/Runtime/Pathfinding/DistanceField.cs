@@ -111,10 +111,10 @@ namespace Enderlook.Unity.Pathfinding2
                         int accumulatedDistance = distance;
                         int doubleDistance = distance * 2;
 
-                        AcummulateDistance<CompactOpenHeightField.HeightSpan.LeftSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-                        AcummulateDistance<CompactOpenHeightField.HeightSpan.ForwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-                        AcummulateDistance<CompactOpenHeightField.HeightSpan.RightSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-                        AcummulateDistance<CompactOpenHeightField.HeightSpan.BackwardSide>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<Side.Left>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<Side.Forward>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<Side.Right>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                        AcummulateDistance<Side.Backward>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
 
                         distance = (ushort)((accumulatedDistance + 5) / 9);
                         newDistances[i] = distance;

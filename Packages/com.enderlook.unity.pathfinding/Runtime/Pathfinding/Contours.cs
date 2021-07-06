@@ -139,22 +139,22 @@ namespace Enderlook.Unity.Pathfinding2
             if (IsRegion(initialFlags, LEFT_IS_REGIONAL))
             {
                 direction = CompactOpenHeightField.HeightSpan.LEFT_INDEX;
-                py = GetIndexOfSideCheckNeighbours<Left>(spans, spanIndex, py, heightSpan);
+                py = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, py, heightSpan);
             }
             else if (IsRegion(initialFlags, FORWARD_IS_REGIONAL))
             {
                 direction = CompactOpenHeightField.HeightSpan.FORWARD_INDEX;
-                py = GetIndexOfSideCheckNeighbours<Forward>(spans, spanIndex, py, heightSpan);
+                py = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, py, heightSpan);
             }
             else if (IsRegion(initialFlags, RIGHT_IS_REGIONAL))
             {
                 direction = CompactOpenHeightField.HeightSpan.RIGHT_INDEX;
-                py = GetIndexOfSideCheckNeighbours<Right>(spans, spanIndex, py, heightSpan);
+                py = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, py, heightSpan);
             }
             else if (IsRegion(initialFlags, BACKWARD_IS_REGIONAL))
             {
                 direction = CompactOpenHeightField.HeightSpan.BACKWARD_INDEX;
-                py = GetIndexOfSideCheckNeighbours<Backward>(spans, spanIndex, py, heightSpan);
+                py = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, py, heightSpan);
             }
             else
             {
@@ -170,9 +170,9 @@ namespace Enderlook.Unity.Pathfinding2
             int startSpan = spanIndex;
             int startDirection = direction;
 
-            Loop(spans, ref edgeContour);
+            Loop(regions, spans, ref edgeContour);
 
-            void Loop(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<ContourPoint> edgeContour_)
+            void Loop(ReadOnlySpan<ushort> regions_, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<ContourPoint> edgeContour_)
             {
                 int iterations = 0;
                 do
@@ -268,7 +268,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void GetIndexOfSide(/*ReadOnlySpan<ushort> regions,*/ ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
+        public static void GetIndexOfSide(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
         {
             /* This function parameters to point to the specified spans.
              * We must also return the Y value of the corner.
@@ -288,22 +288,22 @@ namespace Enderlook.Unity.Pathfinding2
                 case CompactOpenHeightField.HeightSpan.LEFT_INDEX:
                     spanIndex = span.Left;
                     x--;
-                    y = GetIndexOfSideCheckNeighbours<Left>(spans, spanIndex, y, in span);
+                    y = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, y, in span);
                     break;
                 case CompactOpenHeightField.HeightSpan.FORWARD_INDEX:
                     spanIndex = span.Forward;
                     z++;
-                    y = GetIndexOfSideCheckNeighbours<Forward>(spans, spanIndex, y, in span);
+                    y = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, y, in span);
                     break;
                 case CompactOpenHeightField.HeightSpan.RIGHT_INDEX:
                     spanIndex = span.Right;
                     x++;
-                    y = GetIndexOfSideCheckNeighbours<Right>(spans, spanIndex, y, in span);
+                    y = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, y, in span);
                     break;
                 case CompactOpenHeightField.HeightSpan.BACKWARD_INDEX:
                     spanIndex = span.Backward;
                     z--;
-                    y = GetIndexOfSideCheckNeighbours<Backward>(spans, spanIndex, y, in span);
+                    y = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, y, in span);
                     break;
                 default:
                     Debug.Assert(false, "Impossible state");
@@ -329,11 +329,6 @@ namespace Enderlook.Unity.Pathfinding2
             }*/
         }
 
-        private struct Left { }
-        private struct Right { }
-        private struct Forward { }
-        private struct Backward { }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndexOfSideCheckNeighbours<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int y, in CompactOpenHeightField.HeightSpan span)
         {
@@ -344,22 +339,22 @@ namespace Enderlook.Unity.Pathfinding2
 
                 int index1, index2, index3 = -1;
 
-                if (typeof(T) == typeof(Left))
+                if (typeof(T) == typeof(Side.Left))
                 {
                     index1 = neighbour.Forward;
                     index2 = span.Forward;
                 }
-                else if (typeof(T) == typeof(Forward))
+                else if (typeof(T) == typeof(Side.Forward))
                 {
                     index1 = neighbour.Right;
                     index2 = span.Right;
                 }
-                else if (typeof(T) == typeof(Right))
+                else if (typeof(T) == typeof(Side.Right))
                 {
                     index1 = neighbour.Backward;
                     index2 = span.Backward;
                 }
-                else if (typeof(T) == typeof(Backward))
+                else if (typeof(T) == typeof(Side.Backward))
                 {
                     index1 = neighbour.Left;
                     index2 = span.Left;
@@ -375,13 +370,13 @@ namespace Enderlook.Unity.Pathfinding2
                 if (index2 != CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 {
                     ref readonly CompactOpenHeightField.HeightSpan neighbour2 = ref spans[index2];
-                    if (typeof(T) == typeof(Left))
+                    if (typeof(T) == typeof(Side.Left))
                         index3 = neighbour2.Left;
-                    else if (typeof(T) == typeof(Forward))
+                    else if (typeof(T) == typeof(Side.Forward))
                         index3 = neighbour2.Forward;
-                    else if (typeof(T) == typeof(Right))
+                    else if (typeof(T) == typeof(Side.Right))
                         index3 = neighbour2.Right;
-                    else if (typeof(T) == typeof(Backward))
+                    else if (typeof(T) == typeof(Side.Backward))
                         index3 = neighbour2.Backward;
                 }
                 if (index3 != CompactOpenHeightField.HeightSpan.NULL_SIDE)

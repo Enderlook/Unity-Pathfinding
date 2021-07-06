@@ -539,11 +539,6 @@ namespace Enderlook.Unity.Pathfinding2
             public readonly int Right;
             public readonly int Backward;
 
-            public struct LeftSide { }
-            public struct ForwardSide { }
-            public struct RightSide { }
-            public struct BackwardSide { }
-
             public bool IsBorder {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get {
@@ -565,13 +560,13 @@ namespace Enderlook.Unity.Pathfinding2
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int GetSide<T>()
             {
-                if (typeof(T) == typeof(LeftSide))
+                if (typeof(T) == typeof(Side.Left))
                     return Left;
-                else if (typeof(T) == typeof(RightSide))
+                else if (typeof(T) == typeof(Side.Right))
                     return Right;
-                else if (typeof(T) == typeof(ForwardSide))
+                else if (typeof(T) == typeof(Side.Forward))
                     return Forward;
-                else if (typeof(T) == typeof(BackwardSide))
+                else if (typeof(T) == typeof(Side.Backward))
                     return Backward;
                 else
                 {
@@ -600,13 +595,13 @@ namespace Enderlook.Unity.Pathfinding2
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int GetSideRotatedClockwise<T>()
             {
-                if (typeof(T) == typeof(LeftSide))
+                if (typeof(T) == typeof(Side.Left))
                     return Right;
-                else if (typeof(T) == typeof(RightSide))
+                else if (typeof(T) == typeof(Side.Right))
                     return Forward;
-                else if (typeof(T) == typeof(ForwardSide))
+                else if (typeof(T) == typeof(Side.Forward))
                     return Backward;
-                else if (typeof(T) == typeof(BackwardSide))
+                else if (typeof(T) == typeof(Side.Backward))
                     return Left;
                 else
                 {
