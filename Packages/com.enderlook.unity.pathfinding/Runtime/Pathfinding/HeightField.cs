@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using UnityEngine;
 
@@ -41,20 +42,20 @@ namespace Enderlook.Unity.Pathfinding2
             columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
             try
             {
-                Span<HeightSpan> span;
-                HeightSpan[] spanOwner;
-                if (resolution.Height * Unsafe.SizeOf<HeightSpan>() < sizeof(byte) * 512)
+                Span<HeightColumnBuilder.HeightSpanBuilder> span;
+                HeightColumnBuilder.HeightSpanBuilder[] spanOwner;
+                if (resolution.Height * Unsafe.SizeOf<HeightColumnBuilder.HeightSpanBuilder>() < sizeof(byte) * 512)
                 {
                     spanOwner = null;
                     unsafe
                     {
-                        HeightSpan* ptr = stackalloc HeightSpan[resolution.Height];
-                        span = new Span<HeightSpan>(ptr, resolution.Height);
+                        HeightColumnBuilder.HeightSpanBuilder* ptr = stackalloc HeightColumnBuilder.HeightSpanBuilder[resolution.Height];
+                        span = new Span<HeightColumnBuilder.HeightSpanBuilder>(ptr, resolution.Height);
                     }
                 }
                 else
                 {
-                    spanOwner = ArrayPool<HeightSpan>.Shared.Rent(resolution.Height);
+                    spanOwner = ArrayPool<HeightColumnBuilder.HeightSpanBuilder>.Shared.Rent(resolution.Height);
                     span = spanOwner;
                 }
 
@@ -77,7 +78,7 @@ namespace Enderlook.Unity.Pathfinding2
                 finally
                 {
                     if (!(spanOwner is null))
-                        ArrayPool<HeightSpan>.Shared.Return(spanOwner);
+                        ArrayPool<HeightColumnBuilder.HeightSpanBuilder>.Shared.Return(spanOwner);
                 }
             }
             catch
@@ -107,7 +108,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             Debug.Assert(!(columns is null), $"{parameterName} is default");
             if (!(columns is null))
-                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName}.{nameof(Columns)}.{nameof(Span<HeightColumn>.Length)} must be equal to {resolutionParameterName}.{resolution.Cells}.");
+                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName}.{nameof(Columns)}.{nameof(Span<HeightColumn>.Length)} must be equal to {resolutionParameterName}.{nameof(resolution.Cells)}.");
         }
 
         public void DrawGizmos(in Resolution resolution, bool drawOpen)
@@ -146,11 +147,11 @@ namespace Enderlook.Unity.Pathfinding2
 
         private ref struct HeightColumnBuilder
         {
-            private Span<HeightSpan> spans;
+            private Span<HeightSpanBuilder> spans;
             private int count;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public HeightColumnBuilder(Span<HeightSpan> spans)
+            public HeightColumnBuilder(Span<HeightSpanBuilder> spans)
             {
                 this.spans = spans;
                 count = 0;
@@ -162,29 +163,41 @@ namespace Enderlook.Unity.Pathfinding2
                 unsafe
                 {
                     if (count == 0)
-                        spans[count++] = new HeightSpan(isSolid);
+                        spans[count++] = new HeightSpanBuilder(isSolid);
                     else
                     {
                         int index = count - 1;
                         if (spans[index].IsSolid == isSolid)
                             spans[index].Height++;
                         else
-                            spans[count++] = new HeightSpan(isSolid);
+                            spans[count++] = new HeightSpanBuilder(isSolid);
                     }
                 }
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public HeightColumn ToBuilt() => new HeightColumn(spans.Slice(0, count));
+            public HeightColumn ToBuilt() => new HeightColumn(MemoryMarshal.Cast<HeightSpanBuilder, HeightSpan>(spans.Slice(0, count)));
+            public struct HeightSpanBuilder
+            {
+                public int Height;
+                public bool IsSolid;
+
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                public HeightSpanBuilder(bool isSolid)
+                {
+                    Height = 1;
+                    IsSolid = isSolid;
+                }
+            }
         }
 
         /// <summary>
         /// Represent the column of a <see cref="HeightField"/>.
         /// </summary>
-        public struct HeightColumn : IDisposable
+        public readonly struct HeightColumn : IDisposable
         {
-            private HeightSpan[] spans;
-            private int count;
+            private readonly HeightSpan[] spans;
+            private readonly int count;
 
             /// <summary>
             /// Spans of this column.
@@ -204,29 +217,23 @@ namespace Enderlook.Unity.Pathfinding2
 
             /// <inheritdoc cref="IDisposable.Dispose"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void Dispose()
-            {
-                HeightSpan[] array = spans;
-                spans = null;
-                if (!(array is null))
-                    ArrayPool<HeightSpan>.Shared.Return(array);
-            }
+            public void Dispose() => ArrayPool<HeightSpan>.Shared.Return(spans);
         }
 
         /// <summary>
         /// Represent the span of a <see cref="HeightColumn"/>.
         /// </summary>
-        public struct HeightSpan
+        public readonly struct HeightSpan
         {
             /// <summary>
             /// Height of this span.
             /// </summary>
-            public int Height;
+            public readonly int Height;
 
             /// <summary>
             /// Whenever this span is solid.
             /// </summary>
-            public bool IsSolid;
+            public readonly bool IsSolid;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public HeightSpan(bool isSolid)
