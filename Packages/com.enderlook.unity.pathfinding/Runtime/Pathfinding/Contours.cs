@@ -81,8 +81,16 @@ namespace Enderlook.Unity.Pathfinding2
 
                     for (int i = column.First; i < column.Last; i++)
                     {
-                        byte flags = edgeFlags[spanIndex];
+                        ref byte flags = ref edgeFlags[spanIndex];
                         if (flags == 0 || (flags & IS_USED) != 0)
+                        {
+                            flags = 0;
+                            spanIndex++;
+                            continue;
+                        }
+
+                        ushort region = regions[spanIndex];
+                        if (region == RegionsField.NULL_REGION)
                         {
                             spanIndex++;
                             continue;
@@ -159,7 +167,7 @@ namespace Enderlook.Unity.Pathfinding2
             else
             {
                 Debug.Assert(false, "Impossible state.");
-                direction = 0;
+                return;
             }
 
             edgeContour.Clear();
