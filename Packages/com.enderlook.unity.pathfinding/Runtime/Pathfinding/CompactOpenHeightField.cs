@@ -76,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding2
                     int startIndex = spanBuilder.Count;
 
                     HeightField.HeightColumn column = columns[index];
-                    ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans;
+                    ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
                     Debug.Assert(spans.Length > 0);
 
                     int i = 0;

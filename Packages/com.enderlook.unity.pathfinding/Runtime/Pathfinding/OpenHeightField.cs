@@ -57,7 +57,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         Debug.Assert(index == GetIndex(x, z));
                         HeightField.HeightColumn column = columns[index];
-                        ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans;
+                        ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
                         Debug.Assert(spans.Length > 0);
 
                         HeightColumnBuilder openColumn = new HeightColumnBuilder(stack);
