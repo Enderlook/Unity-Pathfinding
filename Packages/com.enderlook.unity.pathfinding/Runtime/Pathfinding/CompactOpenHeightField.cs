@@ -31,6 +31,9 @@ namespace Enderlook.Unity.Pathfinding2
         /// <returns>The open height field of the heigh field.</returns>
         public CompactOpenHeightField(in HeightField heightField, in Resolution resolution, int maxTraversableStep, int minTraversableHeight)
         {
+            resolution.DebugAssert(nameof(resolution));
+            heightField.DebugAssert(nameof(heightField), resolution, nameof(resolution));
+
             spans = null;
             spansCount = 0;
 
@@ -83,7 +86,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         HeightField.HeightSpan span = spans[i++];
 
-#if DEBUG
+#if UNITY_ASSERTIONS
                         bool wasSolid = span.IsSolid;
 #endif
 
@@ -91,12 +94,12 @@ namespace Enderlook.Unity.Pathfinding2
                         {
                             /* Do we actually need to add this span?
                              * If we remove it, everything works... the output is just a bit different,
-                             * maybe it doesn't mater */
+                             * maybe it doesn't mater. */
                             const int floor = -1;
                             int ceil = y + span.Height;
                             spanBuilder.Add(new HeightSpan(floor, ceil));
 
-                            // Regardless we remove above span, this line must stay!
+                            // Regardless we remove above span, this line must stay.
                             y += span.Height;
                         }
                         else
@@ -106,7 +109,7 @@ namespace Enderlook.Unity.Pathfinding2
                             {
                                 span = spans[i++];
 
-#if DEBUG
+#if UNITY_ASSERTIONS
                                 Debug.Assert(wasSolid != span.IsSolid);
                                 wasSolid = span.IsSolid;
 #endif
@@ -118,7 +121,7 @@ namespace Enderlook.Unity.Pathfinding2
                             else
                             {
                                 Debug.Assert(i == spans.Length - 1);
-#if DEBUG
+#if UNITY_ASSERTIONS
                                 span = spans[i];
                                 Debug.Assert(wasSolid != span.IsSolid);
 #endif
@@ -132,7 +135,7 @@ namespace Enderlook.Unity.Pathfinding2
                         for (; i < spans.Length - 1; i++)
                         {
                             span = spans[i];
-#if DEBUG
+#if UNITY_ASSERTIONS
                             Debug.Assert(wasSolid != span.IsSolid);
                             wasSolid = span.IsSolid;
 #endif
@@ -151,7 +154,7 @@ namespace Enderlook.Unity.Pathfinding2
                         {
                             Debug.Assert(i == spans.Length - 1);
                             span = spans[i];
-#if DEBUG
+#if UNITY_ASSERTIONS
                             Debug.Assert(wasSolid != span.IsSolid);
 #endif
                             if (!span.IsSolid)

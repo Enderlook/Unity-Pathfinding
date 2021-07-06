@@ -24,12 +24,10 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="resolution">Resolution of the voxelization.</param>
         public HeightField(Span<bool> voxels, in Resolution resolution)
         {
-            if (resolution.Width < 1 || resolution.Height < 1 || resolution.Depth < 1)
-                throw new ArgumentOutOfRangeException(nameof(resolution), $"{nameof(resolution)} values can't be lower than 1.");
+            resolution.DebugAssert(nameof(resolution));
 
             int xzLength = resolution.Width * resolution.Depth;
-            if (voxels.Length < xzLength * resolution.Height)
-                throw new ArgumentOutOfRangeException(nameof(voxels), $"Length can't be lower than {nameof(resolution)}.{nameof(resolution.Width)} * {nameof(resolution)}.{nameof(resolution.Height)} * {nameof(resolution)}.{nameof(resolution.Depth)}");
+            Debug.Assert(voxels.Length >= xzLength * resolution.Height, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(resolution)}.{nameof(resolution.Width)} * {nameof(resolution)}.{nameof(resolution.Height)} * {nameof(resolution)}.{nameof(resolution.Depth)}");
 
             columnsCount = xzLength;
             columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
@@ -92,6 +90,18 @@ namespace Enderlook.Unity.Pathfinding2
             for (int i = 0; i < columnsCount; i++)
                 columns[i].Dispose();
             ArrayPool<HeightColumn>.Shared.Return(columns);
+        }
+
+        /// <summary>
+        /// Debug assert that this instance is valid.
+        /// </summary>
+        /// <param name="parameterName">Name of the instance.</param>
+        [System.Diagnostics.Conditional("Debug")]
+        public void DebugAssert(string parameterName, in Resolution resolution, string resolutionParameterName)
+        {
+            Debug.Assert(!(columns is null), $"{parameterName} is default");
+            if (!(columns is null))
+                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName}.{nameof(AsSpan)}.{nameof(Span<HeightColumn>.Length)} must be equal to {resolutionParameterName}.{resolution.Cells}.");
         }
 
         public void DrawGizmos(in Resolution resolution, bool drawOpen)

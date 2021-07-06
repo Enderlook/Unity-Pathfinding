@@ -99,6 +99,8 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool GrowRegion(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp, ref Region region)
         {
+            // Flood fill mark region.
+
             tmp.Clear();
             tmp = region.SwapBorder(tmp);
             bool change = false;
