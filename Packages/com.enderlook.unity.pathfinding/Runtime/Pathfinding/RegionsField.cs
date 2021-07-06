@@ -28,9 +28,13 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="distanceField">Distance field whose regions is being calculated.</param>
         /// <param name="openHeightField">Open height field owner of the <paramref name="distanceField"/>.</param>
         /// <param name="agentSize">Size of the agent that will traverse this regions.</param>
+        /// <param name="resolution">Resolution of <paramref name="openHeightField"/>.</param>
         /// <param name="minRegionSurface">Regions with less that this amount of voxels are nullified.</param>
-        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, int agentSize, int minRegionSurface)
+        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, in Resolution resolution, int agentSize, int minRegionSurface)
         {
+            openHeightField.DebugAssert(nameof(openHeightField), resolution, nameof(resolution));
+            distanceField.DebugAssert(nameof(distanceField), resolution, nameof(resolution));
+
             ReadOnlySpan<ushort> distances = distanceField.Distances;
             regionsCount = distances.Length;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
@@ -79,6 +83,13 @@ namespace Enderlook.Unity.Pathfinding2
                 throw;
             }
         }
+
+        /// <summary>
+        /// Debug assert that this instance is valid.
+        /// </summary>
+        /// <param name="parameterName">Name of the instance.</param>
+        [System.Diagnostics.Conditional("Debug")]
+        public void DebugAssert(string parameterName) => Debug.Assert(!(regions is null), $"{parameterName} is default");
 
         private void GrowAllRegionsEqually(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
         {

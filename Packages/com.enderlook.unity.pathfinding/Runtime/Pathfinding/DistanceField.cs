@@ -30,8 +30,11 @@ namespace Enderlook.Unity.Pathfinding2
         /// Calculates the distance field of the specified open height field.
         /// </summary>
         /// <param name="openHeightField">Open heigh field whose distance field is being calculated.</param>
-        public DistanceField(in CompactOpenHeightField openHeightField)
+        /// <param name="resolution">Resolution of <paramref name="openHeightField"/>.</param>
+        public DistanceField(in CompactOpenHeightField openHeightField, in Resolution resolution)
         {
+            openHeightField.DebugAssert(nameof(openHeightField), resolution, nameof(resolution));
+
             RawPooledQueue<int> handeling = RawPooledQueue<int>.Create();
 
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
@@ -65,6 +68,19 @@ namespace Enderlook.Unity.Pathfinding2
             this.spansCount = spansCount;
             this.distances = distances;
             this.MaximumDistance = maximumDistance;
+        }
+
+        /// <summary>
+        /// Debug assert that this instance is valid.
+        /// </summary>
+        /// <param name="parameterName">Name of the instance.</param>
+        [System.Diagnostics.Conditional("Debug")]
+        public void DebugAssert(string parameterName, in Resolution resolution, string resolutionParameterName)
+        {
+            Debug.Assert(!(distances is null), $"{parameterName} is default");
+
+            if (!(distances is null))
+                Debug.Assert(spansCount == resolution.Cells2D, $"{parameterName} is not valid for the passed resolution {resolutionParameterName}.");
         }
 
         /// <summary>

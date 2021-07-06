@@ -18,14 +18,21 @@ namespace Enderlook.Unity.Pathfinding2
         private readonly HeightSpan[] spans;
         private readonly int spansCount;
 
+        /// <summary>
+        /// Columns of the compacted open height field.
+        /// </summary>
         public ReadOnlySpan<HeightColumn> Columns => columns.AsSpan(0, columnsCount);
+
+        /// <summary>
+        /// Spans of the compacted open height field.
+        /// </summary>
         public ReadOnlySpan<HeightSpan> Spans => spans.AsSpan(0, spansCount);
 
         /// <summary>
         /// Creates a the open height field of a height field.
         /// </summary>
         /// <param name="heightField">Height field used to create open height field.</param>
-        /// <param name="resolution">Resolution of <paramref name="heightField"/></param>
+        /// <param name="resolution">Resolution of <paramref name="heightField"/>.</param>
         /// <param name="maxTraversableStep">Maximum amount of cells between two floors to be considered neighbours.</param>
         /// <param name="minTraversableHeight">Minimum height between a floor and a ceil to be considered traversable.</param>
         /// <returns>The open height field of the heigh field.</returns>
@@ -61,6 +68,36 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 ArrayPool<HeightColumn>.Shared.Return(columns);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Debug assert that this instance is valid.
+        /// </summary>
+        /// <param name="parameterName">Name of the instance.</param>
+        [System.Diagnostics.Conditional("Debug")]
+        public void DebugAssert(string parameterName, in Resolution resolution, string resolutionParameterName)
+        {
+            Debug.Assert(!(columns is null), $"{parameterName} is default");
+
+            if (!(columns is null))
+            {
+                Debug.Assert(columnsCount == resolution.Cells2D, $"{parameterName} is not valid for the passed resolution {resolutionParameterName}.");
+
+                if (unchecked((uint)columnsCount >= (uint)columns.Length))
+                {
+                    Debug.Assert(false, "Index out of range.");
+                    return;
+                }
+
+                for (int i = 0; i < columnsCount; i++)
+                {
+                    if (columns[i].Last > resolution.Height)
+                    {
+                        Debug.Assert(false, $"{parameterName} is not valid for the passed resolution {resolutionParameterName}.");
+                        return;
+                    }
+                }
             }
         }
 

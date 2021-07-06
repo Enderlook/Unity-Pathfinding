@@ -38,12 +38,26 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Size of each voxel.
         /// </summary>
-        public Vector3 CellSize => new Vector3(Size.x / Width, Size.y / Height, Size.z / Depth);
+        public Vector3 CellSize {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Vector3(Size.x / Width, Size.y / Height, Size.z / Depth);
+        }
 
         /// <summary>
-        /// Amounts of cells the resolution has.
+        /// Amounts of cells the resolution has (<c><see cref="Width"/> * <see cref="Height"/> * <see cref="Depth"/></c>).
         /// </summary>
-        public int Cells => Width * Height * Depth;
+        public int Cells {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Width * Height * Depth;
+        }
+
+        /// <summary>
+        /// Amounts of 2d cells the resolution has (<c><see cref="Width"/> * <see cref="Depth"/></c>).
+        /// </summary>
+        public int Cells2D {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Width * Depth;
+        }
 
         /// <summary>
         /// Creates a new resolution.

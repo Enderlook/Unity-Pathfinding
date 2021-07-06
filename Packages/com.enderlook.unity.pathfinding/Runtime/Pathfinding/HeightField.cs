@@ -3,7 +3,6 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 using UnityEngine;
 
@@ -108,7 +107,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             Debug.Assert(!(columns is null), $"{parameterName} is default");
             if (!(columns is null))
-                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName}.{nameof(Columns)}.{nameof(Span<HeightColumn>.Length)} must be equal to {resolutionParameterName}.{nameof(resolution.Cells)}.");
+                Debug.Assert(columnsCount == resolution.Cells, $"{parameterName} iss not valid for passed resolution {resolutionParameterName}.");
         }
 
         public void DrawGizmos(in Resolution resolution, bool drawOpen)

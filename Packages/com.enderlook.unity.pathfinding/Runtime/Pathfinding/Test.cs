@@ -55,7 +55,7 @@ namespace Enderlook.Unity.Pathfinding2
             //openHeightField.DrawGizmos(r, false, true);
 
             Profiler.BeginSample("Enderlook.DistanceField");
-            DistanceField distanceField = new DistanceField(openHeightField);
+            DistanceField distanceField = new DistanceField(openHeightField, r);
             Profiler.EndSample();
             //distanceField.DrawGizmos(r, openHeightField);
 
@@ -65,7 +65,7 @@ namespace Enderlook.Unity.Pathfinding2
             //distanceField2.DrawGizmos(r, openHeightField);
 
             Profiler.BeginSample("Enderlook.RegionsField");
-            RegionsField regions = new RegionsField(distanceField2, openHeightField, 0, 2);
+            RegionsField regions = new RegionsField(distanceField2, openHeightField, r, 0, 2);
             Profiler.EndSample();
             regions.DrawGizmos(r, openHeightField);
 
