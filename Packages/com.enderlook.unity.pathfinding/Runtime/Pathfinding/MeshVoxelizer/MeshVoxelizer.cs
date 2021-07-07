@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Voxelization result.
         /// </summary>
-        public Span<bool> Voxels => voxels.AsSpan(0, VoxelsLength);
+        public Memory<bool> Voxels => voxels.AsMemory(0, VoxelsLength);
 
         /// <summary>
         /// Lenght of <see cref="Voxels"/>;

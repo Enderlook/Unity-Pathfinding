@@ -39,7 +39,7 @@ namespace Enderlook.Unity.Pathfinding2
             meshVoxelizer.Process().Complete();
             Profiler.EndSample();
 
-            Span<bool> voxels = meshVoxelizer.Voxels;
+            Memory<bool> voxels = meshVoxelizer.Voxels;
 
             Vector3 voxelSize = meshVoxelizer.VoxelSize;
 
