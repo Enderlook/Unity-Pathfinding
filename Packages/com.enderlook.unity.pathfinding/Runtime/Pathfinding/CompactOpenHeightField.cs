@@ -3,6 +3,7 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -215,42 +216,85 @@ namespace Enderlook.Unity.Pathfinding2
             int xM = resolution.Width - 1;
             int zM = resolution.Depth - 1;
 
+            Resolution resolution_ = resolution;
+            HeightColumn[] columns = this.columns;
+            HeightSpan[] spans = this.spans;
+
             int index = 0;
 
             int x = 0;
             {
                 int z = 0;
-                CalculateNeighboursBody<RightForward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                for (z++; z < zM; z++)
-                    CalculateNeighboursBody<RightForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                CalculateNeighboursBody<RightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                if (Utility.UseMultithreading)
+                {
+                    Parallel.For(0, zM, z_ =>
+                    {
+                        int index_ = resolution_.GetIndex(x, z_);
+                        CalculateNeighboursBody<RightForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index_, x, z_);
+                    });
+                    z = zM;
+                }
+                else
+                    for (z++; z < zM; z++)
+                        CalculateNeighboursBody<RightForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 Debug.Assert(z == zM);
-                CalculateNeighboursBody<RightBackwardIncrement>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, zM);
+                CalculateNeighboursBody<RightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, zM);
             }
 
-            for (x++; x < xM; x++)
+            if (Utility.UseMultithreading)
             {
-                int z = 0;
-                CalculateNeighboursBody<LeftRightForward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                for (z = 1; z < zM; z++)
+                Parallel.For(1, xM * zM, i =>
                 {
-                    /* This is the true body of this function.
-                     * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
-                     * TODO: Does this actually improves perfomance? */
-                    CalculateNeighboursBody<LeftRightForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                }
+                    int x_ = i / xM;
+                    int z_ = i / zM;
+                    Debug.Assert(i == resolution_.GetIndex(x_, z_));
 
-                Debug.Assert(z == zM);
-                CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, zM);
+                    if (z_ == 0)
+                        CalculateNeighboursBody<LeftRightForward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x_, z_);
+                    else if (z_ == zM)
+                        CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x_, zM);
+                    else
+                        CalculateNeighboursBody<LeftRightForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x_, z_);
+                });
+            }
+            else
+            {
+                for (x++; x < xM; x++)
+                {
+                    int z = 0;
+                    CalculateNeighboursBody<LeftRightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    for (z = 1; z < zM; z++)
+                    {
+                        /* This is the true body of this function.
+                         * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
+                         * TODO: Does this actually improves perfomance? */
+                        CalculateNeighboursBody<LeftRightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    }
+
+                    Debug.Assert(z == zM);
+                    CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, zM);
+                }
             }
 
             Debug.Assert(x == xM);
             {
                 int z = 0;
-                CalculateNeighboursBody<LeftForward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                for (z++; z < zM; z++)
-                    CalculateNeighboursBody<LeftForwardBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                CalculateNeighboursBody<LeftForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                if (Utility.UseMultithreading)
+                {
+                    Parallel.For(0, zM, z_ =>
+                    {
+                        int index_ = resolution_.GetIndex(x, z_);
+                        CalculateNeighboursBody<LeftForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index_, x, z_);
+                    });
+                    z = zM;
+                }
+                else
+                    for (z++; z < zM; z++)
+                        CalculateNeighboursBody<LeftForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 Debug.Assert(z == zM);
-                CalculateNeighboursBody<LeftBackward>(resolution, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                CalculateNeighboursBody<LeftBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
             }
         }
 
@@ -264,7 +308,7 @@ namespace Enderlook.Unity.Pathfinding2
         private struct RightForwardBackward { }
         private struct RightBackwardIncrement { }
 
-        private void CalculateNeighboursBody<T>(in Resolution resolution, int maxTraversableStep, int minTraversableHeight, ref int index, int x, int z)
+        private static void CalculateNeighboursBody<T>(in Resolution resolution, HeightColumn[] columns, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, ref int index, int x, int z)
         {
             Debug.Assert(
                 typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -353,7 +397,7 @@ namespace Enderlook.Unity.Pathfinding2
                     typeof(T) == typeof(LeftForwardBackward) ||
                     typeof(T) == typeof(LeftForward) ||
                     typeof(T) == typeof(LeftBackward))
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
+                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightForward) ||
@@ -361,7 +405,7 @@ namespace Enderlook.Unity.Pathfinding2
                     typeof(T) == typeof(RightForwardBackward) ||
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(RightBackwardIncrement))
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
+                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightForward) ||
@@ -369,7 +413,7 @@ namespace Enderlook.Unity.Pathfinding2
                     typeof(T) == typeof(LeftForwardBackward) ||
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(LeftForward))
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
+                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightBackwardIncrement) ||
@@ -377,12 +421,12 @@ namespace Enderlook.Unity.Pathfinding2
                     typeof(T) == typeof(LeftForwardBackward) ||
                     typeof(T) == typeof(RightBackwardIncrement) ||
                     typeof(T) == typeof(LeftBackward))
-                    CalculateNeighboursLoop(maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
+                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CalculateNeighboursLoop(int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpanBuilder span, ref int side)
+        private static void CalculateNeighboursLoop(HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpanBuilder span, ref int side)
         {
             for (int j = column.First, end = column.Last; j < end; j++)
                 if (span.PresentNeighbour(ref side, j, spans[j], maxTraversableStep, minTraversableHeight))

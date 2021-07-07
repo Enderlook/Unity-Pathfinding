@@ -46,51 +46,7 @@ namespace Enderlook.Unity.Pathfinding2
             columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
             try
             {
-                if (Application.platform == RuntimePlatform.WebGLPlayer || SystemInfo.processorCount == 1)
-                {
-                    // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
-                    RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
-                    try
-                    {
-                        Span<bool> voxels_ = voxels.Span;
-                        int index = 0;
-                        for (int x = 0; x < resolution.Width; x++)
-                        {
-                            for (int z = 0; z < resolution.Depth; z++)
-                            {
-                                int start = spans.Count;
-                                bool added = false;
-                                for (int y = 0; y < resolution.Height; y++)
-                                {
-                                    bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
-                                    if (!added)
-                                    {
-                                        spans.Add(new HeightSpan(isSolid));
-                                        added = true;
-                                    }
-                                    else
-                                    {
-                                        ref HeightSpan span = ref spans[spans.Count - 1];
-                                        if (span.IsSolid == isSolid)
-                                            Unsafe.AsRef(span.Height)++;
-                                        else
-                                            spans.Add(new HeightSpan(isSolid));
-                                    }
-                                }
-
-                                Debug.Assert(index == resolution.GetIndex(x, z));
-                                columns[index++] = new HeightColumn(start, spans.Count - start);
-                            }
-                        }
-                        this.spans = spans.UnderlyingArray;
-                    }
-                    catch
-                    {
-                        spans.Dispose();
-                        throw;
-                    }
-                }
-                else
+                if (Utility.UseMultithreading)
                 {
                     spans = ArrayPool<HeightSpan>.Shared.Rent(resolution.Cells);
                     try
@@ -132,6 +88,50 @@ namespace Enderlook.Unity.Pathfinding2
                     catch
                     {
                         ArrayPool<HeightSpan>.Shared.Return(spans);
+                        throw;
+                    }
+                }
+                else
+                {
+                    // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
+                    RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
+                    try
+                    {
+                        Span<bool> voxels_ = voxels.Span;
+                        int index = 0;
+                        for (int x = 0; x < resolution.Width; x++)
+                        {
+                            for (int z = 0; z < resolution.Depth; z++)
+                            {
+                                int start = spans.Count;
+                                bool added = false;
+                                for (int y = 0; y < resolution.Height; y++)
+                                {
+                                    bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
+                                    if (!added)
+                                    {
+                                        spans.Add(new HeightSpan(isSolid));
+                                        added = true;
+                                    }
+                                    else
+                                    {
+                                        ref HeightSpan span = ref spans[spans.Count - 1];
+                                        if (span.IsSolid == isSolid)
+                                            Unsafe.AsRef(span.Height)++;
+                                        else
+                                            spans.Add(new HeightSpan(isSolid));
+                                    }
+                                }
+
+                                Debug.Assert(index == resolution.GetIndex(x, z));
+                                columns[index++] = new HeightColumn(start, spans.Count - start);
+                            }
+                        }
+                        this.spans = spans.UnderlyingArray;
+                    }
+                    catch
+                    {
+                        spans.Dispose();
                         throw;
                     }
                 }
