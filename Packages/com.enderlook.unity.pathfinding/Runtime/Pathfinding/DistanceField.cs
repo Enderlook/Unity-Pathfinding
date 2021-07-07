@@ -3,6 +3,7 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -67,7 +68,7 @@ namespace Enderlook.Unity.Pathfinding2
         {
             this.spansCount = spansCount;
             this.distances = distances;
-            this.MaximumDistance = maximumDistance;
+            MaximumDistance = maximumDistance;
         }
 
         /// <summary>
@@ -100,26 +101,15 @@ namespace Enderlook.Unity.Pathfinding2
             ushort[] newDistances = ArrayPool<ushort>.Shared.Rent(spansCount);
             try
             {
-                for (int i = 0; i < spans.Length; i++)
+                if (Utility.UseMultithreading)
                 {
-                    ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
-                    ushort distance = distances[i];
-                    if (distance <= threshold)
-                        newDistances[i] = distance;
-                    else
-                    {
-                        int accumulatedDistance = distance;
-                        int doubleDistance = distance * 2;
-
-                        AcummulateDistance<Side.Left>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-                        AcummulateDistance<Side.Forward>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-                        AcummulateDistance<Side.Right>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-                        AcummulateDistance<Side.Backward>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
-
-                        distance = (ushort)((accumulatedDistance + 5) / 9);
-                        newDistances[i] = distance;
-                    }
-                    newMaximumDistance = Math.Max(newMaximumDistance, distance);
+                    CompactOpenHeightField openHeightField_ = openHeightField;
+                    Parallel.For(0, spans.Length, i => Blur(threshold, openHeightField_.Spans, distances, ref newMaximumDistance, newDistances, i));
+                }
+                else
+                {
+                    for (int i = 0; i < spans.Length; i++)
+                        Blur(threshold, spans, distances, ref newMaximumDistance, newDistances, i);
                 }
 
                 return new DistanceField(spansCount, newDistances, newMaximumDistance);
@@ -129,6 +119,29 @@ namespace Enderlook.Unity.Pathfinding2
                 ArrayPool<ushort>.Shared.Return(newDistances);
                 throw;
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Blur(int threshold, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ushort[] distances, ref ushort newMaximumDistance, ushort[] newDistances, int i)
+        {
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+            ushort distance = distances[i];
+            if (distance <= threshold)
+                newDistances[i] = distance;
+            else
+            {
+                int accumulatedDistance = distance;
+                int doubleDistance = distance * 2;
+
+                AcummulateDistance<Side.Left>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                AcummulateDistance<Side.Forward>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                AcummulateDistance<Side.Right>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+                AcummulateDistance<Side.Backward>(spans, span, ref accumulatedDistance, distance, doubleDistance, distances);
+
+                distance = (ushort)((accumulatedDistance + 5) / 9);
+                newDistances[i] = distance;
+            }
+            newMaximumDistance = Math.Max(newMaximumDistance, distance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
