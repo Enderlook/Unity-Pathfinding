@@ -70,7 +70,7 @@ namespace Enderlook.Unity.Pathfinding2
             regions.DrawGizmos(r, openHeightField);
 
             Profiler.BeginSample("Enderlook.Contours");
-            Contours contours = new Contours(regions, openHeightField, r);
+            Contours contours = new Contours(regions, openHeightField, r, 0);
             Profiler.EndSample();
             contours.DrawGizmos(r, openHeightField, regions);
 
@@ -84,7 +84,7 @@ namespace Enderlook.Unity.Pathfinding2
             Profiler.EndSample();
         }
 
-        void Time(Action a)
+        private void Time(Action a)
         {
             System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
             stopwatch.Start();
@@ -94,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Log($"{q.Average()} {q.Count} {elapsedMilliseconds}");
         }
 
-        void Compare(Action a, Action b)
+        private void Compare(Action a, Action b)
         {
             System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
             stopwatch.Start();

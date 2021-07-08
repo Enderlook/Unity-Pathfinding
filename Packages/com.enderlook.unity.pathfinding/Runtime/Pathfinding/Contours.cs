@@ -27,11 +27,20 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="regionsField">Regions whose contours is being calculated.</param>
         /// <param name="openHeightField">Open height field owner of the <paramref name="regionsField"/>.</param>
         /// <param name="resolution">Resolution of the <paramref name="regionsField"/>.</param>
+        /// <param name="maximumEdgeDeviation">Determines the maximum distance the edges of meshes may deviate from the source geometry.<br/>
+        /// A lower value will result in mesh edges following the xz-plane geometry contour more accurately at the expense of an increased triangle count.<br/>
+        /// A value to zero is not recommended since it can result in a large increase in the number of polygons in the final meshes at a high processing cost.</param>
+        /// <param name="maximumEdgeLength">The maximum length of polygon edges that represent the border of meshses.<br/>
+        /// More vertices will be added to border edges if this avlue is exceeded for a particualr edge.<br/>
+        /// In certain cases this will reduce the number of long thin triangles.<br/>
+        /// A value of zero will disable this feature.</param>
         /// <param name="maxIterations">Maximum amount of iterations used to walk along the contours.</param>
-        public Contours(in RegionsField regionsField, in CompactOpenHeightField openHeightField, in Resolution resolution, int maxIterations = 40000)
+        public Contours(in RegionsField regionsField, in CompactOpenHeightField openHeightField, in Resolution resolution, int maximumEdgeDeviation, int maximumEdgeLength = 0, int maxIterations = 40000)
         {
             regionsField.DebugAssert(nameof(regionsField));
             openHeightField.DebugAssert(nameof(openHeightField), resolution, nameof(resolution));
+            Debug.Assert(maximumEdgeDeviation >= 0, $"{nameof(maximumEdgeDeviation)} can't be negative.");
+            Debug.Assert(maximumEdgeLength >= 0, $"{nameof(maximumEdgeLength)} can't be negative.");
 
             ReadOnlySpan<ushort> regions = regionsField.Regions;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
@@ -47,7 +56,7 @@ namespace Enderlook.Unity.Pathfinding2
                     RawPooledList<ContourPoint> edgeContour = RawPooledList<ContourPoint>.Create();
                     try
                     {
-                        FindContours(resolution, regions, spans, columns, edgeFlags, ref edgeContour, ref contours, maxIterations);
+                        FindContours(resolution, regions, spans, columns, edgeFlags, ref edgeContour, ref contours, maxIterations, maximumEdgeDeviation, maximumEdgeLength);
                     }
                     finally
                     {
@@ -68,7 +77,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindContours(in Resolution resolution, ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<RawPooledList<ContourPoint>> contours, int maxIterations)
+        private void FindContours(in Resolution resolution, ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<CompactOpenHeightField.HeightColumn> columns, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<RawPooledList<ContourPoint>> contours, int maxIterations, int maximumEdgeDeviation, int maximumEdgeLength)
         {
             int spanIndex = 0;
             int columnIndex = 0;
@@ -97,18 +106,18 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
-                        spanIndex++;
-
-                        RawPooledList<ContourPoint> copy = RawPooledList<ContourPoint>.Create(edgeContour.AsSpan());
+                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
                         try
                         {
-                            contours.Add(copy);
+                            contours.Add(simplified);
+                            //contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
                         }
                         catch
                         {
-                            copy.Dispose();
+                            simplified.Dispose();
                             throw;
                         }
+                        spanIndex++;
                     }
                 }
             }
@@ -172,7 +181,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             edgeContour.Clear();
             GetPoints(x, z, direction, out int px, out int pz);
-            edgeContour.Add(new ContourPoint(px, py, pz));
+            bool isBorderVertex = IsBorderVertex(spans, regions, spanIndex, direction);
+            edgeContour.Add(new ContourPoint(px, py, pz, regions[spanIndex], isBorderVertex));
             initialFlags |= IS_USED;
 
             int startSpan = spanIndex;
@@ -190,7 +200,9 @@ namespace Enderlook.Unity.Pathfinding2
                     if (IsRegion(flags, ToFlag(direction)))
                     {
                         GetPoints(x, z, direction, out px, out pz);
-                        edgeContour_.Add(new ContourPoint(px, py, pz));
+                        bool isBorderVertex_ = IsBorderVertex(spans_, regions_, spanIndex, direction);
+
+                        edgeContour_.Add(new ContourPoint(px, py, pz, regions_[spanIndex], isBorderVertex_));
                         flags |= IS_USED;
                         direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     }
@@ -265,14 +277,269 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void SimplifyContour(ref RawPooledList<(int x, int z, int y)> edgeContour, int maximumError, int maximumEdgeLength)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsBorderVertex(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<ushort> regions, int spanIndex, int direction)
+        {
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[spanIndex];
+            int direction_ = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+
+            ushort region0 = regions[spanIndex];
+            ushort region1 = 0;
+            ushort region2 = 0;
+            ushort region3 = 0;
+
+            int neighbour = span.GetSide(direction);
+            if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+            {
+                region1 = regions[neighbour];
+
+                neighbour = spans[neighbour].GetSide(direction_);
+                if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    region2 = regions[neighbour];
+            }
+
+            neighbour = span.GetSide(direction_);
+            if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+            {
+                region3 = regions[neighbour];
+
+                neighbour = spans[neighbour].GetSide(direction);
+                if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    region2 = regions[neighbour];
+            }
+
+            // Check if the vertex is special edge vertex, these vertices will be removed later.
+            if (IsSpecialEdgeVertex(region0, region1, region2, region3))
+                return true;
+            else if (IsSpecialEdgeVertex(region1, region2, region3, region0))
+                return true;
+            else if (IsSpecialEdgeVertex(region2, region3, region0, region1))
+                return true;
+            else
+                return IsSpecialEdgeVertex(region3, region0, region1, region2);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsSpecialEdgeVertex(ushort regionA, ushort regionB, ushort regionC, ushort regionD)
+        {
+            // The vertex is a border vertex if there are two same exterior cells in a row,
+            // followed by two interior cells and none of the regions are out of bounds.
+            bool twoSameExts = (regionA + regionB) == RegionsField.NULL_REGION;
+            Debug.Assert(twoSameExts == (regionA == RegionsField.NULL_REGION && regionB == RegionsField.NULL_REGION && regionA == regionB));
+            bool twoInts = regionC != RegionsField.NULL_REGION && regionD != RegionsField.NULL_REGION;
+            bool noZeros = regionA != 0 && regionB != 0 && regionC != 0 && regionD != 0;
+            if (twoSameExts && twoInts && noZeros)
+                return true;
+            return false;
+        }
+
+        private RawPooledList<ContourPoint> SimplifyContour(ref RawPooledList<ContourPoint> edgeContour, int maximumEdgeDeviation, int maximumEdgeLength)
         {
             // Add initial points.
             bool hasConnections = false;
-            for (int i = 0; i < edgeContour.Count; i++)
+            int edgeContourCount = edgeContour.Count;
+            for (int i = 0; i < edgeContourCount; i++)
             {
-
+                if (edgeContour[i].Region != RegionsField.NULL_REGION)
+                {
+                    hasConnections = true;
+                    break;
+                }
             }
+
+            RawPooledList<ContourPoint> simplified = RawPooledList<ContourPoint>.Create();
+            try
+            {
+                if (hasConnections)
+                {
+                    // The contour has some portals (connections) to other regions.
+                    // Add a new point to every location where the region changes.
+                    for (int i = 0; i < edgeContourCount - 1; i++)
+                    {
+                        int ii = (i + 1) % edgeContourCount;
+                        ContourPoint point = edgeContour[i];
+                        bool differentRegions = point.Region != edgeContour[ii].Region;
+                        if (differentRegions)
+                            simplified.Add(new ContourPoint(point.X, point.Y, point.Z, i));
+                    }
+                }
+
+                if (simplified.Count == 0)
+                {
+                    // If there are not connections, create some initial points for the simplification process.
+                    // Find lower-left and upper-right vertices of the contour.
+                    ContourPoint point = edgeContour[0];
+                    int lowerLeftX = point.X;
+                    int lowerLeftY = point.Y;
+                    int lowerLeftZ = point.Z;
+                    int lowerLeftI = 0;
+                    int upperRightX = point.X;
+                    int upperRightY = point.Y;
+                    int upperRightZ = point.Z;
+                    int upperRightI = 0;
+                    for (int i = 0; i < edgeContourCount; i++)
+                    {
+                        point = edgeContour[i];
+                        if (point.X < lowerLeftX || (point.X == lowerLeftX && point.Z < lowerLeftZ))
+                        {
+                            lowerLeftX = point.X;
+                            lowerLeftY = point.Y;
+                            lowerLeftZ = point.Z;
+                            lowerLeftI = i;
+                        }
+                        if (point.X > upperRightX || (point.X == upperRightX && lowerLeftZ > upperRightZ))
+                        {
+                            upperRightX = point.X;
+                            upperRightY = point.Y;
+                            upperRightZ = point.Z;
+                            upperRightI = i;
+                        }
+                    }
+                    simplified.Add(new ContourPoint(lowerLeftX, lowerLeftY, lowerLeftZ, lowerLeftI));
+                    simplified.Add(new ContourPoint(upperRightX, upperRightY, upperRightZ, upperRightI));
+                }
+
+                // Add points until all raw points are within error tolerance of the simplified shape.
+                for (int i = 0; i < simplified.Count;)
+                {
+                    int ii = (i + 1) % simplified.Count;
+
+                    ContourPoint pointA = simplified[i];
+                    ContourPoint pointB = simplified[ii];
+
+                    // Find maximum deviation from the segment.
+                    float maximumD = 0;
+                    int maximumI = -1;
+                    int ci;
+                    int cinc;
+                    int endi;
+
+                    // Traverse the segment in lexilogical order so that the maximum deviation
+                    // is calculated similarly when travesing opposite segments.
+                    if (pointB.X > pointA.X || (pointB.X == pointA.X && pointB.Z > pointA.Z))
+                    {
+                        cinc = 1;
+                        ci = (pointA.I + cinc) % edgeContourCount;
+                        endi = pointB.I;
+                    }
+                    else
+                    {
+                        cinc = edgeContourCount - 1;
+                        ci = (pointB.I + cinc) % edgeContourCount;
+                        endi = pointA.I;
+                    }
+
+                    // Tesselate only outer edges or edges between areas.
+
+                    if (edgeContour[ci].Region == RegionsField.NULL_REGION)
+                    {
+                        while (ci != endi)
+                        {
+                            ContourPoint pointCI = edgeContour[ci];
+                            float d = DistancePointSegment(pointCI.X, pointCI.Z, pointA.X, pointA.Z, pointB.X, pointB.Z);
+                            if (d > maximumD)
+                            {
+                                maximumD = d;
+                                maximumI = ci;
+                            }
+                            ci = (ci + cinc) % edgeContourCount;
+                        }
+                    }
+
+                    // If the maximum deviation is larger than accepted error, add new point, else continue to next segment.
+                    if (maximumI != -1 && maximumD > (maximumEdgeDeviation * maximumEdgeDeviation))
+                    {
+                        ContourPoint pointMaximumI = edgeContour[maximumI];
+                        simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                    }
+                    else
+                        i++;
+                }
+
+                // Split too long edge.
+                if (maximumEdgeLength > 0)
+                {
+                    for (int i = 0; i < simplified.Count;)
+                    {
+                        int ii = (i + 1) % simplified.Count;
+
+                        ContourPoint pointA = simplified[i];
+                        ContourPoint pointB = simplified[ii];
+
+                        // Find maximum deviation from the segment.
+                        int maximumI = -1;
+                        int ci = (pointA.I + 1) % edgeContourCount;
+
+                        // Tessellate only outer edges.
+                        if (edgeContour[ci].Region == RegionsField.NULL_REGION)
+                        {
+                            int dx = pointB.X - pointA.X;
+                            int dz = pointB.Z - pointA.Z;
+                            if (((dx * dx) + (dz * dz)) > maximumEdgeLength * maximumEdgeLength)
+                            {
+                                // Round based on the segments in lexilogical order so that the maximum tesselation
+                                // is consistent regardles in which direction segments are traversed.
+                                int n = pointB.I < pointA.I ? (pointB.I + edgeContourCount - pointA.I) : (pointB.I - pointA.I);
+                                if (n > 1)
+                                {
+                                    if (pointB.X > pointA.X || (pointB.X == pointA.X && pointB.Z > pointA.Z))
+                                        maximumI = (pointA.I + (n / 2)) % edgeContourCount;
+                                    else
+                                        maximumI = (pointA.I + ((n + 1) / 2)) % edgeContourCount;
+                                }
+                            }
+                        }
+
+                        // If the maximum deviation is larget than accepted error, add new point, else continue to next segment.
+                        if (maximumI != -1)
+                        {
+                            ContourPoint pointMaximumI = edgeContour[maximumI];
+                            simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                        }
+                        else
+                            i++;
+                    }
+                }
+
+                for (int i = 0; i < simplified.Count; i++)
+                {
+                    // The neighbour region is take from the next raw point.
+                    ContourPoint point = simplified[i];
+                    int ai = (simplified[i].I + 1) % edgeContourCount;
+                    int bi = simplified[i].I;
+                    simplified[i] = new ContourPoint(point.X, point.Y, point.Z, edgeContour[ai].Region, edgeContour[bi].IsBorder);
+                }
+
+                return simplified;
+            }
+            catch
+            {
+                simplified.Dispose();
+                throw;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static float DistancePointSegment(int x, int z, int px, int pz, int qx, int qz)
+        {
+            float pqx = qx - px;
+            float pqz = qz - pz;
+            float dx = x - px;
+            float dz = z - pz;
+            float d = (pqx * pqx) + (pqz * pqz);
+            float t = (pqx * dx) + (pqz * dz);
+
+            if (d > 0)
+                t /= d;
+            if (t < 0)
+                t = 0;
+            else if (t > 1)
+                t = 1;
+
+            dx = px + (t * pqx) - x;
+            dz = pz + (t * pqz) - z;
+
+            return (dx * dx) + (dz * dz);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -317,24 +584,6 @@ namespace Enderlook.Unity.Pathfinding2
                     Debug.Assert(false, "Impossible state");
                     goto case CompactOpenHeightField.HeightSpan.LEFT_INDEX;
             }
-
-            /*// Check if the vertex is special edge vertex, these vertices will be removed later.
-            for (int j = 0; j < 4; ++j)
-            {
-                ushort regionA = regions[j];
-                ushort regionB = regions[(j + 1) & 0x3];
-                ushort regionC = regions[(j + 2) & 0x3];
-                ushort regionD = regions[(j + 3) & 0x3];
-
-                // The vertex is a border vertex if there are two same exterior cells in a row,
-                // followed by two interior cells and none of the regions are out of bounds.
-                bool twoSameExts = (regionA & regionB & RC_BORDER_REG) != 0 && regionA == regionB;
-                bool twoInts = ((regionC | regionD) & RC_BORDER_REG) == 0;
-                bool intsSameArea = regionC >> 16 == regionD >> 16;
-                bool noZeros = regionA != 0 && regionB != 0 && regionC != 0 && regionD != 0;
-                if (twoSameExts && twoInts && intsSameArea && noZeros)
-                    return true;
-            }*/
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -487,12 +736,38 @@ namespace Enderlook.Unity.Pathfinding2
             public readonly int X;
             public readonly int Y;
             public readonly int Z;
+            private readonly uint payload;
 
-            public ContourPoint(int x, int y, int z)
+            public ushort Region {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (ushort)(payload & ushort.MaxValue);
+            }
+            public bool IsBorder {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (payload & 1 << 16) != 0;
+            }
+
+            public int I {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (int)payload;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ContourPoint(int x, int y, int z, ushort region, bool isBorderVertex)
             {
                 X = x;
                 Y = y;
                 Z = z;
+                payload = region | ((uint)(isBorderVertex ? 1 : 0) << 16);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ContourPoint(int x, int y, int z, int i)
+            {
+                X = x;
+                Y = y;
+                Z = z;
+                payload = (uint)i;
             }
         }
     }
