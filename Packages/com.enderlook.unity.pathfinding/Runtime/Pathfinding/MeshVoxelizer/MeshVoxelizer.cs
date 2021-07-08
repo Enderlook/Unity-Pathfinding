@@ -109,7 +109,7 @@ namespace Enderlook.Unity.Pathfinding2
             Vector3 size = bounds.size;
 
             if (options.UseMultithreading && stack_.Count > 1)
-                await ProcessMultiThread(stack_, voxelsLength, center, size, resolution, voxels);
+                await ProcessMultiThread(stack_, voxelsLength, center, size, resolution, voxels, options);
             else
                 await ProcessSingleThread(stack_);
         }
@@ -117,7 +117,7 @@ namespace Enderlook.Unity.Pathfinding2
         private async ValueTask ProcessSingleThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack)
         {
             int count = stack.Count;
-            options.PushTask(count);
+            options.PushTask(count, "Voxelizing Mesh");
 
             int voxelsLength = VoxelsLength;
             Vector3 center = bounds.center;
@@ -189,14 +189,15 @@ namespace Enderlook.Unity.Pathfinding2
                 a[i] |= b[i];
         }
 
-        private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, int voxelsLength, Vector3 center, Vector3 size, (int x, int y, int z) resolution, bool[] voxels)
+        private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, int voxelsLength, Vector3 center, Vector3 size, (int x, int y, int z) resolution, bool[] voxels, MeshGenerationOptions options)
         {
+            options.PushTask(stack.Count + 1, "Voxelizing Mesh");
             using (BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs = new BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)>(stack.Count))
             {
                 Task task = Task.Run(() =>
                 {
                     // TODO: This part could also be parallelized in case too many task are enqueued.
-                    while (!orJobs.IsCompleted)
+                    while (!orJobs.IsAddingCompleted)
                     {
                         (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
                         try
@@ -209,10 +210,33 @@ namespace Enderlook.Unity.Pathfinding2
                         }
                     }
                 });
-                Parallel.For(0, stack.Count, i => VoxelizeMultithreadSlave(resolution, size, center, voxelsLength, orJobs, stack, i));
+                Parallel.For(0, stack.Count, i => { 
+                    VoxelizeMultithreadSlave(resolution, size, center, voxelsLength, orJobs, stack, i);
+                    options.StepTask();
+                });
                 orJobs.CompleteAdding();
                 await task;
+                if (orJobs.Count > 0)
+                {
+                    options.PushTask(stack.Count, stack.Count - orJobs.Count, "Merging Voxelized Meshes");
+                    // Continue merging on current thread.
+                    while (!orJobs.IsCompleted)
+                    {
+                        (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
+                        try
+                        {
+                            resolution = OrMultithread(resolution, voxels, tuple);
+                        }
+                        finally
+                        {
+                            ArrayPool<bool>.Shared.Return(tuple.voxels);
+                        }
+                        options.StepTask();
+                    }
+                }
             }
+            options.StepTask();
+            options.PopTask();
         }
 
         private static void VoxelizeMultithreadSlave(

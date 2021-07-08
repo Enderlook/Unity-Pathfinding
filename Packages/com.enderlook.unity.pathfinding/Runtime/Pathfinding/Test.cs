@@ -60,7 +60,7 @@ namespace Enderlook.Unity.Pathfinding2
             MeshGenerationOptions options = new MeshGenerationOptions();
             options.UseMultithreading = true;
 
-            options.PushTask(7);
+            options.PushTask(7, "All");
 
             MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
             foreach (MeshFilter meshFilter in meshFilters)
@@ -87,7 +87,7 @@ namespace Enderlook.Unity.Pathfinding2
             Utility.UseMultithreading = false;
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            heightField = new HeightField(voxels, r);
+            heightField = await HeightField.CreateAsync(voxels, r, options);
             return;
             openHeightField = new CompactOpenHeightField(heightField, r, 1, 1);
             distanceField = new DistanceField(openHeightField, r);
