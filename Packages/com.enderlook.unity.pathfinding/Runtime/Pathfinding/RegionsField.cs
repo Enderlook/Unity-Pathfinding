@@ -38,7 +38,6 @@ namespace Enderlook.Unity.Pathfinding2
             ReadOnlySpan<ushort> distances = distanceField.Distances;
             regionsCount = distances.Length;
             ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
-            Debug.Assert(distances.Length == spans.Length);
             regions = ArrayPool<ushort>.Shared.Rent(regionsCount);
             try
             {
@@ -56,7 +55,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
                         {
-                            GrowAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
+                            ExpandAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
                             FindNewBasins(distances, spans, ref regions, ref tmp, waterLevel);
                         }
 
@@ -91,7 +90,7 @@ namespace Enderlook.Unity.Pathfinding2
         [System.Diagnostics.Conditional("Debug")]
         public void DebugAssert(string parameterName) => Debug.Assert(!(regions is null), $"{parameterName} is default");
 
-        private void GrowAllRegionsEqually(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
+        private void ExpandAllRegionsEqually(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
         {
             RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
             bool change = true;
@@ -101,14 +100,14 @@ namespace Enderlook.Unity.Pathfinding2
                 for (int i = 0; i < regions.Count; i++)
                 {
                     ref Region region = ref regions[i];
-                    change = GrowRegion(distances, spans, waterLevel, ref tmp_, ref region);
+                    change = ExpandRegion(distances, spans, waterLevel, ref tmp_, ref region);
                 }
             }
             tmp = tmp_.UnderlyingArray;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool GrowRegion(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp, ref Region region)
+        private bool ExpandRegion(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp, ref Region region)
         {
             // Flood fill mark region.
 
@@ -122,10 +121,10 @@ namespace Enderlook.Unity.Pathfinding2
 
                 bool canKeepGrowing = false;
 
-                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Left, ref change, ref canKeepGrowing);
-                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
-                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Right, ref change, ref canKeepGrowing);
-                GrowRegionCheckNeighbour(distances, waterLevel, ref region, span.Backward, ref change, ref canKeepGrowing);
+                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Left, ref change, ref canKeepGrowing);
+                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
+                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Right, ref change, ref canKeepGrowing);
+                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Backward, ref change, ref canKeepGrowing);
 
                 if (canKeepGrowing)
                     region.AddSpanToBorder(i);
@@ -134,7 +133,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void GrowRegionCheckNeighbour(ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, int neighbour, ref bool didGrow, ref bool canGrow)
+        private void ExpandRegionCheckNeighbour(ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, int neighbour, ref bool didGrow, ref bool canGrow)
         {
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE && regions[neighbour] == NULL_REGION)
             {
@@ -182,6 +181,8 @@ namespace Enderlook.Unity.Pathfinding2
             while (stack.TryPop(out int value))
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[value];
+
+                // Check if any of the neighbours already have a valid region set.
                 FloodRegionCheckNeighbour<Side.Left>(spans, distances, waterLevel, ref region, ref stack, span.Left);
                 FloodRegionCheckNeighbour<Side.Forward>(spans, distances, waterLevel, ref region, ref stack, span.Forward);
                 FloodRegionCheckNeighbour<Side.Right>(spans, distances, waterLevel, ref region, ref stack, span.Right);
@@ -245,6 +246,7 @@ namespace Enderlook.Unity.Pathfinding2
             public RawPooledList<int> border;
             public int count;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Region(ushort id)
             {
                 this.id = id;
