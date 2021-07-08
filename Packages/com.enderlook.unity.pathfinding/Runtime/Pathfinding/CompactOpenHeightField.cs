@@ -628,10 +628,12 @@ namespace Enderlook.Unity.Pathfinding2
         {
             // Value of Floor, Ceil, Left, Forward, Right, Backward when is null.
             public const int NULL_SIDE = -1;
-            public const int LEFT_INDEX = 0;
-            public const int FORWARD_INDEX = 1;
-            public const int RIGHT_INDEX = 2;
-            public const int BACKWARD_INDEX = 3;
+
+            // Directions of each side.
+            public const int LEFT_DIRECTION = 0;
+            public const int FORWARD_DIRECTION = 1;
+            public const int RIGHT_DIRECTION = 2;
+            public const int BACKWARD_DIRECTION = 3;
 
             public readonly int Floor;
             public readonly int Ceil;
@@ -653,10 +655,10 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int GetSide(int index)
+            public int GetSide(int direction)
             {
-                Debug.Assert(index >= 0 && index < 4);
-                return Unsafe.Add(ref Unsafe.AsRef(Left), index);
+                Debug.Assert(direction >= 0 && direction < 4);
+                return Unsafe.Add(ref Unsafe.AsRef(Left), direction);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -691,10 +693,10 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static int RotateClockwise(int side) => (side + 1) & 0x3;
+            public static int RotateClockwise(int direction) => (direction + 1) & 0x3;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static int RotateCounterClockwise(int side) => (side + 3) & 0x3;
+            public static int RotateCounterClockwise(int direction) => (direction + 3) & 0x3;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int GetSideRotatedClockwise<T>()

@@ -13,10 +13,10 @@ namespace Enderlook.Unity.Pathfinding2
     /// </summary>
     internal readonly struct Contours : IDisposable
     {
-        private const byte LEFT_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.LEFT_INDEX + 1);
-        private const byte FORWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.FORWARD_INDEX + 1);
-        private const byte RIGHT_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.RIGHT_INDEX + 1);
-        private const byte BACKWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.BACKWARD_INDEX + 1);
+        private const byte LEFT_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.LEFT_DIRECTION + 1);
+        private const byte FORWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION + 1);
+        private const byte RIGHT_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION + 1);
+        private const byte BACKWARD_IS_REGIONAL = 1 << (CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION + 1);
         private const byte IS_USED = 1 << 7;
 
         private readonly RawPooledList<RawPooledList<ContourPoint>> contours;
@@ -156,22 +156,22 @@ namespace Enderlook.Unity.Pathfinding2
             int direction;
             if (IsRegion(initialFlags, LEFT_IS_REGIONAL))
             {
-                direction = CompactOpenHeightField.HeightSpan.LEFT_INDEX;
+                direction = CompactOpenHeightField.HeightSpan.LEFT_DIRECTION;
                 py = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, py, heightSpan);
             }
             else if (IsRegion(initialFlags, FORWARD_IS_REGIONAL))
             {
-                direction = CompactOpenHeightField.HeightSpan.FORWARD_INDEX;
+                direction = CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION;
                 py = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, py, heightSpan);
             }
             else if (IsRegion(initialFlags, RIGHT_IS_REGIONAL))
             {
-                direction = CompactOpenHeightField.HeightSpan.RIGHT_INDEX;
+                direction = CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION;
                 py = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, py, heightSpan);
             }
             else if (IsRegion(initialFlags, BACKWARD_IS_REGIONAL))
             {
-                direction = CompactOpenHeightField.HeightSpan.BACKWARD_INDEX;
+                direction = CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION;
                 py = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, py, heightSpan);
             }
             else
@@ -560,29 +560,29 @@ namespace Enderlook.Unity.Pathfinding2
             y = span.Floor;
             switch (direction)
             {
-                case CompactOpenHeightField.HeightSpan.LEFT_INDEX:
+                case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION:
                     spanIndex = span.Left;
                     x--;
                     y = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, y, in span);
                     break;
-                case CompactOpenHeightField.HeightSpan.FORWARD_INDEX:
+                case CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION:
                     spanIndex = span.Forward;
                     z++;
                     y = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, y, in span);
                     break;
-                case CompactOpenHeightField.HeightSpan.RIGHT_INDEX:
+                case CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION:
                     spanIndex = span.Right;
                     x++;
                     y = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, y, in span);
                     break;
-                case CompactOpenHeightField.HeightSpan.BACKWARD_INDEX:
+                case CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION:
                     spanIndex = span.Backward;
                     z--;
                     y = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, y, in span);
                     break;
                 default:
                     Debug.Assert(false, "Impossible state");
-                    goto case CompactOpenHeightField.HeightSpan.LEFT_INDEX;
+                    goto case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION;
             }
         }
 
@@ -652,14 +652,14 @@ namespace Enderlook.Unity.Pathfinding2
             pz = z;
             switch (direction)
             {
-                case CompactOpenHeightField.HeightSpan.LEFT_INDEX:
+                case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION:
                     pz++;
                     break;
-                case CompactOpenHeightField.HeightSpan.FORWARD_INDEX:
+                case CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION:
                     px++;
                     pz++;
                     break;
-                case CompactOpenHeightField.HeightSpan.RIGHT_INDEX:
+                case CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION:
                     px++;
                     break;
             }
