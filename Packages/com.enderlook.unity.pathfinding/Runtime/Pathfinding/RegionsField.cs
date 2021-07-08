@@ -20,7 +20,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         /* Do not change this value!
          * We are taking advantage that this value is 0 to perform some operations.*/
-        public const byte NULL_REGION = 0;
+        public const ushort NULL_REGION = 0;
 
         /// <summary>
         /// Calculates the regions of the specified distance field.
@@ -182,7 +182,47 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[value];
 
-                // Check if any of the neighbours already have a valid region set.
+                /*// Check if any of the neighbours already have a valid region set.
+                ushort ar = 0;
+                for (int direction = 0; direction < 4; direction++)
+                {
+                    int neighbour = span.GetSide(direction);
+                    if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                        continue;
+                    ushort nr = regions[neighbour];
+                    if (nr == NULL_REGION)
+                        continue;
+                    if (nr != region.id)
+                        ar = nr;
+
+                    ref readonly CompactOpenHeightField.HeightSpan span_ = ref spans[neighbour];
+                    int neighbour_ = span_.GetSide(CompactOpenHeightField.HeightSpan.RotateClockwise(neighbour));
+                    if (neighbour_ == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                        continue;
+                    ushort nr_ = regions[neighbour_];
+                    if (nr_ != region.id)
+                        ar = nr_;
+                }
+                if (ar != 0)
+                {
+                    regions[value] = NULL_REGION;
+                    continue;
+                }
+
+                for (int direction = 0; direction < 4; direction++)
+                {
+                    int neighbour = span.GetSide(direction);
+
+                    if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                        continue;
+                    if (distances[neighbour] >= waterLevel && regions[neighbour] == NULL_REGION)
+                    {
+                        regions[neighbour] = region.id;
+                        Unsafe.AsRef(distances[neighbour]) = 0;
+                        stack.Push(neighbour);
+                    }
+                }*/
+
                 FloodRegionCheckNeighbour<Side.Left>(spans, distances, waterLevel, ref region, ref stack, span.Left);
                 FloodRegionCheckNeighbour<Side.Forward>(spans, distances, waterLevel, ref region, ref stack, span.Forward);
                 FloodRegionCheckNeighbour<Side.Right>(spans, distances, waterLevel, ref region, ref stack, span.Right);
