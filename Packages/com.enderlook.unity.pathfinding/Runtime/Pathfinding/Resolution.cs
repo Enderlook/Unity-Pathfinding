@@ -8,7 +8,7 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// Represent the resolution of a voxelization.
     /// </summary>
-    internal readonly struct Resolution
+    public readonly struct Resolution
     {
         /// <summary>
         /// X-axis width.
@@ -46,7 +46,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Amounts of cells the resolution has (<c><see cref="Width"/> * <see cref="Height"/> * <see cref="Depth"/></c>).
         /// </summary>
-        public int Cells {
+        internal int Cells {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Width * Height * Depth;
         }
@@ -54,7 +54,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Amounts of 2d cells the resolution has (<c><see cref="Width"/> * <see cref="Depth"/></c>).
         /// </summary>
-        public int Cells2D {
+        internal int Cells2D {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Width * Depth;
         }
@@ -124,12 +124,20 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void ThrowIfDefault()
+        {
+            if (Width == 0)
+                Throw();
+            void Throw() => throw new ArgumentException("Is default.", "resolution");
+        }
+
         /// <summary>
         /// Debug assert that this instance is valid.
         /// </summary>
         /// <param name="parameterName">Name of the instance.</param>
         [System.Diagnostics.Conditional("Debug")]
-        public void DebugAssert(string parameterName)
+        internal void DebugAssert(string parameterName)
         {
             Debug.Assert(Width >= 0, $"{parameterName}.{nameof(Width)} can't be lower than 1");
             Debug.Assert(Height >= 0, $"{parameterName}.{nameof(Height)} can't be lower than 1");
@@ -146,7 +154,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="z">Value in depth.</param>
         /// <returns>Index at the specified coordinates.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int GetIndex(int x, int y, int z)
+        internal int GetIndex(int x, int y, int z)
         {
             Debug.Assert(x >= 0);
             Debug.Assert(x < Width);
@@ -165,7 +173,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="z">Value in depth.</param>
         /// <returns>Index at the specified coordinates.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int GetIndex(int x, int z)
+        internal int GetIndex(int x, int z)
         {
             Debug.Assert(x >= 0);
             Debug.Assert(x < Width);

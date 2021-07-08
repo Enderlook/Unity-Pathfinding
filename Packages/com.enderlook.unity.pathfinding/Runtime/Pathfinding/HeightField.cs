@@ -43,11 +43,11 @@ namespace Enderlook.Unity.Pathfinding2
         /// Creates a new height field.
         /// </summary>
         /// <param name="voxels">Voxel information of the height field.</param>
-        /// <param name="resolution">Resolution of the voxelization.</param>
-        public static async ValueTask<HeightField> CreateAsync(Memory<bool> voxels, Resolution resolution, MeshGenerationOptions options)
+        /// <param name="options">Stores configuration information.</param>
+        /// <returns>Generated height field.</returns>
+        public static async ValueTask<HeightField> CreateAsync(Memory<bool> voxels, MeshGenerationOptions options)
         {
-            resolution.DebugAssert(nameof(resolution));
-
+            Resolution resolution = options.Resolution;
             int xzLength = resolution.Cells2D;
             Debug.Assert(voxels.Length >= resolution.Cells, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(resolution)}.{nameof(resolution.Cells)}.");
 
@@ -58,9 +58,9 @@ namespace Enderlook.Unity.Pathfinding2
                 HeightSpan[] spans;
                 {
                     if (options.UseMultithreading)
-                        spans = MultiThread(resolution, columns, voxels, options);
+                        spans = MultiThread(columns, voxels, options);
                     else
-                        spans = await SingleThread(resolution, columns, voxels, options);
+                        spans = await SingleThread(columns, voxels, options);
                 }
                 options.PopTask();
                 return new HeightField(columns, xzLength, spans);
@@ -72,8 +72,9 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private static async ValueTask<HeightSpan[]> SingleThread(Resolution resolution, HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
+        private static async ValueTask<HeightSpan[]> SingleThread(HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
         {
+            Resolution resolution = options.Resolution;
             // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
             try
@@ -126,8 +127,9 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private static HeightSpan[] MultiThread(Resolution resolution, HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
+        private static HeightSpan[] MultiThread(HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
         {
+            Resolution resolution = options.Resolution;
             HeightSpan[] spans = ArrayPool<HeightSpan>.Shared.Rent(resolution.Cells);
             try
             {

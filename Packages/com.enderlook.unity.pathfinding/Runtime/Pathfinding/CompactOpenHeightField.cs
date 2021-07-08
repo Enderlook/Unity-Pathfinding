@@ -36,7 +36,8 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="resolution">Resolution of <paramref name="heightField"/>.</param>
         /// <param name="maxTraversableStep">Maximum amount of cells between two floors to be considered neighbours.</param>
         /// <param name="minTraversableHeight">Minimum height between a floor and a ceil to be considered traversable.</param>
-        /// <returns>The open height field of the heigh field.</returns>
+        /// <param name="options">Stores configuration information.</param>
+        /// <returns>The open height field of the height field.</returns>
         public CompactOpenHeightField(in HeightField heightField, in Resolution resolution, int maxTraversableStep, int minTraversableHeight)
         {
             resolution.DebugAssert(nameof(resolution));

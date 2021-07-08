@@ -47,12 +47,12 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            heightField.DrawGizmos(r, false);
-            /*openHeightField.DrawGizmos(r, false, true);
-            distanceField.DrawGizmos(r, openHeightField);
-            distanceField2.DrawGizmos(r, openHeightField);
-            regions.DrawGizmos(r, openHeightField);
-            contours.DrawGizmos(r, openHeightField, regions);*/
+            //heightField.DrawGizmos(r, false);
+            openHeightField.DrawGizmos(r, false, true);
+            //distanceField.DrawGizmos(r, openHeightField);
+            //distanceField2.DrawGizmos(r, openHeightField);
+            //regions.DrawGizmos(r, openHeightField);
+            //contours.DrawGizmos(r, openHeightField, regions);
         }
 
         public async ValueTask GenerateAsync()
@@ -72,7 +72,8 @@ namespace Enderlook.Unity.Pathfinding2
                 return;
 
             bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
-            MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, bounds, options);
+            options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
+            MeshVoxelizer meshVoxelizer = new MeshVoxelizer(options);
 
             foreach (MeshFilter meshFilter in meshFilters)
                 meshVoxelizer.Enqueue(meshFilter);
@@ -82,14 +83,13 @@ namespace Enderlook.Unity.Pathfinding2
             Profiler.EndSample();
 
             Memory<bool> voxels = meshVoxelizer.Voxels;
-            Vector3 voxelSize = meshVoxelizer.VoxelSize;
 
             Utility.UseMultithreading = false;
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            heightField = await HeightField.CreateAsync(voxels, r, options);
-            return;
+            heightField = await HeightField.CreateAsync(voxels, options);
             openHeightField = new CompactOpenHeightField(heightField, r, 1, 1);
+            return;
             distanceField = new DistanceField(openHeightField, r);
             distanceField2 = distanceField.WithBlur(openHeightField, 1);
             regions = new RegionsField(distanceField, openHeightField, r, 0, 2);

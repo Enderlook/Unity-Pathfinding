@@ -1,5 +1,6 @@
 ﻿using Enderlook.Collections.Pooled;
 using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Enumerables;
 using Enderlook.Unity.Jobs;
 using Enderlook.Voxelization;
 
@@ -21,10 +22,8 @@ namespace Enderlook.Unity.Pathfinding2
     /// <summary>
     /// A voxelizer of multiple meshes.
     /// </summary>
-    internal partial struct MeshVoxelizer : IDisposable
+    internal struct MeshVoxelizer : IDisposable
     {
-        private readonly (int x, int y, int z) resolution;
-        private readonly Bounds bounds;
         private readonly bool[] voxels;
         private readonly MeshGenerationOptions options;
         private List<Vector3> vertices;
@@ -32,36 +31,18 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Voxelization result.
         /// </summary>
-        public Memory<bool> Voxels => voxels.AsMemory(0, VoxelsLength);
-
-        /// <summary>
-        /// Lenght of <see cref="Voxels"/>;
-        /// </summary>
-        public int VoxelsLength => resolution.x * resolution.y * resolution.z;
-
-        /// <summary>
-        /// Size of each voxel.
-        /// </summary>
-        public Vector3 VoxelSize {
-            get {
-                Vector3 size = bounds.size;
-                return new Vector3(size.x / resolution.x, size.y / resolution.y, size.z / resolution.z);
-            }
-        }
+        public Memory<bool> Voxels => voxels.AsMemory(0, options.Resolution.Cells);
 
         private RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack;
 
         /// <summary>
         /// Creates a new voxelizer of meshes.
         /// </summary>
-        /// <param name="resolution">Resolution of the voxelization.</param>
-        /// <param name="bounds">Bounds where meshes are voxelized.</param>
-        public MeshVoxelizer((int x, int y, int z) resolution, Bounds bounds, MeshGenerationOptions options)
+        /// <param name="options">Stores configuration information.</param>
+        public MeshVoxelizer(MeshGenerationOptions options)
         {
-            this.resolution = resolution;
-            this.bounds = bounds;
             this.options = options;
-            int length = resolution.x * resolution.y * resolution.z;
+            int length = options.Resolution.Cells;
             voxels = ArrayPool<bool>.Shared.Rent(length);
             Array.Clear(voxels, 0, length);
             vertices = new List<Vector3>();
@@ -104,12 +85,8 @@ namespace Enderlook.Unity.Pathfinding2
             if (stack_.Count == 0)
                 return;
 
-            int voxelsLength = VoxelsLength;
-            Vector3 center = bounds.center;
-            Vector3 size = bounds.size;
-
             if (options.UseMultithreading && stack_.Count > 1)
-                await ProcessMultiThread(stack_, voxelsLength, center, size, resolution, voxels, options);
+                await ProcessMultiThread(stack_, voxels, options);
             else
                 await ProcessSingleThread(stack_);
         }
@@ -119,9 +96,10 @@ namespace Enderlook.Unity.Pathfinding2
             int count = stack.Count;
             options.PushTask(count, "Voxelizing Mesh");
 
-            int voxelsLength = VoxelsLength;
-            Vector3 center = bounds.center;
-            Vector3 size = bounds.size;
+            Resolution resolution = options.Resolution;
+            int voxelsLength = resolution.Cells;
+            Vector3 center = resolution.Center;
+            Vector3 size = resolution.Size;
 
             bool[] voxels_ = ArrayPool<bool>.Shared.Rent(voxelsLength);
 
@@ -143,7 +121,7 @@ namespace Enderlook.Unity.Pathfinding2
                     content.triangles,
                     voxels_,
                     Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
-                    resolution
+                    (resolution.Width, resolution.Height, resolution.Depth)
                 );
 
                 // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
@@ -189,9 +167,10 @@ namespace Enderlook.Unity.Pathfinding2
                 a[i] |= b[i];
         }
 
-        private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, int voxelsLength, Vector3 center, Vector3 size, (int x, int y, int z) resolution, bool[] voxels, MeshGenerationOptions options)
+        private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, bool[] voxels, MeshGenerationOptions options)
         {
             options.PushTask(stack.Count + 1, "Voxelizing Mesh");
+            Resolution resolution = options.Resolution;
             using (BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs = new BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)>(stack.Count))
             {
                 Task task = Task.Run(() =>
@@ -202,7 +181,7 @@ namespace Enderlook.Unity.Pathfinding2
                         (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
                         try
                         {
-                            resolution = OrMultithread(resolution, voxels, tuple);
+                            OrMultithread(resolution, voxels, tuple);
                         }
                         finally
                         {
@@ -211,7 +190,7 @@ namespace Enderlook.Unity.Pathfinding2
                     }
                 });
                 Parallel.For(0, stack.Count, i => { 
-                    VoxelizeMultithreadSlave(resolution, size, center, voxelsLength, orJobs, stack, i);
+                    VoxelizeMultithreadSlave(resolution, orJobs, stack, i);
                     options.StepTask();
                 });
                 orJobs.CompleteAdding();
@@ -225,7 +204,7 @@ namespace Enderlook.Unity.Pathfinding2
                         (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
                         try
                         {
-                            resolution = OrMultithread(resolution, voxels, tuple);
+                            OrMultithread(resolution, voxels, tuple);
                         }
                         finally
                         {
@@ -240,7 +219,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         private static void VoxelizeMultithreadSlave(
-            (int x, int y, int z) resolution, Vector3 size, Vector3 center, int voxelsLength,
+            in Resolution resolution,
             BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs,
             RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, int i)
         {
@@ -252,6 +231,7 @@ namespace Enderlook.Unity.Pathfinding2
                 return;
             }
 
+            Vector3 center = resolution.Center;
             for (int j = 0; j < content.verticesCount; j++)
                 content.vertices[j] -= center;
 
@@ -267,7 +247,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             // Fit bounds to global resolution.
-            Vector3 cellSize = new Vector3(size.x / resolution.x, size.y / resolution.y, size.z / resolution.z);
+            Vector3 cellSize = resolution.CellSize;
 
             int xMinMultiple = Mathf.FloorToInt(min.x / cellSize.x);
             int yMinMultiple = Mathf.FloorToInt(min.y / cellSize.y);
@@ -278,74 +258,73 @@ namespace Enderlook.Unity.Pathfinding2
             int zMaxMultiple = Mathf.CeilToInt(max.z / cellSize.z);
 
             // Fix offset
-            xMinMultiple += resolution.x / 2;
-            yMinMultiple += resolution.y / 2;
-            zMinMultiple += resolution.z / 2;
-            xMaxMultiple += resolution.x / 2;
-            yMaxMultiple += resolution.y / 2;
-            zMaxMultiple += resolution.z / 2;
+            xMinMultiple += resolution.Width / 2;
+            yMinMultiple += resolution.Height / 2;
+            zMinMultiple += resolution.Depth / 2;
+            xMaxMultiple += resolution.Width / 2;
+            yMaxMultiple += resolution.Height / 2;
+            zMaxMultiple += resolution.Depth / 2;
 
             // Clamp values because a part of the mesh may be outside the voxelization area.
             xMinMultiple = Mathf.Max(xMinMultiple, 0);
             yMinMultiple = Mathf.Max(yMinMultiple, 0);
             zMinMultiple = Mathf.Max(zMinMultiple, 0);
-            xMaxMultiple = Mathf.Min(xMaxMultiple, resolution.x);
-            yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.y);
-            zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.z);
+            xMaxMultiple = Mathf.Min(xMaxMultiple, resolution.Width);
+            yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.Height);
+            zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
 
-            bool[] voxels = ArrayPool<bool>.Shared.Rent(voxelsLength);
+            bool[] voxels = ArrayPool<bool>.Shared.Rent(resolution.Cells);
             Span<Voxelizer.VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels);
 
+            Vector3 size = resolution.Size;
             Voxelizer.Voxelize(
                 MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
                 content.triangles,
                 voxelsInfo,
                 Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
-                resolution
+                (resolution.Width, resolution.Height, resolution.Depth)
             );
 
-            int index = resolution.z * (resolution.y * xMinMultiple);
+            int index = resolution.Depth * (resolution.Height * xMinMultiple);
             for (int x = xMinMultiple; x < xMaxMultiple; x++)
             {
-                index += resolution.z * yMinMultiple;
+                index += resolution.Depth * yMinMultiple;
                 for (int y = yMinMultiple; y < yMaxMultiple; y++)
                 {
                     index += zMinMultiple;
                     for (int z = zMinMultiple; z < zMaxMultiple; z++)
                     {
-                        Debug.Assert(index == GetIndex(ref resolution, x, y, z));
+                        Debug.Assert(index == resolution.GetIndex(x, y, z));
                         voxels[index] = voxelsInfo[index].Fill;
                         index++;
                     }
-                    index += resolution.z - zMaxMultiple;
+                    index += resolution.Depth - zMaxMultiple;
                 }
-                index += resolution.z * (resolution.y - yMaxMultiple);
+                index += resolution.Depth * (resolution.Height - yMaxMultiple);
             }
 
             orJobs.Add((voxels, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple));
         }
 
-        private static (int x, int y, int z) OrMultithread((int x, int y, int z) resolution, bool[] voxels, (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple)
+        private static void OrMultithread(in Resolution resolution, bool[] voxels, (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple)
         {
-            int index = resolution.z * (resolution.y * tuple.xMinMultiple);
+            int index = resolution.Depth * (resolution.Height * tuple.xMinMultiple);
             for (int x = tuple.xMinMultiple; x < tuple.xMaxMultiple; x++)
             {
-                index += resolution.z * tuple.yMinMultiple;
+                index += resolution.Depth * tuple.yMinMultiple;
                 for (int y = tuple.yMinMultiple; y < tuple.yMaxMultiple; y++)
                 {
                     index += tuple.zMinMultiple;
                     for (int z = tuple.zMinMultiple; z < tuple.zMaxMultiple; z++)
                     {
-                        Debug.Assert(index == GetIndex(ref resolution, x, y, z));
+                        Debug.Assert(index == resolution.GetIndex(x, y, z));
                         voxels[index] |= tuple.voxels[index];
                         index++;
                     }
-                    index += resolution.z - tuple.zMaxMultiple;
+                    index += resolution.Depth - tuple.zMaxMultiple;
                 }
-                index += resolution.z * (resolution.y - tuple.yMaxMultiple);
+                index += resolution.Depth * (resolution.Height - tuple.yMaxMultiple);
             }
-
-            return resolution;
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
@@ -353,19 +332,6 @@ namespace Enderlook.Unity.Pathfinding2
         {
             stack.Dispose();
             ArrayPool<bool>.Shared.Return(voxels);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int GetIndex(ref (int x, int y, int z) resolution, int x, int y, int z)
-        {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < resolution.x);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < resolution.z);
-            Debug.Assert(y >= 0);
-            int index = (resolution.z * ((resolution.y * x) + y)) + z;
-            Debug.Assert(index < resolution.x * resolution.y * resolution.z);
-            return index;
         }
     }
 }
