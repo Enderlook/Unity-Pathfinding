@@ -589,6 +589,8 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndexOfSideCheckNeighbours<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int y, in CompactOpenHeightField.HeightSpan span)
         {
+            Side.DebugAssert<T>();
+
             if (spanIndex != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
                 ref readonly CompactOpenHeightField.HeightSpan neighbour = ref spans[spanIndex];

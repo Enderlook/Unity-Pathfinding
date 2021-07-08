@@ -662,6 +662,8 @@ namespace Enderlook.Unity.Pathfinding2
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int GetSide<T>()
             {
+                Side.DebugAssert<T>();
+
                 if (typeof(T) == typeof(Side.Left))
                     return Left;
                 else if (typeof(T) == typeof(Side.Right))
@@ -697,6 +699,8 @@ namespace Enderlook.Unity.Pathfinding2
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int GetSideRotatedClockwise<T>()
             {
+                Side.DebugAssert<T>();
+
                 if (typeof(T) == typeof(Side.Left))
                     return Right;
                 else if (typeof(T) == typeof(Side.Right))

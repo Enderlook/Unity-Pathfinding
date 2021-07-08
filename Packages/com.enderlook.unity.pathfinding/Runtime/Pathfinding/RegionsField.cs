@@ -194,6 +194,8 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void FloodRegionCheckNeighbour<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, ref RawPooledStack<int> stack, int neighbour)
         {
+            Side.DebugAssert<T>();
+
             if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 return;
 

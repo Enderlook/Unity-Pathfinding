@@ -153,6 +153,8 @@ namespace Enderlook.Unity.Pathfinding2
             int doubleDistance,
             ushort[] distances)
         {
+            Side.DebugAssert<T>();
+
             int j = span.GetSide<T>();
             if (j == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 accumulatedDistance += doubleDistance;
