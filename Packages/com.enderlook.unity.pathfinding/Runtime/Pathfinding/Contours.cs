@@ -106,9 +106,10 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
-                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
+                        RawPooledList<ContourPoint> simplified = RawPooledList<ContourPoint>.Create();
                         try
                         {
+                            SimplifyContour(ref edgeContour, ref simplified, maximumEdgeDeviation, maximumEdgeLength);
                             contours.Add(simplified);
                             //contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
                         }
@@ -333,7 +334,7 @@ namespace Enderlook.Unity.Pathfinding2
             return false;
         }
 
-        private RawPooledList<ContourPoint> SimplifyContour(ref RawPooledList<ContourPoint> edgeContour, int maximumEdgeDeviation, int maximumEdgeLength)
+        private RawPooledList<ContourPoint> SimplifyContour(ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<ContourPoint> simplified, int maximumEdgeDeviation, int maximumEdgeLength)
         {
             // Add initial points.
             bool hasConnections = false;
@@ -347,7 +348,6 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
 
-            RawPooledList<ContourPoint> simplified = RawPooledList<ContourPoint>.Create();
             try
             {
                 if (hasConnections)
