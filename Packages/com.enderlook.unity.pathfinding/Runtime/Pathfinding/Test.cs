@@ -1,6 +1,9 @@
-﻿using System;
+﻿using Enderlook.Utils;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -15,9 +18,50 @@ namespace Enderlook.Unity.Pathfinding2
         private List<long> q = new List<long>();
         private List<long> q2 = new List<long>();
 
-        public void OnDrawGizmos()
+        private int work;
+        private HeightField heightField;
+        private CompactOpenHeightField openHeightField;
+        private DistanceField distanceField;
+        private DistanceField distanceField2;
+        private RegionsField regions;
+        private Contours contours;
+
+        (int, int, int) resolution = (60, 12, 60);
+        private Bounds bounds;
+
+        private void OnDrawGizmos()
         {
-            (int, int, int) resolution = (60, 12, 60);
+            if (work == 0)
+            {
+                work = 1;
+                GenerateAsync().GetAwaiter().OnCompleted(() =>
+                {
+                    work = 2;
+                });
+            }
+
+            if (work == 1)
+            {
+                Debug.Log("Working");
+                return;
+            }
+
+            Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
+            heightField.DrawGizmos(r, false);
+            /*openHeightField.DrawGizmos(r, false, true);
+            distanceField.DrawGizmos(r, openHeightField);
+            distanceField2.DrawGizmos(r, openHeightField);
+            regions.DrawGizmos(r, openHeightField);
+            contours.DrawGizmos(r, openHeightField, regions);*/
+        }
+
+        public async ValueTask GenerateAsync()
+        {
+            MeshGenerationOptions options = new MeshGenerationOptions();
+            options.UseMultithreading = true;
+
+            options.PushTask(7);
+
             MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
             foreach (MeshFilter meshFilter in meshFilters)
             {
@@ -27,61 +71,38 @@ namespace Enderlook.Unity.Pathfinding2
             if (meshFilters.Length == 0)
                 return;
 
-            Bounds bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
-            MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, bounds);
+            bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
+            MeshVoxelizer meshVoxelizer = new MeshVoxelizer(resolution, bounds, options);
 
             foreach (MeshFilter meshFilter in meshFilters)
                 meshVoxelizer.Enqueue(meshFilter);
 
             Profiler.BeginSample("Enderlook.MeshVoxelizer");
-            meshVoxelizer.Process().Complete();
+            await meshVoxelizer.Process();
             Profiler.EndSample();
 
             Memory<bool> voxels = meshVoxelizer.Voxels;
             Vector3 voxelSize = meshVoxelizer.VoxelSize;
 
-            Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-
             Utility.UseMultithreading = false;
 
-            Profiler.BeginSample("Enderlook.HeightField");
-            HeightField heightField = new HeightField(voxels, r);
-            Profiler.EndSample();
-            //heightField.DrawGizmos(r, false);
+            Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
+            heightField = new HeightField(voxels, r);
+            return;
+            openHeightField = new CompactOpenHeightField(heightField, r, 1, 1);
+            distanceField = new DistanceField(openHeightField, r);
+            distanceField2 = distanceField.WithBlur(openHeightField, 1);
+            regions = new RegionsField(distanceField, openHeightField, r, 0, 2);
+            contours = new Contours(regions, openHeightField, r, 0);
 
-            Profiler.BeginSample("Enderlook.OpenHeightField");
-            CompactOpenHeightField openHeightField = new CompactOpenHeightField(heightField, r, 1, 1);
-            Profiler.EndSample();
-            //openHeightField.DrawGizmos(r, false, true);
-
-            Profiler.BeginSample("Enderlook.DistanceField");
-            DistanceField distanceField = new DistanceField(openHeightField, r);
-            Profiler.EndSample();
-            //distanceField.DrawGizmos(r, openHeightField);
-
-            Profiler.BeginSample("Enderlook.DistanceField2");
-            DistanceField distanceField2 = distanceField.WithBlur(openHeightField, 1);
-            Profiler.EndSample();
-            //distanceField2.DrawGizmos(r, openHeightField);
-            
-            Profiler.BeginSample("Enderlook.RegionsField");
-            RegionsField regions = new RegionsField(distanceField2, openHeightField, r, 0, 2);
-            Profiler.EndSample();
-            regions.DrawGizmos(r, openHeightField);
-
-            Profiler.BeginSample("Enderlook.Contours");
-            Contours contours = new Contours(regions, openHeightField, r, 0);
-            Profiler.EndSample();
-            contours.DrawGizmos(r, openHeightField, regions);
-
-            Profiler.BeginSample("Enderlook.Dispose");
+            /*Profiler.BeginSample("Enderlook.Dispose");
             heightField.Dispose();
             openHeightField.Dispose();
             distanceField.Dispose();
             distanceField2.Dispose();
             regions.Dispose();
             contours.Dispose();
-            Profiler.EndSample();
+            Profiler.EndSample();*/
         }
 
         private void Time(Action a)

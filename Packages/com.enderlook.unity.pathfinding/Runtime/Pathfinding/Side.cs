@@ -22,9 +22,4 @@ namespace Enderlook.Unity.Pathfinding2
                 typeof(T) == typeof(Right) ||
                 typeof(T) == typeof(Backward));
     }
-
-    internal static class Utility
-    {
-        public readonly static bool UseMultithreading = Application.platform == RuntimePlatform.WebGLPlayer || SystemInfo.processorCount == 1;
-    }
 }
