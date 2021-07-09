@@ -1,4 +1,5 @@
-﻿using Enderlook.Collections.Pooled.LowLevel;
+﻿using Enderlook.Collections.Pooled;
+using Enderlook.Collections.Pooled.LowLevel;
 
 using System;
 using System.Buffers;
@@ -29,51 +30,53 @@ namespace Enderlook.Unity.Pathfinding2
         /// </summary>
         public ReadOnlySpan<HeightSpan> Spans => spans.AsSpan(0, spansCount);
 
+        private CompactOpenHeightField(HeightColumn[] columns, int columnsCount, HeightSpan[] spans, int spansCount)
+        {
+            this.columns = columns;
+            this.columnsCount = columnsCount;
+            this.spans = spans;
+            this.spansCount = spansCount;
+        }
+
         /// <summary>
         /// Creates a the open height field of a height field.
         /// </summary>
         /// <param name="heightField">Height field used to create open height field.</param>
         /// <param name="options">Stores configuration information.</param>
         /// <returns>The open height field of the height field.</returns>
-        public CompactOpenHeightField(in HeightField heightField, MeshGenerationOptions options)
+        public static async ValueTask<CompactOpenHeightField> Create(HeightField heightField, MeshGenerationOptions options)
         {
             options.Validate();
             Resolution resolution = options.Resolution;
             heightField.DebugAssert(nameof(heightField), resolution, $"{nameof(options)}.{nameof(options.Resolution)}");
 
-            spans = null;
-            spansCount = 0;
-
-            columnsCount = resolution.Width * resolution.Depth;
-            columns = ArrayPool<HeightColumn>.Shared.Rent(resolution.Width * resolution.Depth);
+            HeightColumn[] columns = ArrayPool<HeightColumn>.Shared.Rent(resolution.Width * resolution.Depth);
             try
             {
-                RawPooledList<HeightSpan> spanBuilder = RawPooledList<HeightSpan>.Create();
+                RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
                 try
                 {
                     options.PushTask(2, "Compact Open Height Field");
                     {
-                        Initialize(heightField, ref spanBuilder, options);
+                        spans = await Initialize(heightField, columns, spans, options);
                         options.StepTask();
-
-                        spans = spanBuilder.UnderlyingArray;
-                        spansCount = spanBuilder.Count;
 
                         options.PushTask(resolution.Cells2D, "Calculate Neighbours");
                         {
                             if (options.UseMultithreading)
-                                CalculateNeighboursMultiThread(options);
+                                CalculateNeighboursMultiThread(options, columns, spans.UnderlyingArray);
                             else
-                                CalculateNeighboursSingleThread(options);
+                                await CalculateNeighboursSingleThread(options, columns, spans.UnderlyingArray);
                         }
                         options.PopTask();
                         options.StepTask();
                     }
                     options.PopTask();
+                    return new CompactOpenHeightField(columns, resolution.Width * resolution.Depth, spans.UnderlyingArray, spans.Count);
                 }
                 catch
                 {
-                    spanBuilder.Dispose();
+                    spans.Dispose();
                     throw;
                 }
             }
@@ -114,9 +117,8 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void Initialize(in HeightField heightField, ref RawPooledList<HeightSpan> spanBuilder, MeshGenerationOptions options)
+        private static async ValueTask<RawPooledList<HeightSpan>> Initialize(HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, MeshGenerationOptions options)
         {
-            ReadOnlySpan<HeightField.HeightColumn> columns = heightField.Columns;
             Resolution resolution = options.Resolution; 
             options.PushTask(resolution.Cells2D, "Initialize");
             int index = 0;
@@ -124,110 +126,119 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 for (int z = 0; z < resolution.Depth; z++)
                 {
-                    Debug.Assert(index == resolution.GetIndex(x, z));
-                    int startIndex = spanBuilder.Count;
-
-                    HeightField.HeightColumn column = columns[index];
-                    ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
-                    Debug.Assert(spans.Length > 0);
-
-                    int i = 0;
-                    int y = 0;
-
-                    if (spans.Length > 1)
-                    {
-                        HeightField.HeightSpan span = spans[i++];
-
-#if UNITY_ASSERTIONS
-                        bool wasSolid = span.IsSolid;
-#endif
-
-                        if (!span.IsSolid)
-                        {
-                            /* Do we actually need to add this span?
-                             * If we remove it, everything works... the output is just a bit different,
-                             * maybe it doesn't mater. */
-                            const int floor = -1;
-                            int ceil = y + span.Height;
-                            spanBuilder.Add(new HeightSpan(floor, ceil));
-
-                            // Regardless we remove above span, this line must stay.
-                            y += span.Height;
-                        }
-                        else
-                        {
-                            int floor = y + span.Height;
-                            if (spans.Length > 2)
-                            {
-                                span = spans[i++];
-
-#if UNITY_ASSERTIONS
-                                Debug.Assert(wasSolid != span.IsSolid);
-                                wasSolid = span.IsSolid;
-#endif
-
-                                y += span.Height;
-                                int ceil = y;
-                                spanBuilder.Add(new HeightSpan(floor, ceil));
-                            }
-                            else
-                            {
-                                Debug.Assert(i == spans.Length - 1);
-#if UNITY_ASSERTIONS
-                                span = spans[i];
-                                Debug.Assert(wasSolid != span.IsSolid);
-#endif
-                                const int ceil = -1;
-                                spanBuilder.Add(new HeightSpan(floor, ceil));
-
-                                goto end;
-                            }
-                        }
-
-                        for (; i < spans.Length - 1; i++)
-                        {
-                            span = spans[i];
-#if UNITY_ASSERTIONS
-                            Debug.Assert(wasSolid != span.IsSolid);
-                            wasSolid = span.IsSolid;
-#endif
-                            if (!span.IsSolid)
-                            {
-                                int floor = y;
-                                y += span.Height;
-                                int ceil = y;
-                                spanBuilder.Add(new HeightSpan(floor, ceil));
-                            }
-                            else
-                                y += span.Height;
-                        }
-
-                        if (spans.Length > 2)
-                        {
-                            Debug.Assert(i == spans.Length - 1);
-                            span = spans[i];
-#if UNITY_ASSERTIONS
-                            Debug.Assert(wasSolid != span.IsSolid);
-#endif
-                            if (!span.IsSolid)
-                            {
-                                int floor = y;
-                                const int ceil = -1;
-                                spanBuilder.Add(new HeightSpan(floor, ceil));
-                            }
-                        }
-
-                        end:;
-                    }
-
-                    this.columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
-                    options.StepTask();
+                    spanBuilder = InitializeWork(heightField, columns, spanBuilder, resolution, ref index, x, z);
+                    if (options.StepTaskAndCheckIfMustYield())
+                       await options.Yield();
                 }
             }
             options.PopTask();
+            return spanBuilder;
         }
 
-        private void CalculateNeighboursSingleThread(MeshGenerationOptions options)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RawPooledList<HeightSpan> InitializeWork(in HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, Resolution resolution, ref int index, int x, int z)
+        {
+            Debug.Assert(index == resolution.GetIndex(x, z));
+            int startIndex = spanBuilder.Count;
+
+            HeightField.HeightColumn column = heightField.Columns[index];
+            ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
+            Debug.Assert(spans.Length > 0);
+
+            int i = 0;
+            int y = 0;
+
+            if (spans.Length > 1)
+            {
+                HeightField.HeightSpan span = spans[i++];
+
+#if UNITY_ASSERTIONS
+                bool wasSolid = span.IsSolid;
+#endif
+
+                if (!span.IsSolid)
+                {
+                    /* Do we actually need to add this span?
+                     * If we remove it, everything works... the output is just a bit different,
+                     * maybe it doesn't mater. */
+                    const int floor = -1;
+                    int ceil = y + span.Height;
+                    spanBuilder.Add(new HeightSpan(floor, ceil));
+
+                    // Regardless we remove above span, this line must stay.
+                    y += span.Height;
+                }
+                else
+                {
+                    int floor = y + span.Height;
+                    if (spans.Length > 2)
+                    {
+                        span = spans[i++];
+
+#if UNITY_ASSERTIONS
+                        Debug.Assert(wasSolid != span.IsSolid);
+                        wasSolid = span.IsSolid;
+#endif
+
+                        y += span.Height;
+                        int ceil = y;
+                        spanBuilder.Add(new HeightSpan(floor, ceil));
+                    }
+                    else
+                    {
+                        Debug.Assert(i == spans.Length - 1);
+#if UNITY_ASSERTIONS
+                        span = spans[i];
+                        Debug.Assert(wasSolid != span.IsSolid);
+#endif
+                        const int ceil = -1;
+                        spanBuilder.Add(new HeightSpan(floor, ceil));
+
+                        goto end;
+                    }
+                }
+
+                for (; i < spans.Length - 1; i++)
+                {
+                    span = spans[i];
+#if UNITY_ASSERTIONS
+                    Debug.Assert(wasSolid != span.IsSolid);
+                    wasSolid = span.IsSolid;
+#endif
+                    if (!span.IsSolid)
+                    {
+                        int floor = y;
+                        y += span.Height;
+                        int ceil = y;
+                        spanBuilder.Add(new HeightSpan(floor, ceil));
+                    }
+                    else
+                        y += span.Height;
+                }
+
+                if (spans.Length > 2)
+                {
+                    Debug.Assert(i == spans.Length - 1);
+                    span = spans[i];
+#if UNITY_ASSERTIONS
+                    Debug.Assert(wasSolid != span.IsSolid);
+#endif
+                    if (!span.IsSolid)
+                    {
+                        int floor = y;
+                        const int ceil = -1;
+                        spanBuilder.Add(new HeightSpan(floor, ceil));
+                    }
+                }
+
+                end:;
+            }
+
+            columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
+            return spanBuilder;
+        }
+
+        private static async ValueTask CalculateNeighboursSingleThread(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
             Resolution resolution = options.Resolution;
             int maxTraversableStep = options.MaxTraversableStep;
@@ -242,40 +253,47 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 int z = 0;
                 CalculateNeighboursBody<RightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                options.StepTask();
+                if (options.StepTaskAndCheckIfMustYield())
+                   await options.Yield();;
                 for (z++; z < zM; z++)
                 {
                     CalculateNeighboursBody<RightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    options.StepTask();
+                    if (options.StepTaskAndCheckIfMustYield())
+                       await options.Yield();;
                 }
                 Debug.Assert(z == zM);
                 CalculateNeighboursBody<RightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                options.StepTask();
+                if (options.StepTaskAndCheckIfMustYield())
+                   await options.Yield();;
             }
 
             for (x++; x < xM; x++)
             {
                 int z = 0;
                 CalculateNeighboursBody<LeftRightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                options.StepTask();
+                if (options.StepTaskAndCheckIfMustYield())
+                   await options.Yield();;
                 for (z = 1; z < zM; z++)
                 {
                     /* This is the true body of this function.
                         * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
                         * TODO: Does this actually improves perfomance? */
                     CalculateNeighboursBody<LeftRightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    options.StepTask();
+                    if (options.StepTaskAndCheckIfMustYield())
+                       await options.Yield();;
                 }
                 Debug.Assert(z == zM);
                 CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                options.StepTask();
+                if (options.StepTaskAndCheckIfMustYield())
+                   await options.Yield();;
             }
 
             Debug.Assert(x == xM);
             {
                 int z = 0;
                 CalculateNeighboursBody<LeftForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                options.StepTask();
+                if (options.StepTaskAndCheckIfMustYield())
+                   await options.Yield();;
                 for (z++; z < zM; z++)
                 {
                     CalculateNeighboursBody<LeftForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
@@ -283,11 +301,12 @@ namespace Enderlook.Unity.Pathfinding2
                 }
                 Debug.Assert(z == zM);
                 CalculateNeighboursBody<LeftBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                options.StepTask();
+                if (options.StepTaskAndCheckIfMustYield())
+                   await options.Yield();;
             }
         }
 
-        private void CalculateNeighboursMultiThread(MeshGenerationOptions options)
+        private static void CalculateNeighboursMultiThread(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
             Resolution resolution = options.Resolution;
             int maxTraversableStep = options.MaxTraversableStep;
@@ -295,9 +314,6 @@ namespace Enderlook.Unity.Pathfinding2
 
             int xM = resolution.Width - 1;
             int zM = resolution.Depth - 1;
-
-            HeightColumn[] columns = this.columns;
-            HeightSpan[] spans = this.spans;
 
             Parallel.For(0, 9, t =>
             {
