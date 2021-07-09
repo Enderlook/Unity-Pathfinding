@@ -21,7 +21,6 @@ namespace Enderlook.Unity.Pathfinding2
         private int currentSteps;
 
         private float nextYield = float.PositiveInfinity;
-        private int yieldStep;
         private RawPooledQueue<Action> continuations = RawPooledQueue<Action>.Create();
 
         /// <summary>
@@ -37,9 +36,20 @@ namespace Enderlook.Unity.Pathfinding2
         public float ExecutionTimeSlice {
             get => executionTimeSlice == float.PositiveInfinity ? 0 : executionTimeSlice;
             set {
-                if (value <= 0)
+                if (value < 0)
                     Throw();
-                executionTimeSlice = value == 0 ? float.PositiveInfinity : value;
+
+                if (value == 0)
+                {
+                    executionTimeSlice = float.PositiveInfinity;
+                    nextYield = float.PositiveInfinity;
+                }
+                else
+                {
+                    if (executionTimeSlice == float.PositiveInfinity)
+                        nextYield = Time.realtimeSinceStartup  + value;
+                    executionTimeSlice = value;
+                }
 
                 void Throw() => throw new ArgumentOutOfRangeException(nameof(value), "Can't be negative.");
             }
@@ -107,6 +117,7 @@ namespace Enderlook.Unity.Pathfinding2
                     return 1;
                 }
 
+                
                 float pecentage = 0;
                 float factor = 1;
                 for (int i = 0; i < tasks.Count; i++)
@@ -127,7 +138,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 if (this.currentSteps == 0)
                     return pecentage;
-                return pecentage + (currentStep / currentSteps * factor);
+                return pecentage + (currentStep / (float)currentSteps * factor);
             }
         }
 
@@ -168,7 +179,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool CheckIfMustYield() => Time.fixedTime >= nextYield;
+        internal bool CheckIfMustYield() => Time.realtimeSinceStartup >= nextYield;
 
         internal Yielder Yield()
         {
@@ -178,9 +189,10 @@ namespace Enderlook.Unity.Pathfinding2
 
         internal void Poll()
         {
-            Debug.Assert(ExecutionTimeSlice > 0, ExecutionTimeSlice);
-            nextYield = Time.fixedTime + ExecutionTimeSlice;
-            while (Time.fixedTime < nextYield && continuations.TryDequeue(out Action action))
+            if (executionTimeSlice == 0)
+                return;
+            nextYield = Time.realtimeSinceStartup + executionTimeSlice;
+            while (Time.realtimeSinceStartup < nextYield && continuations.TryDequeue(out Action action))
                 action();
         }
 
@@ -210,13 +222,13 @@ namespace Enderlook.Unity.Pathfinding2
         internal readonly struct Yielder : INotifyCompletion
         {
             private readonly MeshGenerationOptions options;
-            private readonly int token;
+            private readonly float token;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Yielder(MeshGenerationOptions options)
             {
                 this.options = options;
-                this.token = options.yieldStep;
+                token = options.nextYield;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -225,7 +237,7 @@ namespace Enderlook.Unity.Pathfinding2
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void GetResult() { }
 
-            public bool IsCompleted => options.yieldStep > token;
+            public bool IsCompleted => options.nextYield > token;
 
             public void OnCompleted(Action continuation)
             {

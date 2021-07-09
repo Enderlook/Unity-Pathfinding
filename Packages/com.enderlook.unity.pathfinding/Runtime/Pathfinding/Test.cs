@@ -38,13 +38,14 @@ namespace Enderlook.Unity.Pathfinding2
                 GenerateAsync().GetAwaiter().OnCompleted(() =>
                 {
                     work = 2;
+                    Debug.Log("Completed");
                 });
             }
 
             if (work == 1)
             {
                 options.Poll();
-                Debug.Log($"Working {options.GetCompletitionPercentage()}");
+                Debug.Log($"Working {options.GetCompletitionPercentage() * 100}%");
                 return;
             }
 
@@ -62,8 +63,8 @@ namespace Enderlook.Unity.Pathfinding2
             options = new MeshGenerationOptions();
             bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
             options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            options.UseMultithreading = false;
-            options.ExecutionTimeSlice = float.PositiveInfinity;
+            options.UseMultithreading = true;
+            options.ExecutionTimeSlice = 0.01f;
 
             options.PushTask(7, "All");
 
@@ -92,6 +93,7 @@ namespace Enderlook.Unity.Pathfinding2
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             heightField = await HeightField.Create(voxels, options);
             openHeightField = await CompactOpenHeightField.Create(heightField, options);
+            Debug.Log("Done");
             return;
             distanceField = new DistanceField(openHeightField, r);
             distanceField2 = distanceField.WithBlur(openHeightField, 1);
