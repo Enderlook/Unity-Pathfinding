@@ -1,6 +1,7 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
 
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -104,6 +105,21 @@ namespace Enderlook.Unity.Pathfinding2
         private int minTraversableHeight = 1;
 
         /// <summary>
+        /// Minimum distance for blur.
+        /// </summary>
+        public int DistanceBlurThreshold {
+            get => distanceBlurThreshold;
+            set {
+                if (value < 1)
+                    Throw();
+                distanceBlurThreshold = value;
+
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(distanceBlurThreshold), "Can't be negative.");
+            }
+        }
+        private int distanceBlurThreshold = 1;
+
+        /// <summary>
         /// Get the completition percentage of the generation.
         /// </summary>
         /// <returns>Completition percentage.</returns>
@@ -134,6 +150,8 @@ namespace Enderlook.Unity.Pathfinding2
                     currentSteps = this.currentSteps;
                 }
 
+                Debug.Log($"{currentStep}/{currentSteps} {string.Join(", ", tasks.Select(e => $"{e.current}/{e.total}"))}");
+
                 Unlock();
 
                 if (this.currentSteps == 0)
@@ -146,9 +164,9 @@ namespace Enderlook.Unity.Pathfinding2
         internal void Validate() => resolution.ThrowIfDefault();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void PushTask(int steps, string name) => PushTask(steps, 0, name);
+        internal void PushTask(int steps, string name = "") => PushTask(steps, 0, name);
 
-        internal void PushTask(int steps, int step, string name)
+        internal void PushTask(int steps, int step, string name = "")
         {
             Lock();
             {
@@ -178,6 +196,20 @@ namespace Enderlook.Unity.Pathfinding2
             return CheckIfMustYield();
         }
 
+        internal void PopTask()
+        {
+            Lock();
+            {
+                Debug.Assert(tasks.Count > 0);
+                Debug.Assert(currentStep == currentSteps);
+                tasks.RemoveAt(tasks.Count - 1);
+                (int current, int total) tuple = tasks[tasks.Count - 1];
+                currentStep = tuple.current;
+                currentSteps = tuple.total;
+            }
+            Unlock();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool CheckIfMustYield() => Time.realtimeSinceStartup >= nextYield;
 
@@ -194,20 +226,6 @@ namespace Enderlook.Unity.Pathfinding2
             nextYield = Time.realtimeSinceStartup + executionTimeSlice;
             while (Time.realtimeSinceStartup < nextYield && continuations.TryDequeue(out Action action))
                 action();
-        }
-
-        internal void PopTask()
-        {
-            Lock();
-            {
-                Debug.Assert(tasks.Count > 0);
-                Debug.Assert(currentStep == currentSteps);
-                tasks.RemoveAt(tasks.Count - 1);
-                (int current, int total) tuple = tasks[tasks.Count - 1];
-                currentStep = tuple.current;
-                currentSteps = tuple.total;
-            }
-            Unlock();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

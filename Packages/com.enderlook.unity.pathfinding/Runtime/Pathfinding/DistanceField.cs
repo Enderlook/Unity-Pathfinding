@@ -31,26 +31,35 @@ namespace Enderlook.Unity.Pathfinding2
         /// Calculates the distance field of the specified open height field.
         /// </summary>
         /// <param name="openHeightField">Open heigh field whose distance field is being calculated.</param>
-        /// <param name="resolution">Resolution of <paramref name="openHeightField"/>.</param>
-        public DistanceField(in CompactOpenHeightField openHeightField, in Resolution resolution)
+        /// <param name="options">Stores configuration information.</param>
+        /// <return>New distance field.</return>
+        public static async ValueTask<DistanceField> Create(CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            openHeightField.DebugAssert(nameof(openHeightField), resolution, nameof(resolution));
+            openHeightField.DebugAssert(nameof(openHeightField), options.Resolution, $"{nameof(options)}.{nameof(options.Resolution)}");
 
-            RawPooledQueue<int> handeling = RawPooledQueue<int>.Create();
-
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
-            spansCount = spans.Length;
+            int spansCount = openHeightField.SpansCount;
             byte[] status = ArrayPool<byte>.Shared.Rent(spansCount);
             try
             {
                 Debug.Assert(STATUS_OPEN == 0, $"If this fail you must change the next line to perfom Array.Fill and set the content of the array to {nameof(STATUS_OPEN)}.");
                 Array.Clear(status, 0, spansCount);
-                distances = ArrayPool<ushort>.Shared.Rent(spansCount);
+                ushort[] distances = ArrayPool<ushort>.Shared.Rent(spansCount);
                 try
                 {
-                    MaximumDistance = 0;
-                    FindInitialBorders(ref handeling, status, spans);
-                    CalculateDistances(ref MaximumDistance, ref handeling, status, spans);
+                    ushort maximumDistance;
+                    options.PushTask(2, "Distance Field");
+                    {
+                        RawPooledQueue<int> handeling = RawPooledQueue<int>.Create();
+                        handeling = await FindInitialBorders(distances, handeling, status, openHeightField, options);
+                        if (options.StepTaskAndCheckIfMustYield())
+                            await options.Yield();
+                        maximumDistance = await CalculateDistances(distances, handeling, status, openHeightField, options);
+                        handeling.Dispose();
+                        if (options.StepTaskAndCheckIfMustYield())
+                            await options.Yield();
+                    }
+                    options.PopTask();
+                    return new DistanceField(spansCount, distances, maximumDistance);
                 }
                 catch
                 {
@@ -88,30 +97,32 @@ namespace Enderlook.Unity.Pathfinding2
         /// Creawtes a new distance field blurred.
         /// </summary>
         /// <param name="openHeightField">Open heigh field whose distance field is being calculated.</param>
-        /// <param name="threshold">Minimum distance</param>
+        /// <param name="options">Stores configuration information.</param>
         /// <returns>New blurred distance field.</returns>
-        public DistanceField WithBlur(in CompactOpenHeightField openHeightField, int threshold)
+        public async ValueTask<DistanceField> WithBlur(CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            threshold *= 2;
+            Debug.Assert(options.DistanceBlurThreshold > 0);
 
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            int threshold = options.DistanceBlurThreshold * 2;
+
             ushort[] distances = this.distances;
 
             ushort newMaximumDistance = default;
             ushort[] newDistances = ArrayPool<ushort>.Shared.Rent(spansCount);
             try
             {
-                if (Utility.UseMultithreading)
+                options.PushTask(spansCount, "Blur Distance Field");
                 {
-                    CompactOpenHeightField openHeightField_ = openHeightField;
-                    Parallel.For(0, spans.Length, i => Blur(threshold, openHeightField_.Spans, distances, ref newMaximumDistance, newDistances, i));
+                    if (Utility.UseMultithreading)
+                        Parallel.For(0, spansCount, i =>
+                        {
+                            Blur(threshold, openHeightField.Spans, distances, ref newMaximumDistance, newDistances, i);
+                            options.StepTask();
+                        });
+                    else
+                        newMaximumDistance = await WithBlurSingleThread(openHeightField, threshold, distances, newMaximumDistance, newDistances, options);
                 }
-                else
-                {
-                    for (int i = 0; i < spans.Length; i++)
-                        Blur(threshold, spans, distances, ref newMaximumDistance, newDistances, i);
-                }
-
+                options.PopTask();
                 return new DistanceField(spansCount, newDistances, newMaximumDistance);
             }
             catch
@@ -119,6 +130,18 @@ namespace Enderlook.Unity.Pathfinding2
                 ArrayPool<ushort>.Shared.Return(newDistances);
                 throw;
             }
+        }
+
+        private static async ValueTask<ushort> WithBlurSingleThread(CompactOpenHeightField openHeightField, int threshold, ushort[] distances, ushort newMaximumDistance, ushort[] newDistances, MeshGenerationOptions options)
+        {
+            int spansCount = openHeightField.SpansCount;
+            for (int i = 0; i < spansCount; i++)
+            {
+                Blur(threshold, openHeightField.Spans, distances, ref newMaximumDistance, newDistances, i);
+                if (options.StepTaskAndCheckIfMustYield())
+                    await options.Yield();
+            }
+            return newMaximumDistance;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -169,47 +192,85 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindInitialBorders(ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
+        private static async ValueTask<RawPooledQueue<int>> FindInitialBorders(ushort[] distances, RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            ushort[] distances = this.distances;
-            if (unchecked((uint)spans.Length > (uint)distances.Length))
+            try
             {
-                Debug.Assert(false, "Index out of range.");
-                return;
-            }
-
-            for (int i = 0; i < spans.Length; i++)
-            {
-                if (spans[i].IsBorder)
+                int length = openHeightField.SpansCount;
+                if (unchecked((uint)length > (uint)distances.Length))
                 {
-                    status[i] = STATUS_IN_PROGRESS;
-                    distances[i] = 0;
-                    handeling.Enqueue(i);
+                    Debug.Assert(false, "Index out of range.");
+                    return handeling;
                 }
+
+                options.PushTask(length, "Find Initial Borders");
+                {
+                    for (int i = 0; i < length; i++)
+                    {
+                        if (openHeightField.Span(i).IsBorder)
+                        {
+                            status[i] = STATUS_IN_PROGRESS;
+                            distances[i] = 0;
+                            handeling.Enqueue(i);
+                        }
+                        if (options.StepTaskAndCheckIfMustYield())
+                            await options.Yield();
+                    }
+                }
+                options.PopTask();
+                return handeling;
+            }
+            catch
+            {
+                handeling.Dispose();
+                throw;
             }
         }
 
-        private void CalculateDistances(ref ushort maximumDistance, ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans)
+        private static async ValueTask<ushort> CalculateDistances(ushort[] distances, RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            ushort[] distances = this.distances;
-            while (handeling.TryDequeue(out int i))
+            try
             {
-                ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+                ushort maximumDistance = 0;
+                options.PushTask(1, "Calculate Distances");
+                {
+                    while (handeling.TryDequeue(out int i))
+                    {
+                        CalculateDistancesBody(distances, ref handeling, status, openHeightField, i);
 
-                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Left);
-                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Forward);
-                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Right);
-                DistanceFieldCheckNeigbour(ref handeling, status, spans, i, span.Backward);
+                        if (distances[i] > maximumDistance)
+                            maximumDistance = distances[i];
 
-                if (distances[i] > maximumDistance)
-                    maximumDistance = distances[i];
+                        status[i] = STATUS_CLOSED;
 
-                status[i] = STATUS_CLOSED;
+                        if (options.CheckIfMustYield())
+                            await options.Yield();
+                    }
+                }
+                options.StepTask();
+                options.PopTask();
+                return maximumDistance;
+            }
+            finally
+            {
+                handeling.Dispose();
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DistanceFieldCheckNeigbour(ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int i, int neighbour)
+        private static void CalculateDistancesBody(ushort[] distances, ref RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, int i)
+        {
+            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+
+            DistanceFieldCheckNeigbour(distances, ref handeling, status, spans, i, span.Left);
+            DistanceFieldCheckNeigbour(distances, ref handeling, status, spans, i, span.Forward);
+            DistanceFieldCheckNeigbour(distances, ref handeling, status, spans, i, span.Right);
+            DistanceFieldCheckNeigbour(distances, ref handeling, status, spans, i, span.Backward);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void DistanceFieldCheckNeigbour(ushort[] distances, ref RawPooledQueue<int> handeling, byte[] status, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int i, int neighbour)
         {
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {

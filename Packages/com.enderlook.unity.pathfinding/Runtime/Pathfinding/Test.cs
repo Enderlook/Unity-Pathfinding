@@ -51,9 +51,9 @@ namespace Enderlook.Unity.Pathfinding2
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             //heightField.DrawGizmos(r, false);
-            openHeightField.DrawGizmos(r, false, true);
+            //openHeightField.DrawGizmos(r, false, true);
             //distanceField.DrawGizmos(r, openHeightField);
-            //distanceField2.DrawGizmos(r, openHeightField);
+            distanceField2.DrawGizmos(r, openHeightField);
             //regions.DrawGizmos(r, openHeightField);
             //contours.DrawGizmos(r, openHeightField, regions);
         }
@@ -63,10 +63,10 @@ namespace Enderlook.Unity.Pathfinding2
             options = new MeshGenerationOptions();
             bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
             options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            options.UseMultithreading = true;
+            options.UseMultithreading = false;
             options.ExecutionTimeSlice = 0.01f;
 
-            options.PushTask(7, "All");
+            options.PushTask(6, "All");
 
             MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
             foreach (MeshFilter meshFilter in meshFilters)
@@ -93,10 +93,9 @@ namespace Enderlook.Unity.Pathfinding2
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             heightField = await HeightField.Create(voxels, options);
             openHeightField = await CompactOpenHeightField.Create(heightField, options);
-            Debug.Log("Done");
+            distanceField = await DistanceField.Create(openHeightField, options);
+            distanceField2 = await distanceField.WithBlur(openHeightField, options);
             return;
-            distanceField = new DistanceField(openHeightField, r);
-            distanceField2 = distanceField.WithBlur(openHeightField, 1);
             regions = new RegionsField(distanceField, openHeightField, r, 0, 2);
             contours = new Contours(regions, openHeightField, r, 0);
 

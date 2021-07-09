@@ -30,12 +30,29 @@ namespace Enderlook.Unity.Pathfinding2
         /// </summary>
         public ReadOnlySpan<HeightSpan> Spans => spans.AsSpan(0, spansCount);
 
+        /// <summary>
+        /// Amount of spans.
+        /// </summary>
+        public int SpansCount => spansCount;
+
         private CompactOpenHeightField(HeightColumn[] columns, int columnsCount, HeightSpan[] spans, int spansCount)
         {
             this.columns = columns;
             this.columnsCount = columnsCount;
             this.spans = spans;
             this.spansCount = spansCount;
+        }
+
+        /// <summary>
+        /// Get the span at the specified index.
+        /// </summary>
+        /// <param name="index">Index of the span..</param>
+        /// <returns>Span at the specified index.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref readonly HeightSpan Span(int index)
+        {
+            Debug.Assert(index < spansCount);
+            return ref spans[index];
         }
 
         /// <summary>
