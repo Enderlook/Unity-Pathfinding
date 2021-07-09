@@ -87,8 +87,8 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         int start = spans.Count;
                         SingleThreadWork(resolution, voxels, options, ref spans, x, z);
-                        if (options.MustYield())
-                            await Task.Yield();
+                        if (options.StepTaskAndCheckIfMustYield())
+                           await options.Yield();;
 
                         Debug.Assert(index == resolution.GetIndex(x, z));
                         columns[index++] = new HeightColumn(start, spans.Count - start);

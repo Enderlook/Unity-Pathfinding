@@ -43,7 +43,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             if (work == 1)
             {
-                Debug.Log($"Working {options.Percentage}");
+                options.Poll();
+                Debug.Log($"Working {options.GetCompletitionPercentage()}");
                 return;
             }
 
@@ -89,7 +90,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             heightField = await HeightField.Create(voxels, options);
-            openHeightField = new CompactOpenHeightField(heightField, options);
+            openHeightField = await CompactOpenHeightField.Create(heightField, options);
             return;
             distanceField = new DistanceField(openHeightField, r);
             distanceField2 = distanceField.WithBlur(openHeightField, 1);
