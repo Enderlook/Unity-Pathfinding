@@ -246,8 +246,8 @@ namespace Enderlook.Unity.Pathfinding2
                         if (options.CheckIfMustYield())
                             await options.Yield();
                     }
+                    options.StepTask();
                 }
-                options.StepTask();
                 options.PopTask();
                 return maximumDistance;
             }

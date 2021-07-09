@@ -94,47 +94,53 @@ namespace Enderlook.Unity.Pathfinding2
 
         private async ValueTask ProcessSingleThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack)
         {
-            int count = stack.Count;
-            options.PushTask(count, "Voxelizing Mesh");
-
-            Resolution resolution = options.Resolution;
-            int voxelsLength = resolution.Cells;
-            Vector3 center = resolution.Center;
-            Vector3 size = resolution.Size;
-
-            bool[] voxels_ = ArrayPool<bool>.Shared.Rent(voxelsLength);
-
-            for (int i = 0; i < count; i++)
+            try
             {
-                (Vector3[] vertices, int verticesCount, int[] triangles) content = stack[i];
-
-                if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
+                int count = stack.Count;
+                options.PushTask(count, "Voxelizing Mesh");
                 {
-                    Debug.Assert(false, "Index out of range.");
-                    return;
+                    Resolution resolution = options.Resolution;
+                    int voxelsLength = resolution.Cells;
+                    Vector3 center = resolution.Center;
+                    Vector3 size = resolution.Size;
+
+                    bool[] voxels_ = ArrayPool<bool>.Shared.Rent(voxelsLength);
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        (Vector3[] vertices, int verticesCount, int[] triangles) content = stack[i];
+
+                        if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
+                        {
+                            Debug.Assert(false, "Index out of range.");
+                            return;
+                        }
+
+                        for (int j = 0; j < content.verticesCount; j++)
+                            content.vertices[j] -= center;
+
+                        Voxelizer.Voxelize(
+                            MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
+                            content.triangles,
+                            voxels_,
+                            Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
+                            (resolution.Width, resolution.Height, resolution.Depth)
+                        );
+
+                        // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
+                        OrSingleThread(voxels, voxels_, voxelsLength);
+                        voxels_.AsSpan(0, voxelsLength).Clear();
+
+                        if (options.StepTaskAndCheckIfMustYield())
+                            await options.Yield();
+                    }
                 }
-
-                for (int j = 0; j < content.verticesCount; j++)
-                    content.vertices[j] -= center;
-
-                Voxelizer.Voxelize(
-                    MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
-                    content.triangles,
-                    voxels_,
-                    Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
-                    (resolution.Width, resolution.Height, resolution.Depth)
-                );
-
-                // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
-                OrSingleThread(voxels, voxels_, voxelsLength);
-                voxels_.AsSpan(0, voxelsLength).Clear();
-
-                if (options.StepTaskAndCheckIfMustYield())
-                   await options.Yield();
+                options.PopTask();
             }
-
-            stack.Dispose();
-            options.PopTask();
+            finally
+            {
+                stack.Dispose();
+            }
         }
 
         private static void OrSingleThread(bool[] a, bool[] b, int count)
@@ -169,53 +175,63 @@ namespace Enderlook.Unity.Pathfinding2
 
         private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, bool[] voxels, MeshGenerationOptions options)
         {
-            options.PushTask(stack.Count + 1, "Voxelizing Mesh");
-            Resolution resolution = options.Resolution;
-            using (BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs = new BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)>(stack.Count))
+            try
             {
-                Task task = Task.Run(() =>
+                options.PushTask(stack.Count + 1, "Voxelizing Mesh");
                 {
-                    // TODO: This part could also be parallelized in case too many task are enqueued.
-                    while (!orJobs.IsAddingCompleted)
+                    Resolution resolution = options.Resolution;
+                    using (BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)> orJobs = new BlockingCollection<(bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)>(stack.Count))
                     {
-                        (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
-                        try
+                        Task task = Task.Run(() =>
                         {
-                            OrMultithread(resolution, voxels, tuple);
-                        }
-                        finally
+                        // TODO: This part could also be parallelized in case too many task are enqueued.
+                        while (!orJobs.IsAddingCompleted)
+                            {
+                                (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
+                                try
+                                {
+                                    OrMultithread(resolution, voxels, tuple);
+                                }
+                                finally
+                                {
+                                    ArrayPool<bool>.Shared.Return(tuple.voxels);
+                                }
+                            }
+                        });
+                        Parallel.For(0, stack.Count, i =>
                         {
-                            ArrayPool<bool>.Shared.Return(tuple.voxels);
+                            VoxelizeMultithreadSlave(resolution, orJobs, stack, i);
+                            options.StepTask();
+                        });
+                        orJobs.CompleteAdding();
+                        await task;
+                        if (orJobs.Count > 0)
+                        {
+                            options.PushTask(stack.Count, stack.Count - orJobs.Count, "Merging Voxelized Meshes");
+                            // Continue merging on current thread.
+                            while (!orJobs.IsCompleted)
+                            {
+                                (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
+                                try
+                                {
+                                    OrMultithread(resolution, voxels, tuple);
+                                }
+                                finally
+                                {
+                                    ArrayPool<bool>.Shared.Return(tuple.voxels);
+                                }
+                                options.StepTask();
+                            }
                         }
                     }
-                });
-                Parallel.For(0, stack.Count, i => { 
-                    VoxelizeMultithreadSlave(resolution, orJobs, stack, i);
                     options.StepTask();
-                });
-                orJobs.CompleteAdding();
-                await task;
-                if (orJobs.Count > 0)
-                {
-                    options.PushTask(stack.Count, stack.Count - orJobs.Count, "Merging Voxelized Meshes");
-                    // Continue merging on current thread.
-                    while (!orJobs.IsCompleted)
-                    {
-                        (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
-                        try
-                        {
-                            OrMultithread(resolution, voxels, tuple);
-                        }
-                        finally
-                        {
-                            ArrayPool<bool>.Shared.Return(tuple.voxels);
-                        }
-                        options.StepTask();
-                    }
                 }
+                options.PopTask();
             }
-            options.StepTask();
-            options.PopTask();
+            finally
+            {
+                stack.Dispose();
+            }
         }
 
         private static void VoxelizeMultithreadSlave(
