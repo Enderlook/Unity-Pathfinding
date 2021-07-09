@@ -33,15 +33,13 @@ namespace Enderlook.Unity.Pathfinding2
         /// Creates a the open height field of a height field.
         /// </summary>
         /// <param name="heightField">Height field used to create open height field.</param>
-        /// <param name="resolution">Resolution of <paramref name="heightField"/>.</param>
-        /// <param name="maxTraversableStep">Maximum amount of cells between two floors to be considered neighbours.</param>
-        /// <param name="minTraversableHeight">Minimum height between a floor and a ceil to be considered traversable.</param>
         /// <param name="options">Stores configuration information.</param>
         /// <returns>The open height field of the height field.</returns>
-        public CompactOpenHeightField(in HeightField heightField, in Resolution resolution, int maxTraversableStep, int minTraversableHeight)
+        public CompactOpenHeightField(in HeightField heightField, MeshGenerationOptions options)
         {
-            resolution.DebugAssert(nameof(resolution));
-            heightField.DebugAssert(nameof(heightField), resolution, nameof(resolution));
+            options.Validate();
+            Resolution resolution = options.Resolution;
+            heightField.DebugAssert(nameof(heightField), resolution, $"{nameof(options)}.{nameof(options.Resolution)}");
 
             spans = null;
             spansCount = 0;
@@ -53,12 +51,25 @@ namespace Enderlook.Unity.Pathfinding2
                 RawPooledList<HeightSpan> spanBuilder = RawPooledList<HeightSpan>.Create();
                 try
                 {
-                    Initialize(heightField, resolution, ref spanBuilder);
+                    options.PushTask(2, "Compact Open Height Field");
+                    {
+                        Initialize(heightField, ref spanBuilder, options);
+                        options.StepTask();
 
-                    spans = spanBuilder.UnderlyingArray;
-                    spansCount = spanBuilder.Count;
+                        spans = spanBuilder.UnderlyingArray;
+                        spansCount = spanBuilder.Count;
 
-                    CalculateNeighbours(resolution, maxTraversableStep, minTraversableHeight);
+                        options.PushTask(resolution.Cells2D, "Calculate Neighbours");
+                        {
+                            if (options.UseMultithreading)
+                                CalculateNeighboursMultiThread(options);
+                            else
+                                CalculateNeighboursSingleThread(options);
+                        }
+                        options.PopTask();
+                        options.StepTask();
+                    }
+                    options.PopTask();
                 }
                 catch
                 {
@@ -103,9 +114,11 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void Initialize(in HeightField heightField, in Resolution resolution, ref RawPooledList<HeightSpan> spanBuilder)
+        private void Initialize(in HeightField heightField, ref RawPooledList<HeightSpan> spanBuilder, MeshGenerationOptions options)
         {
             ReadOnlySpan<HeightField.HeightColumn> columns = heightField.Columns;
+            Resolution resolution = options.Resolution; 
+            options.PushTask(resolution.Cells2D, "Initialize");
             int index = 0;
             for (int x = 0; x < resolution.Width; x++)
             {
@@ -208,153 +221,184 @@ namespace Enderlook.Unity.Pathfinding2
                     }
 
                     this.columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
+                    options.StepTask();
                 }
             }
+            options.PopTask();
         }
 
-        private void CalculateNeighbours(in Resolution resolution, int maxTraversableStep, int minTraversableHeight)
+        private void CalculateNeighboursSingleThread(MeshGenerationOptions options)
         {
+            Resolution resolution = options.Resolution;
+            int maxTraversableStep = options.MaxTraversableStep;
+            int minTraversableHeight = options.MaxTraversableStep;
+
             int xM = resolution.Width - 1;
             int zM = resolution.Depth - 1;
 
-            if (Utility.UseMultithreading)
-            {
-                Resolution resolution_ = resolution;
-                HeightColumn[] columns = this.columns;
-                HeightSpan[] spans = this.spans;
+            int index = 0;
 
-                Parallel.For(0, 9, t =>
+            int x = 0;
+            {
+                int z = 0;
+                CalculateNeighboursBody<RightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                options.StepTask();
+                for (z++; z < zM; z++)
                 {
-                    switch (t)
+                    CalculateNeighboursBody<RightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    options.StepTask();
+                }
+                Debug.Assert(z == zM);
+                CalculateNeighboursBody<RightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                options.StepTask();
+            }
+
+            for (x++; x < xM; x++)
+            {
+                int z = 0;
+                CalculateNeighboursBody<LeftRightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                options.StepTask();
+                for (z = 1; z < zM; z++)
+                {
+                    /* This is the true body of this function.
+                        * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
+                        * TODO: Does this actually improves perfomance? */
+                    CalculateNeighboursBody<LeftRightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    options.StepTask();
+                }
+                Debug.Assert(z == zM);
+                CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                options.StepTask();
+            }
+
+            Debug.Assert(x == xM);
+            {
+                int z = 0;
+                CalculateNeighboursBody<LeftForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                options.StepTask();
+                for (z++; z < zM; z++)
+                {
+                    CalculateNeighboursBody<LeftForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    options.StepTask();
+                }
+                Debug.Assert(z == zM);
+                CalculateNeighboursBody<LeftBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                options.StepTask();
+            }
+        }
+
+        private void CalculateNeighboursMultiThread(MeshGenerationOptions options)
+        {
+            Resolution resolution = options.Resolution;
+            int maxTraversableStep = options.MaxTraversableStep;
+            int minTraversableHeight = options.MaxTraversableStep;
+
+            int xM = resolution.Width - 1;
+            int zM = resolution.Depth - 1;
+
+            HeightColumn[] columns = this.columns;
+            HeightSpan[] spans = this.spans;
+
+            Parallel.For(0, 9, t =>
+            {
+                switch (t)
+                {
+                    case 0:
                     {
-                        case 0:
+                        int x = 0;
+                        int z = 0;
+                        int index = 0;
+                        CalculateNeighboursBody<RightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        options.StepTask();
+                        break;
+                    }
+                    case 1:
+                    {
+                        int x = 0;
+                        Parallel.For(1, zM, z =>
                         {
-                            int x = 0;
+                            int index = resolution.GetIndex(x, z);
+                            CalculateNeighboursBody<RightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                            options.StepTask();
+                        });
+                        break;
+                    }
+                    case 2:
+                    {
+                        int x = 0;
+                        int z = zM;
+                        int index = resolution.GetIndex(x, z);
+                        CalculateNeighboursBody<RightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        options.StepTask();
+                        break;
+                    }
+                    case 3:
+                    {
+                        Parallel.For(1, xM, x =>
+                        {
                             int z = 0;
-                            int index = 0;
-                            CalculateNeighboursBody<RightForward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            break;
-                        }
-                        case 1:
+                            int index = resolution.GetIndex(x, z);
+                            CalculateNeighboursBody<LeftRightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                            options.StepTask();
+                        });
+                        break;
+                    }
+                    case 4:
+                    {
+                        int xW = xM - 1;
+                        int zW = zM - 1;
+                        Parallel.For(0, xW * zW, i =>
                         {
-                            int x = 0;
-                            Parallel.For(1, zM, z =>
-                            {
-                                int index = resolution_.GetIndex(x, z);
-                                CalculateNeighboursBody<RightForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            });
-                            break;
-                        }
-                        case 2:
+                            int x = (i / zW) + 1;
+                            int z = (i % zW) + 1;
+                            int index = resolution.GetIndex(x, z);
+                            CalculateNeighboursBody<LeftRightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                            options.StepTask();
+                        });
+                        break;
+                    }
+                    case 5:
+                    {
+                        Parallel.For(1, xM, x =>
                         {
-                            int x = 0;
                             int z = zM;
-                            int index = resolution_.GetIndex(x, z);
-                            CalculateNeighboursBody<RightBackwardIncrement>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            break;
-                        }
-                        case 3:
-                        {
-                            Parallel.For(1, xM, x =>
-                            {
-                                int z = 0;
-                                int index = resolution_.GetIndex(x, z);
-                                CalculateNeighboursBody<LeftRightForward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            });
-                            break;
-                        }
-                        case 4:
-                        {
-                            int xW = xM - 1;
-                            int zW = zM - 1;
-                            Parallel.For(0, xW * zW, i =>
-                            {
-                                int x = (i / zW) + 1;
-                                int z = (i % zW) + 1;
-                                int index = resolution_.GetIndex(x, z);
-                                CalculateNeighboursBody<LeftRightForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            });
-                            break;
-                        }
-                        case 5:
-                        {
-                            Parallel.For(1, xM, x =>
-                            {
-                                int z = zM;
-                                int index = resolution_.GetIndex(x, z);
-                                CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            });
-                            break;
-                        }
-                        case 6:
+                            int index = resolution.GetIndex(x, z);
+                            CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                            options.StepTask();
+                        });
+                        break;
+                    }
+                    case 6:
+                    {
+                        int x = xM;
+                        int z = 0;
+                        int index = resolution.GetIndex(x, z);
+                        CalculateNeighboursBody<LeftForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        options.StepTask();
+                        break;
+                    }
+                    case 7:
+                    {
+                        Parallel.For(1, zM, z =>
                         {
                             int x = xM;
-                            int z = 0;
-                            int index = resolution_.GetIndex(x, z);
-                            CalculateNeighboursBody<LeftForward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            break;
-                        }
-                        case 7:
-                        {
-                            Parallel.For(1, zM, z =>
-                            {
-                                int x = xM;
-                                int index = resolution_.GetIndex(x, z);
-                                CalculateNeighboursBody<LeftForwardBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            });
-                            break;
-                        }
-                        case 8:
-                        {
-                            int x = xM;
-                            int z = zM;
-                            int index = resolution_.GetIndex(x, z);
-                            CalculateNeighboursBody<LeftBackward>(resolution_, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            break;
-                        }
+                            int index = resolution.GetIndex(x, z);
+                            CalculateNeighboursBody<LeftForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                            options.StepTask();
+                        });
+                        break;
                     }
-                });
-            }
-            else
-            {
-                int index = 0;
-
-                int x = 0;
-                {
-                    int z = 0;
-                    CalculateNeighboursBody<RightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    for (z++; z < zM; z++)
-                        CalculateNeighboursBody<RightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    Debug.Assert(z == zM);
-                    CalculateNeighboursBody<RightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                }
-
-                for (x++; x < xM; x++)
-                {
-                    int z = 0;
-                    CalculateNeighboursBody<LeftRightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    for (z = 1; z < zM; z++)
+                    case 8:
                     {
-                        /* This is the true body of this function.
-                         * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
-                         * TODO: Does this actually improves perfomance? */
-                        CalculateNeighboursBody<LeftRightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        int x = xM;
+                        int z = zM;
+                        int index = resolution.GetIndex(x, z);
+                        CalculateNeighboursBody<LeftBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        options.StepTask();
+                        break;
                     }
-
-                    Debug.Assert(z == zM);
-                    CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
                 }
-
-                Debug.Assert(x == xM);
-                {
-                    int z = 0;
-                    CalculateNeighboursBody<LeftForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    for (z++; z < zM; z++)
-                        CalculateNeighboursBody<LeftForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    Debug.Assert(z == zM);
-                    CalculateNeighboursBody<LeftBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                }
-            }
+            });
         }
 
         private struct LeftRightForwardBackward { }

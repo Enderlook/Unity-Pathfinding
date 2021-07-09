@@ -27,6 +27,7 @@ namespace Enderlook.Unity.Pathfinding2
         private Contours contours;
 
         (int, int, int) resolution = (60, 12, 60);
+        private MeshGenerationOptions options;
         private Bounds bounds;
 
         private void OnDrawGizmos()
@@ -42,7 +43,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             if (work == 1)
             {
-                Debug.Log("Working");
+                Debug.Log($"Working {options.Percentage}");
                 return;
             }
 
@@ -57,7 +58,9 @@ namespace Enderlook.Unity.Pathfinding2
 
         public async ValueTask GenerateAsync()
         {
-            MeshGenerationOptions options = new MeshGenerationOptions();
+            options = new MeshGenerationOptions();
+            bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
+            options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             options.UseMultithreading = true;
 
             options.PushTask(7, "All");
@@ -71,8 +74,6 @@ namespace Enderlook.Unity.Pathfinding2
             if (meshFilters.Length == 0)
                 return;
 
-            bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
-            options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             MeshVoxelizer meshVoxelizer = new MeshVoxelizer(options);
 
             foreach (MeshFilter meshFilter in meshFilters)
@@ -87,8 +88,8 @@ namespace Enderlook.Unity.Pathfinding2
             Utility.UseMultithreading = false;
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            heightField = await HeightField.CreateAsync(voxels, options);
-            openHeightField = new CompactOpenHeightField(heightField, r, 1, 1);
+            heightField = await HeightField.Create(voxels, options);
+            openHeightField = new CompactOpenHeightField(heightField, options);
             return;
             distanceField = new DistanceField(openHeightField, r);
             distanceField2 = distanceField.WithBlur(openHeightField, 1);

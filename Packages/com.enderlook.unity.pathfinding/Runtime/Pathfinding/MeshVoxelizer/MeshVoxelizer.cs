@@ -41,6 +41,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="options">Stores configuration information.</param>
         public MeshVoxelizer(MeshGenerationOptions options)
         {
+            options.Validate();
             this.options = options;
             int length = options.Resolution.Cells;
             voxels = ArrayPool<bool>.Shared.Rent(length);

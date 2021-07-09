@@ -45,8 +45,9 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="voxels">Voxel information of the height field.</param>
         /// <param name="options">Stores configuration information.</param>
         /// <returns>Generated height field.</returns>
-        public static async ValueTask<HeightField> CreateAsync(Memory<bool> voxels, MeshGenerationOptions options)
+        public static async ValueTask<HeightField> Create(Memory<bool> voxels, MeshGenerationOptions options)
         {
+            options.Validate();
             Resolution resolution = options.Resolution;
             int xzLength = resolution.Cells2D;
             Debug.Assert(voxels.Length >= resolution.Cells, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(resolution)}.{nameof(resolution.Cells)}.");
