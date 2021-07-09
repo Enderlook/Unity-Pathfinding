@@ -133,13 +133,13 @@ namespace Enderlook.Unity.Pathfinding2
                     return 1;
                 }
 
-                
                 float pecentage = 0;
                 float factor = 1;
                 for (int i = 0; i < tasks.Count; i++)
                 {
                     (int current, int total) tuple = tasks[i];
-                    pecentage += (tuple.current / tuple.total) * factor;
+                    pecentage += (tuple.current / (float)tuple.total) * factor;
+                    factor *= 1f / tuple.total;
                 }
 
                 int currentStep = this.currentStep;
@@ -149,8 +149,6 @@ namespace Enderlook.Unity.Pathfinding2
                     currentStep = this.currentStep;
                     currentSteps = this.currentSteps;
                 }
-
-                Debug.Log($"{currentStep}/{currentSteps} {string.Join(", ", tasks.Select(e => $"{e.current}/{e.total}"))}");
 
                 Unlock();
 

@@ -84,6 +84,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             Profiler.BeginSample("Enderlook.MeshVoxelizer");
             await meshVoxelizer.Process();
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
             Profiler.EndSample();
 
             Memory<bool> voxels = meshVoxelizer.Voxels;
@@ -91,10 +93,23 @@ namespace Enderlook.Unity.Pathfinding2
             Utility.UseMultithreading = false;
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
+
             heightField = await HeightField.Create(voxels, options);
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
+
             openHeightField = await CompactOpenHeightField.Create(heightField, options);
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
+
             distanceField = await DistanceField.Create(openHeightField, options);
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
+
             distanceField2 = await distanceField.WithBlur(openHeightField, options);
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
+
             return;
             regions = new RegionsField(distanceField, openHeightField, r, 0, 2);
             contours = new Contours(regions, openHeightField, r, 0);
