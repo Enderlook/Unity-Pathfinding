@@ -3,10 +3,7 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
-
-using UnityEditor;
 
 using UnityEngine;
 
@@ -87,11 +84,10 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         int start = spans.Count;
                         SingleThreadWork(resolution, voxels, options, ref spans, x, z);
-                        if (options.StepTaskAndCheckIfMustYield())
-                           await options.Yield();;
-
                         Debug.Assert(index == resolution.GetIndex(x, z));
                         columns[index++] = new HeightColumn(start, spans.Count - start);
+                        if (options.CheckIfMustYield())
+                            await options.Yield();
                     }
                 }
                 return spans.UnderlyingArray;
@@ -106,8 +102,8 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void SingleThreadWork(in Resolution resolution, Memory<bool> voxels, MeshGenerationOptions options, ref RawPooledList<HeightSpan> spans, int x, int z)
         {
-            bool added = false;
             Span<bool> voxels_ = voxels.Span;
+            bool added = false;
             for (int y = 0; y < resolution.Height; y++)
             {
                 bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
@@ -146,8 +142,6 @@ namespace Enderlook.Unity.Pathfinding2
 
                     for (int y = 0; y < resolution.Height; y++)
                     {
-                        options.StepTask();
-
                         bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
                         if (!added)
                         {
@@ -162,6 +156,7 @@ namespace Enderlook.Unity.Pathfinding2
                             else
                                 spans[count++] = new HeightSpan(isSolid);
                         }
+                        options.StepTask();
                     }
                     Debug.Assert(index == resolution.GetIndex(x, z));
                     columns[index] = new HeightColumn(start, count - start);

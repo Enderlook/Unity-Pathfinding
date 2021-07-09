@@ -62,7 +62,8 @@ namespace Enderlook.Unity.Pathfinding2
             options = new MeshGenerationOptions();
             bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
             options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            options.UseMultithreading = true;
+            options.UseMultithreading = false;
+            options.ExecutionTimeSlice = float.PositiveInfinity;
 
             options.PushTask(7, "All");
 

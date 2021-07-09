@@ -130,7 +130,7 @@ namespace Enderlook.Unity.Pathfinding2
                 voxels_.AsSpan(0, voxelsLength).Clear();
 
                 if (options.StepTaskAndCheckIfMustYield())
-                   await options.Yield();;
+                   await options.Yield();
             }
 
             stack.Dispose();

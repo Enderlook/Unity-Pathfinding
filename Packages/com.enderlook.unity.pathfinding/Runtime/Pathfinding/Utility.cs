@@ -20,7 +20,7 @@ namespace Enderlook.Unity.Pathfinding2
         private int currentStep;
         private int currentSteps;
 
-        private float nextYield;
+        private float nextYield = float.PositiveInfinity;
         private int yieldStep;
         private RawPooledQueue<Action> continuations = RawPooledQueue<Action>.Create();
 
@@ -31,7 +31,8 @@ namespace Enderlook.Unity.Pathfinding2
 
         /// <summary>
         /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
-        /// Use 0 to disable this feature.
+        /// Use 0 to disable this feature.<br/>
+        /// For part <see langword="sealed"/> of the execution which must be completed on the main thread, this value is always used regardless of <see cref="UseMultithreading"/> value.
         /// </summary>
         public float ExecutionTimeSlice {
             get => executionTimeSlice == float.PositiveInfinity ? 0 : executionTimeSlice;
@@ -43,7 +44,8 @@ namespace Enderlook.Unity.Pathfinding2
                 void Throw() => throw new ArgumentOutOfRangeException(nameof(value), "Can't be negative.");
             }
         }
-        private float executionTimeSlice = 5;
+
+        private float executionTimeSlice = float.PositiveInfinity;
 
         /// <summary>
         /// Resolution of the voxelization.
@@ -58,18 +60,38 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-
         private Resolution resolution;
 
         /// <summary>
         /// Maximum amount of cells between two floors to be considered neighbours.
         /// </summary>
-        public int MaxTraversableStep;
+        public int MaxTraversableStep {
+            get => maxTraversableStep;
+            set {
+                if (value < 1)
+                    Throw();
+                maxTraversableStep = value;
+
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(maxTraversableStep), "Must be positive.");
+            }
+        }
+
+        private int maxTraversableStep = 1;
 
         /// <summary>
         /// Minimum height between a floor and a ceil to be considered traversable.
         /// </summary>
-        public int MinTraversableHeight;
+        public int MinTraversableHeight {
+            get => minTraversableHeight;
+            set {
+                if (value < 1)
+                    Throw();
+                minTraversableHeight = value;
+
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(minTraversableHeight), "Must be positive.");
+            }
+        }
+        private int minTraversableHeight = 1;
 
         /// <summary>
         /// Get the completition percentage of the generation.
@@ -105,7 +127,7 @@ namespace Enderlook.Unity.Pathfinding2
 
                 if (this.currentSteps == 0)
                     return pecentage;
-                return pecentage + currentStep / currentSteps * factor;
+                return pecentage + (currentStep / currentSteps * factor);
             }
         }
 
@@ -120,7 +142,7 @@ namespace Enderlook.Unity.Pathfinding2
             Lock();
             {
                 if (tasks.Count > 0)
-                    tasks[tasks.Count - 1].current = this.currentStep;
+                    tasks[tasks.Count - 1].current = currentStep;
                 tasks.Add((0, steps));
                 currentStep = step;
                 currentSteps = steps;
@@ -142,8 +164,11 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(tasks.Count > 0);
             Debug.Assert(currentStep < currentSteps);
             Interlocked.Increment(ref currentStep);
-            return Time.fixedTime >= nextYield;
+            return CheckIfMustYield();
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool CheckIfMustYield() => Time.fixedTime >= nextYield;
 
         internal Yielder Yield()
         {
