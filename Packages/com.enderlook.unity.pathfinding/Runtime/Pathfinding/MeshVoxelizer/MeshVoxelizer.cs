@@ -119,6 +119,9 @@ namespace Enderlook.Unity.Pathfinding2
                         for (int j = 0; j < content.verticesCount; j++)
                             content.vertices[j] -= center;
 
+                        if (options.CheckIfMustYield())
+                            await options.Yield();
+
                         Voxelizer.Voxelize(
                             MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
                             content.triangles,
@@ -126,6 +129,9 @@ namespace Enderlook.Unity.Pathfinding2
                             Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
                             (resolution.Width, resolution.Height, resolution.Depth)
                         );
+
+                        if (options.CheckIfMustYield())
+                            await options.Yield();
 
                         // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
                         OrSingleThread(voxels, voxels_, voxelsLength);
@@ -152,7 +158,7 @@ namespace Enderlook.Unity.Pathfinding2
             // This check allow the jitter to remove bound checks in the loop.
             if (a.Length < count || b.Length < count || count == 0)
             {
-                Debug.Assert(false, "Impossible state.");
+                Debug.Assert(false, "Index out of range.");
                 return;
             }
 
@@ -162,7 +168,7 @@ namespace Enderlook.Unity.Pathfinding2
             // This check allow the jitter to remove bound checks in the loop.
             if (a_.Length != b_.Length)
             {
-                Debug.Assert(false, "Impossible state.");
+                Debug.Assert(false, "Index out of range.");
                 return;
             }
 
@@ -184,8 +190,8 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         Task task = Task.Run(() =>
                         {
-                        // TODO: This part could also be parallelized in case too many task are enqueued.
-                        while (!orJobs.IsAddingCompleted)
+                            // TODO: This part could also be parallelized in case too many tasks are enqueued.
+                            while (!orJobs.IsAddingCompleted)
                             {
                                 (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple = orJobs.Take();
                                 try
