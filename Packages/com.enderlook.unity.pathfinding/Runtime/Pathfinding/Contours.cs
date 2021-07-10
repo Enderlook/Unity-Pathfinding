@@ -106,16 +106,15 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
-                        RawPooledList<ContourPoint> simplified = RawPooledList<ContourPoint>.Create();
+                        //RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
                         try
                         {
-                            SimplifyContour(ref edgeContour, ref simplified, maximumEdgeDeviation, maximumEdgeLength);
-                            contours.Add(simplified);
-                            //contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
+                            //contours.Add(simplified);
+                            contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
                         }
                         catch
                         {
-                            simplified.Dispose();
+                            //simplified.Dispose();
                             throw;
                         }
                         spanIndex++;
@@ -133,11 +132,12 @@ namespace Enderlook.Unity.Pathfinding2
                 for (int i = 0; i < spans.Length; i++)
                 {
                     ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+                    ref byte edgeFlag = ref edgeFlags[i];
 
-                    NeighbourMarkFlag(regions, edgeFlags, i, span.Left, LEFT_IS_REGIONAL);
-                    NeighbourMarkFlag(regions, edgeFlags, i, span.Forward, FORWARD_IS_REGIONAL);
-                    NeighbourMarkFlag(regions, edgeFlags, i, span.Right, RIGHT_IS_REGIONAL);
-                    NeighbourMarkFlag(regions, edgeFlags, i, span.Backward, BACKWARD_IS_REGIONAL);
+                    NeighbourMarkFlag(regions, ref edgeFlag, i, span.Left, LEFT_IS_REGIONAL);
+                    NeighbourMarkFlag(regions, ref edgeFlag, i, span.Forward, FORWARD_IS_REGIONAL);
+                    NeighbourMarkFlag(regions, ref edgeFlag, i, span.Right, RIGHT_IS_REGIONAL);
+                    NeighbourMarkFlag(regions, ref edgeFlag, i, span.Backward, BACKWARD_IS_REGIONAL);
                 }
             }
             catch
@@ -334,7 +334,7 @@ namespace Enderlook.Unity.Pathfinding2
             return false;
         }
 
-        private RawPooledList<ContourPoint> SimplifyContour(ref RawPooledList<ContourPoint> edgeContour, ref RawPooledList<ContourPoint> simplified, int maximumEdgeDeviation, int maximumEdgeLength)
+        private RawPooledList<ContourPoint> SimplifyContour(ref RawPooledList<ContourPoint> edgeContour, int maximumEdgeDeviation, int maximumEdgeLength)
         {
             // Add initial points.
             bool hasConnections = false;
@@ -348,6 +348,7 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
 
+            RawPooledList<ContourPoint> simplified = RawPooledList<ContourPoint>.Create();
             try
             {
                 if (hasConnections)
@@ -676,21 +677,18 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void NeighbourMarkFlag(ReadOnlySpan<ushort> regions, byte[] edgeFlags, int i, int neighbour, byte isRegional)
+        private static void NeighbourMarkFlag(ReadOnlySpan<ushort> regions, ref byte edgeFlag, int i, int neighbour, byte isRegional)
         {
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
                 ushort regionNeighbour = regions[neighbour];
                 if (regionNeighbour == RegionsField.NULL_REGION)
-                    edgeFlags[i] |= isRegional;
-                else if (regionNeighbour != regions[i])
-                {
-                    ref byte edgeFlag = ref edgeFlags[i];
                     edgeFlag |= isRegional;
-                }
+                else if (regionNeighbour != regions[i])
+                    edgeFlag |= isRegional;
             }
             else
-                edgeFlags[i] |= isRegional;
+                edgeFlag |= isRegional;
         }
 
         public void DrawGizmos(in Resolution resolution, in CompactOpenHeightField openHeightField, in RegionsField regionsField)
@@ -744,6 +742,7 @@ namespace Enderlook.Unity.Pathfinding2
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => (ushort)(payload & ushort.MaxValue);
             }
+
             public bool IsBorder {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => (payload & 1 << 16) != 0;
