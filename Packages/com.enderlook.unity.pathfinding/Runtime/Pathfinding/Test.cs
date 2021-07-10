@@ -45,17 +45,17 @@ namespace Enderlook.Unity.Pathfinding2
             if (work == 1)
             {
                 options.Poll();
-                Debug.Log($"Working {options.GetCompletitionPercentage() * 100}%");
+                Debug.Log($"Working {options.Progress * 100}%");
                 return;
             }
-
+            Debug.Log($"Working {options.Progress * 100}%");
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             //heightField.DrawGizmos(r, false);
             //openHeightField.DrawGizmos(r, false, true);
             //distanceField.DrawGizmos(r, openHeightField);
-            distanceField2.DrawGizmos(r, openHeightField);
-            //regions.DrawGizmos(r, openHeightField);
-            //contours.DrawGizmos(r, openHeightField, regions);
+            //distanceField2.DrawGizmos(r, openHeightField);
+            regions.DrawGizmos(r, openHeightField);
+            contours.DrawGizmos(r, openHeightField, regions);
         }
 
         public async ValueTask GenerateAsync()
@@ -64,9 +64,9 @@ namespace Enderlook.Unity.Pathfinding2
             bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
             options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             options.UseMultithreading = false;
-            options.ExecutionTimeSlice = 0.01f;
+            options.ExecutionTimeSlice = 0.0025f;
 
-            options.PushTask(6, "All");
+            options.PushTask(7, "All");
 
             MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>();
             foreach (MeshFilter meshFilter in meshFilters)
@@ -82,15 +82,11 @@ namespace Enderlook.Unity.Pathfinding2
             foreach (MeshFilter meshFilter in meshFilters)
                 meshVoxelizer.Enqueue(meshFilter);
 
-            Profiler.BeginSample("Enderlook.MeshVoxelizer");
             await meshVoxelizer.Process();
             if (options.StepTaskAndCheckIfMustYield())
                 await options.Yield();
-            Profiler.EndSample();
 
             Memory<bool> voxels = meshVoxelizer.Voxels;
-
-            Utility.UseMultithreading = false;
 
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
 
@@ -110,18 +106,24 @@ namespace Enderlook.Unity.Pathfinding2
             if (options.StepTaskAndCheckIfMustYield())
                 await options.Yield();
 
-            return;
-            regions = new RegionsField(distanceField, openHeightField, r, 0, 2);
-            contours = new Contours(regions, openHeightField, r, 0);
 
-            /*Profiler.BeginSample("Enderlook.Dispose");
+
+            regions = new RegionsField(distanceField2, openHeightField, options);
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
+
+            contours = new Contours(regions, openHeightField, r, 0);
+            if (options.StepTaskAndCheckIfMustYield())
+                await options.Yield();
+
+            /*
             heightField.Dispose();
             openHeightField.Dispose();
             distanceField.Dispose();
             distanceField2.Dispose();
             regions.Dispose();
             contours.Dispose();
-            Profiler.EndSample();*/
+            */
         }
 
         private void Time(Action a)

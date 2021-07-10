@@ -35,6 +35,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <return>New distance field.</return>
         public static async ValueTask<DistanceField> Create(CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
+            options.Validate();
             openHeightField.DebugAssert(nameof(openHeightField), options.Resolution, $"{nameof(options)}.{nameof(options.Resolution)}");
 
             int spansCount = openHeightField.SpansCount;
@@ -101,6 +102,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <returns>New blurred distance field.</returns>
         public async ValueTask<DistanceField> WithBlur(CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
+            options.Validate();
             Debug.Assert(options.DistanceBlurThreshold > 0);
 
             int threshold = options.DistanceBlurThreshold * 2;
@@ -113,7 +115,7 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 options.PushTask(spansCount, "Blur Distance Field");
                 {
-                    if (Utility.UseMultithreading)
+                    if (options.UseMultithreading)
                         Parallel.For(0, spansCount, i =>
                         {
                             Blur(threshold, openHeightField.Spans, distances, ref newMaximumDistance, newDistances, i);

@@ -258,8 +258,8 @@ namespace Enderlook.Unity.Pathfinding2
         private static async ValueTask CalculateNeighboursSingleThread(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
             Resolution resolution = options.Resolution;
-            int maxTraversableStep = options.MaxTraversableStep;
-            int minTraversableHeight = options.MaxTraversableStep;
+            int maxTraversableStep = options.MaximumTraversableStep;
+            int minTraversableHeight = options.MaximumTraversableStep;
 
             int xM = resolution.Width - 1;
             int zM = resolution.Depth - 1;
@@ -326,8 +326,8 @@ namespace Enderlook.Unity.Pathfinding2
         private static void CalculateNeighboursMultiThread(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
             Resolution resolution = options.Resolution;
-            int maxTraversableStep = options.MaxTraversableStep;
-            int minTraversableHeight = options.MaxTraversableStep;
+            int maxTraversableStep = options.MaximumTraversableStep;
+            int minTraversableHeight = options.MaximumTraversableStep;
 
             int xM = resolution.Width - 1;
             int zM = resolution.Depth - 1;

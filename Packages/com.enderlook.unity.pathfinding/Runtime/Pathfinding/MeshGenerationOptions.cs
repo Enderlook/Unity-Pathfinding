@@ -1,7 +1,6 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
 
 using System;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -9,11 +8,6 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding2
 {
-    internal static class Utility
-    {
-        public /*readonly*/ static bool UseMultithreading = Application.platform == RuntimePlatform.WebGLPlayer || SystemInfo.processorCount == 1;
-    }
-
     public sealed class MeshGenerationOptions
     {
         private int @lock;
@@ -76,33 +70,33 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Maximum amount of cells between two floors to be considered neighbours.
         /// </summary>
-        public int MaxTraversableStep {
-            get => maxTraversableStep;
+        public int MaximumTraversableStep {
+            get => maximumTraversableStep;
             set {
                 if (value < 1)
                     Throw();
-                maxTraversableStep = value;
+                maximumTraversableStep = value;
 
-                void Throw() => throw new ArgumentOutOfRangeException(nameof(maxTraversableStep), "Must be positive.");
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(maximumTraversableStep), "Must be positive.");
             }
         }
 
-        private int maxTraversableStep = 1;
+        private int maximumTraversableStep = 1;
 
         /// <summary>
         /// Minimum height between a floor and a ceil to be considered traversable.
         /// </summary>
-        public int MinTraversableHeight {
-            get => minTraversableHeight;
+        public int MininimumTraversableHeight {
+            get => minimumTraversableHeight;
             set {
                 if (value < 1)
                     Throw();
-                minTraversableHeight = value;
+                minimumTraversableHeight = value;
 
-                void Throw() => throw new ArgumentOutOfRangeException(nameof(minTraversableHeight), "Must be positive.");
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(minimumTraversableHeight), "Must be positive.");
             }
         }
-        private int minTraversableHeight = 1;
+        private int minimumTraversableHeight = 1;
 
         /// <summary>
         /// Minimum distance for blur.
@@ -120,41 +114,74 @@ namespace Enderlook.Unity.Pathfinding2
         private int distanceBlurThreshold = 1;
 
         /// <summary>
+        /// Size of the agent that will traverse this regions.
+        /// </summary>
+        public int AgentSize {
+            get => agentSize;
+            set {
+                if (value < 1)
+                    Throw();
+                agentSize = value;
+
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(agentSize), "Can't be negative.");
+            }
+        }
+        private int agentSize;
+
+        /// <summary>
+        /// Regions with less that this amount of voxels are nullified.
+        /// </summary>
+        public int MinimumRegionSurface {
+            get => minimumRegionSurface;
+            set {
+                if (value < 1)
+                    Throw();
+                minimumRegionSurface = value;
+
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(minimumRegionSurface), "Can't be negative.");
+            }
+        }
+        private int minimumRegionSurface = 2;
+
+        /// <summary>
         /// Get the completition percentage of the generation.
         /// </summary>
         /// <returns>Completition percentage.</returns>
-        public float GetCompletitionPercentage()
-        {
-            Lock();
-            {
-                if (tasks.Count == 0)
+        public float Progress {
+            get {
+                Lock();
                 {
+                    if (tasks.Count == 0)
+                    {
+                        Unlock();
+                        return 1;
+                    }
+
+                    float pecentage = 0;
+                    float factor = 1;
+                    for (int i = 0; i < tasks.Count - 1; i++)
+                    {
+                        (int current, int total) tuple = tasks[i];
+                        pecentage += (tuple.current / (float)tuple.total) * factor;
+                        factor *= 1f / tuple.total;
+                    }
+
+                    int currentStep = this.currentStep;
+                    int currentSteps = this.currentSteps;
+                    int j = 0;
+                    while (currentStep > currentSteps && j++ < 100)
+                    {
+                        currentStep = this.currentStep;
+                        currentSteps = this.currentSteps;
+                    }
+                    Debug.Assert(currentStep <= currentSteps);
+
                     Unlock();
-                    return 1;
+
+                    if (this.currentSteps == 0)
+                        return pecentage;
+                    return pecentage + (currentStep / (float)currentSteps * factor);
                 }
-
-                float pecentage = 0;
-                float factor = 1;
-                for (int i = 0; i < tasks.Count; i++)
-                {
-                    (int current, int total) tuple = tasks[i];
-                    pecentage += (tuple.current / (float)tuple.total) * factor;
-                    factor *= 1f / tuple.total;
-                }
-
-                int currentStep = this.currentStep;
-                int currentSteps = this.currentSteps;
-                while (currentStep > currentSteps)
-                {
-                    currentStep = this.currentStep;
-                    currentSteps = this.currentSteps;
-                }
-
-                Unlock();
-
-                if (this.currentSteps == 0)
-                    return pecentage;
-                return pecentage + (currentStep / (float)currentSteps * factor);
             }
         }
 
@@ -188,9 +215,7 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool StepTaskAndCheckIfMustYield()
         {
-            Debug.Assert(tasks.Count > 0);
-            Debug.Assert(currentStep < currentSteps);
-            Interlocked.Increment(ref currentStep);
+            StepTask();
             return CheckIfMustYield();
         }
 

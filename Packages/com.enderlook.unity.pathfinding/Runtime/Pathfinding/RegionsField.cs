@@ -27,13 +27,13 @@ namespace Enderlook.Unity.Pathfinding2
         /// </summary>
         /// <param name="distanceField">Distance field whose regions is being calculated.</param>
         /// <param name="openHeightField">Open height field owner of the <paramref name="distanceField"/>.</param>
-        /// <param name="resolution">Resolution of <paramref name="openHeightField"/>.</param>
-        /// <param name="agentSize">Size of the agent that will traverse this regions.</param>
-        /// <param name="minRegionSurface">Regions with less that this amount of voxels are nullified.</param>
-        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, in Resolution resolution, int agentSize, int minRegionSurface)
+        /// <param name="options">Stores configuration information.</param>
+        /// <returns>The generated regions field.</return>
+        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            openHeightField.DebugAssert(nameof(openHeightField), resolution, nameof(resolution));
-            distanceField.DebugAssert(nameof(distanceField), resolution, nameof(resolution));
+            Resolution resolution = options.Resolution;
+            openHeightField.DebugAssert(nameof(openHeightField), resolution, $"{nameof(options)}.{nameof(resolution)}");
+            distanceField.DebugAssert(nameof(distanceField), resolution,  $"{nameof(options)}.{nameof(resolution)}");
 
             ReadOnlySpan<ushort> distances = distanceField.Distances;
             regionsCount = distances.Length;
@@ -53,6 +53,7 @@ namespace Enderlook.Unity.Pathfinding2
                     int[] tmp = ArrayPool<int>.Shared.Rent(0);
                     try
                     {
+                        int agentSize = options.AgentSize;
                         for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
                         {
                             ExpandAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
@@ -62,7 +63,7 @@ namespace Enderlook.Unity.Pathfinding2
                         // TODO: Handle small regions by deleting them or merging them.
 
                         Debug.Assert(regions.Count < ushort.MaxValue);
-                        NullifySmallRegions(ref regions, (ushort)regions.Count, minRegionSurface);
+                        NullifySmallRegions(ref regions, (ushort)regions.Count, options.MinimumRegionSurface);
                     }
                     finally
                     {
