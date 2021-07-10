@@ -310,14 +310,10 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             // Check if the vertex is special edge vertex, these vertices will be removed later.
-            if (IsSpecialEdgeVertex(region0, region1, region2, region3))
-                return true;
-            else if (IsSpecialEdgeVertex(region1, region2, region3, region0))
-                return true;
-            else if (IsSpecialEdgeVertex(region2, region3, region0, region1))
-                return true;
-            else
-                return IsSpecialEdgeVertex(region3, region0, region1, region2);
+            return IsSpecialEdgeVertex(region0, region1, region2, region3)
+                || IsSpecialEdgeVertex(region1, region2, region3, region0)
+                || IsSpecialEdgeVertex(region2, region3, region0, region1)
+                || IsSpecialEdgeVertex(region3, region0, region1, region2);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -554,36 +550,37 @@ namespace Enderlook.Unity.Pathfinding2
              * s s
              * That means we have from 1 to 4 different Y values, which one we must choose?
              * We choose the highest value of them.
-             * This ensures that te final vertex is above the surface of the source mesh.
+             * This ensures that the final vertex is above the surface of the source mesh.
              * And provides a common selection mechanism so that all contours that use the vertex will use the same height.
              */
             ref readonly CompactOpenHeightField.HeightSpan span = ref spans[spanIndex];
             y = span.Floor;
-            switch (direction)
+
+            // Don't use a switch statement because the Jitter doesn't inline them.
+            if (direction == CompactOpenHeightField.HeightSpan.LEFT_DIRECTION)
             {
-                case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION:
-                    spanIndex = span.Left;
-                    x--;
-                    y = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, y, in span);
-                    break;
-                case CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION:
-                    spanIndex = span.Forward;
-                    z++;
-                    y = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, y, in span);
-                    break;
-                case CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION:
-                    spanIndex = span.Right;
-                    x++;
-                    y = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, y, in span);
-                    break;
-                case CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION:
-                    spanIndex = span.Backward;
-                    z--;
-                    y = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, y, in span);
-                    break;
-                default:
-                    Debug.Assert(false, "Impossible state");
-                    goto case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION;
+                spanIndex = span.Left;
+                x--;
+                y = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, y, in span);
+            }
+            else if (direction == CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION)
+            {
+                spanIndex = span.Forward;
+                z++;
+                y = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, y, in span);
+            }
+            else if (direction == CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION)
+            {
+                spanIndex = span.Right;
+                x++;
+                y = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, y, in span);
+            }
+            else
+            {
+                Debug.Assert(direction == CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION);
+                spanIndex = span.Backward;
+                z--;
+                y = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, y, in span);
             }
         }
 
@@ -651,19 +648,17 @@ namespace Enderlook.Unity.Pathfinding2
         {
             px = x;
             pz = z;
-            switch (direction)
+
+            // Don't use a switch statement because the Jitter doesn't inline them.
+            if (direction == CompactOpenHeightField.HeightSpan.LEFT_DIRECTION)
+                pz++;
+            else if (direction == CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION)
             {
-                case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION:
-                    pz++;
-                    break;
-                case CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION:
-                    px++;
-                    pz++;
-                    break;
-                case CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION:
-                    px++;
-                    break;
+                px++;
+                pz++;
             }
+            else if (direction == CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION)
+                px++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

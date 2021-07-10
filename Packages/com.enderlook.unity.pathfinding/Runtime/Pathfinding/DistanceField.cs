@@ -279,36 +279,31 @@ namespace Enderlook.Unity.Pathfinding2
                 ref readonly CompactOpenHeightField.HeightSpan spanNeighbour = ref spans[neighbour];
 
                 ref byte statusNeighbour = ref status[neighbour];
-                switch (statusNeighbour)
+                // Don't use a switch statement because the Jitter doesn't inline them.
+                if (statusNeighbour == STATUS_OPEN)
                 {
-                    case STATUS_OPEN:
-                        handeling.Enqueue(neighbour);
+                    handeling.Enqueue(neighbour);
+                    statusNeighbour = STATUS_IN_PROGRESS;
+                    distances[neighbour] = (ushort)(distances[i] + 1);
+                }
+                else if (statusNeighbour == STATUS_IN_PROGRESS)
+                {
+                    ref ushort distanceI = ref distances[i];
+                    ref ushort distanceNeighbour = ref distances[neighbour];
+                    if (distanceI + 1 < distanceNeighbour)
+                        distanceNeighbour = distanceI;
+                }
+                else
+                {
+                    Debug.Assert(statusNeighbour == STATUS_CLOSED);
+                    ref ushort distanceI = ref distances[i];
+                    ref ushort distanceNeighbour = ref distances[neighbour];
+                    if (distanceI + 1 < distanceNeighbour)
+                    {
+                        distanceNeighbour = (ushort)(distanceI + 1);
                         statusNeighbour = STATUS_IN_PROGRESS;
-                        distances[neighbour] = (ushort)(distances[i] + 1);
-                        break;
-                    case STATUS_IN_PROGRESS:
-                    {
-                        ref ushort distanceI = ref distances[i];
-                        ref ushort distanceNeighbour = ref distances[neighbour];
-                        if (distanceI + 1 < distanceNeighbour)
-                            distanceNeighbour = distanceI;
-                        break;
+                        handeling.Enqueue(neighbour);
                     }
-                    case STATUS_CLOSED:
-                    {
-                        ref ushort distanceI = ref distances[i];
-                        ref ushort distanceNeighbour = ref distances[neighbour];
-                        if (distanceI + 1 < distanceNeighbour)
-                        {
-                            distanceNeighbour = (ushort)(distanceI + 1);
-                            statusNeighbour = STATUS_IN_PROGRESS;
-                            handeling.Enqueue(neighbour);
-                        }
-                        break;
-                    }
-                    default:
-                        Debug.Assert(false, "Impossible state.");
-                        goto case STATUS_CLOSED;
                 }
             }
         }
