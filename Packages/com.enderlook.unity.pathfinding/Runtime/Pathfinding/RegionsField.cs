@@ -29,7 +29,10 @@ namespace Enderlook.Unity.Pathfinding2
         private static bool IsBorderRegion(ushort region) => (region & BORDER_REGION_FLAG) != 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ushort SetBorderRegion(ushort region) => (ushort)(region | BORDER_REGION_FLAG);
+        private static ushort SetOnBorderRegion(ushort region) => (ushort)(region | BORDER_REGION_FLAG);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort SetOffBorderRegion(ushort region) => (ushort)(region & ~BORDER_REGION_FLAG);
 
         /// <summary>
         /// Calculates the regions of the specified distance field.
@@ -71,9 +74,10 @@ namespace Enderlook.Unity.Pathfinding2
                             FindNewBasins(distances, spans, ref regions, ref regionId, ref tmp, waterLevel);
                         }
 
+                        Debug.Assert(regionId <= SetOffBorderRegion(ushort.MaxValue));
+
                         // TODO: Handle small regions by deleting them or merging them.
 
-                        Debug.Assert(regions.Count < ushort.MaxValue);
                         NullifySmallRegions(ref regions, options);
                     }
                     finally
@@ -110,8 +114,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             Resolution resolution = options.Resolution;
 
-            ushort region0 = SetBorderRegion(regionId++);
-            ushort region1 = SetBorderRegion(regionId++);
+            ushort region0 = SetOnBorderRegion(regionId++);
+            ushort region1 = SetOnBorderRegion(regionId++);
 
             int xBorder = Math.Min(border, resolution.Width);
             int zBorder = Math.Min(border, resolution.Depth);
@@ -133,8 +137,8 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }
 
-            ushort region2 = SetBorderRegion(regionId++);
-            ushort region3 = SetBorderRegion(regionId++);
+            ushort region2 = SetOnBorderRegion(regionId++);
+            ushort region3 = SetOnBorderRegion(regionId++);
             for (int z = 0; z < resolution.Depth; z++)
             {
                 int index = resolution.GetIndex(0, z);
@@ -535,11 +539,13 @@ namespace Enderlook.Unity.Pathfinding2
             for (int i = 0; i < regionsCount; i++)
             {
                 ref ushort region = ref regions[i];
-                if (region - 1 - 4 >= 0)
-                    continue;
                 Debug.Assert(NULL_REGION == 0);
-                // The -1 is because NULL_REGION is 0, and -4 because the first 4 regions are borders and aren't stored on the list.
-                if (regionsBuilder[region - 1 - 4].count < minimumRegionSurface)
+                ushort region_ = SetOffBorderRegion(region);
+                // The 1 is because NULL_REGION is 0, and 4 because the first 4 regions are borders and aren't stored on the list.
+                if (region_ < (1 + 4))
+                    continue;
+                ushort index = (ushort)(region_ - 1 - 4);
+                if (regionsBuilder[index].count < minimumRegionSurface)
                     region = NULL_REGION;
             }
         }
