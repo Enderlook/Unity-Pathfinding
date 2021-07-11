@@ -241,7 +241,7 @@ namespace Enderlook.Unity.Pathfinding2
             if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 return;
 
-            if (distances[neighbour] == waterLevel && regions[neighbour] == NULL_REGION)
+            if (distances[neighbour] >= waterLevel && regions[neighbour] == NULL_REGION)
             {
                 Debug.Assert(regions[neighbour] != region.id);
                 regions[neighbour] = region.id;
@@ -256,7 +256,7 @@ namespace Enderlook.Unity.Pathfinding2
             if (neighbour_ == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 return;
 
-            if (distances[neighbour_] == waterLevel && regions[neighbour_] == NULL_REGION)
+            if (distances[neighbour_] >= waterLevel && regions[neighbour_] == NULL_REGION)
             {
                 Debug.Assert(regions[neighbour_] != region.id);
                 regions[neighbour_] = region.id;
