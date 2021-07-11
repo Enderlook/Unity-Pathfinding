@@ -186,7 +186,19 @@ namespace Enderlook.Unity.Pathfinding2
             else
             {
                 ref readonly CompactOpenHeightField.HeightSpan neighbourSpan = ref spans[j];
-                int k = neighbourSpan.GetSideRotatedClockwise<T>();
+                int k;
+                if (typeof(T) == typeof(Side.Left))
+                    k = neighbourSpan.Right;
+                else if (typeof(T) == typeof(Side.Right))
+                    k = neighbourSpan.Forward;
+                else if (typeof(T) == typeof(Side.Forward))
+                    k = neighbourSpan.Backward;
+                else
+                {
+                    Debug.Assert(typeof(T) == typeof(Side.Backward));
+                    k = neighbourSpan.Left;
+                }
+
                 if (k == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                     accumulatedDistance += distance;
                 else

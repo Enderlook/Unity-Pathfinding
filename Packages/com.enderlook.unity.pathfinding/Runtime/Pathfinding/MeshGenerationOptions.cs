@@ -21,7 +21,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Whenever it should use multithreading internally or be single threaded.
         /// </summary>
-        public bool UseMultithreading;
+        public bool UseMultithreading = Application.platform != RuntimePlatform.WebGLPlayer && SystemInfo.processorCount > 1;
 
         /// <summary>
         /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>

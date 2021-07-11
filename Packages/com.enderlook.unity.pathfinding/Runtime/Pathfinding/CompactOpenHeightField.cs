@@ -700,6 +700,9 @@ namespace Enderlook.Unity.Pathfinding2
                 First = first;
                 Last = last;
             }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Span<T> Span<T>(Span<T> span) => span.Slice(First, Last);
         }
 
         internal readonly struct HeightSpan
@@ -775,26 +778,6 @@ namespace Enderlook.Unity.Pathfinding2
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static int RotateCounterClockwise(int direction) => (direction + 3) & 0x3;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int GetSideRotatedClockwise<T>()
-            {
-                Side.DebugAssert<T>();
-
-                if (typeof(T) == typeof(Side.Left))
-                    return Right;
-                else if (typeof(T) == typeof(Side.Right))
-                    return Forward;
-                else if (typeof(T) == typeof(Side.Forward))
-                    return Backward;
-                else if (typeof(T) == typeof(Side.Backward))
-                    return Left;
-                else
-                {
-                    Debug.Assert(false);
-                    return 0;
-                }
-            }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void SetDirectionWithOffset(int direction, ref int x, ref int z)
