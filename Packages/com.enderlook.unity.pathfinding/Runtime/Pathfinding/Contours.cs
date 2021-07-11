@@ -487,7 +487,7 @@ namespace Enderlook.Unity.Pathfinding2
                             }
                         }
 
-                        // If the maximum deviation is larget than accepted error, add new point, else continue to next segment.
+                        // If the maximum deviation is larger than accepted error, add new point, else continue to next segment.
                         if (maximumI != -1)
                         {
                             ContourPoint pointMaximumI = edgeContour[maximumI];
