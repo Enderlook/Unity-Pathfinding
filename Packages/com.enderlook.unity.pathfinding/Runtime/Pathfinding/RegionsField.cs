@@ -224,6 +224,24 @@ namespace Enderlook.Unity.Pathfinding2
                     }
                 }*/
 
+                /*ushort ar = 0;
+                ushort regionId = region.id;
+                A<Side.Left>(spans, regionId, ref ar, span.Left);
+                A<Side.Forward>(spans, regionId, ref ar, span.Forward);
+                A<Side.Right>(spans, regionId, ref ar, span.Right);
+                A<Side.Backward>(spans, regionId, ref ar, span.Backward);
+
+                if (ar != 0)
+                {
+                    regions[value] = NULL_REGION;
+                    continue;
+                }
+
+                B<Side.Left>(distances, waterLevel, regionId, span, ref stack);
+                B<Side.Forward>(distances, waterLevel, regionId, span, ref stack);
+                B<Side.Right>(distances, waterLevel, regionId, span, ref stack);
+                B<Side.Backward>(distances, waterLevel, regionId, span, ref stack);*/
+                
                 FloodRegionCheckNeighbour<Side.Left>(spans, distances, waterLevel, ref region, ref stack, span.Left);
                 FloodRegionCheckNeighbour<Side.Forward>(spans, distances, waterLevel, ref region, ref stack, span.Forward);
                 FloodRegionCheckNeighbour<Side.Right>(spans, distances, waterLevel, ref region, ref stack, span.Right);
@@ -232,6 +250,52 @@ namespace Enderlook.Unity.Pathfinding2
 
             tmp = stack.UnderlyingArray;
         }
+
+        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void A<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int regionId, ref ushort ar, int neighbour)
+        {
+            Side.DebugAssert<T>();
+
+            if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                return;
+
+            ushort neighbourRegion = regions[neighbour];
+            if (neighbourRegion == NULL_REGION)
+                return;
+
+            if (neighbourRegion != regionId)
+                ar = neighbourRegion;
+
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[neighbour];
+
+            int neighbour_ = span.GetSideRotatedClockwise<T>();
+            if (neighbour_ == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                return;
+
+            ushort neighbourRegion_ = regions[neighbour_];
+            if (neighbourRegion_ == NULL_REGION)
+                return;
+
+            if (neighbourRegion_ != regionId)
+                ar = neighbourRegion_;
+        }*/
+
+        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void B<T>(ReadOnlySpan<ushort> distances, int waterLevel, ushort regionId, in CompactOpenHeightField.HeightSpan span, ref RawPooledStack<int> stack)
+        {
+            Side.DebugAssert<T>();
+
+            int neighbour = span.GetSide<T>();
+
+            if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                return;
+            if (distances[neighbour] >= waterLevel && regions[neighbour] == NULL_REGION)
+            {
+                regions[neighbour] = regionId;
+                Unsafe.AsRef(distances[neighbour]) = 0;
+                stack.Push(neighbour);
+            }
+        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void FloodRegionCheckNeighbour<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, ref RawPooledStack<int> stack, int neighbour)
