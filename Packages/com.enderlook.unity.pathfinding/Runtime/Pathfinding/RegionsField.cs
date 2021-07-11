@@ -523,7 +523,7 @@ namespace Enderlook.Unity.Pathfinding2
         private void NullifySmallRegions(ref RawPooledList<Region> regionsBuilder, MeshGenerationOptions options)
         {
             int minimumRegionSurface = options.MinimumRegionSurface;
-            if (minimumRegionSurface < 1)
+            if (minimumRegionSurface <= 1)
                 return;
 
             if (unchecked((uint)regionsCount >= (uint)regions.Length))
