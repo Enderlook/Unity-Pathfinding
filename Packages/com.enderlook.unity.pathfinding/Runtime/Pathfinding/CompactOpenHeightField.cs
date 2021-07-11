@@ -780,6 +780,26 @@ namespace Enderlook.Unity.Pathfinding2
             public static int RotateCounterClockwise(int direction) => (direction + 3) & 0x3;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int GetSideRotatedClockwise<T>()
+            {
+                Side.DebugAssert<T>();
+
+                if (typeof(T) == typeof(Side.Left))
+                    return Forward;
+                else if (typeof(T) == typeof(Side.Forward))
+                    return Right;
+                else if (typeof(T) == typeof(Side.Right))
+                    return Backward;
+                else if (typeof(T) == typeof(Side.Backward))
+                    return Left;
+                else
+                {
+                    Debug.Assert(false);
+                    return 0;
+                }
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void SetDirectionWithOffset(int direction, ref int x, ref int z)
             {
                 Debug.Assert(direction >= 0 && direction < 4);

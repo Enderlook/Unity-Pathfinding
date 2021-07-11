@@ -190,19 +190,19 @@ namespace Enderlook.Unity.Pathfinding2
                     int neighbour = span.GetSide(direction);
                     if (neighbour == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                         continue;
-                    ushort nr = regions[neighbour];
-                    if (nr == NULL_REGION)
+                    ushort neighbourRegion = regions[neighbour];
+                    if (neighbourRegion == NULL_REGION)
                         continue;
-                    if (nr != region.id)
-                        ar = nr;
+                    if (neighbourRegion != region.id)
+                        ar = neighbourRegion;
 
                     ref readonly CompactOpenHeightField.HeightSpan span_ = ref spans[neighbour];
                     int neighbour_ = span_.GetSide(CompactOpenHeightField.HeightSpan.RotateClockwise(neighbour));
                     if (neighbour_ == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                         continue;
-                    ushort nr_ = regions[neighbour_];
-                    if (nr_ != region.id)
-                        ar = nr_;
+                    ushort neighbourRegion_ = regions[neighbour_];
+                    if (neighbourRegion_ != region.id)
+                        ar = neighbourRegion_;
                 }
                 if (ar != 0)
                 {
@@ -252,22 +252,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             ref readonly CompactOpenHeightField.HeightSpan span = ref spans[neighbour];
 
-            int neighbour_;
-
-            if (typeof(T) == typeof(Side.Left))
-                neighbour_ = span.Forward;
-            else if (typeof(T) == typeof(Side.Forward))
-                neighbour_ = span.Right;
-            else if (typeof(T) == typeof(Side.Right))
-                neighbour_ = span.Backward;
-            else if (typeof(T) == typeof(Side.Backward))
-                neighbour_ = span.Left;
-            else
-            {
-                Debug.Assert(false, "Impossible state.");
-                return;
-            }
-
+            int neighbour_ = span.GetSideRotatedClockwise<T>();
             if (neighbour_ == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                 return;
 
