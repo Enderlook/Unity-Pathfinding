@@ -133,7 +133,7 @@ namespace Enderlook.Unity.Pathfinding2
         public int MinimumRegionSurface {
             get => minimumRegionSurface;
             set {
-                if (value < 1)
+                if (value < 0)
                     Throw();
                 minimumRegionSurface = value;
 
@@ -141,6 +141,21 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
         private int minimumRegionSurface = 2;
+
+        /// <summary>
+        /// The size of the non-navigable border around the heightfield.
+        /// </summary>
+        public int RegionBorderThickness {
+            get => regionBorderThickness;
+            set {
+                if (value < 0)
+                    Throw();
+                regionBorderThickness = value;
+
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(minimumRegionSurface), "Can't be negative.");
+            }
+        }
+        private int regionBorderThickness;
 
         /// <summary>
         /// Get the completition percentage of the generation.

@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Enumerables;
 
 using System;
 using System.Buffers;
@@ -103,33 +104,53 @@ namespace Enderlook.Unity.Pathfinding2
 
         private static ushort PaintRectangleRegionAsBorder(in CompactOpenHeightField openHeightField, Span<ushort> regions, ushort regionId, MeshGenerationOptions options)
         {
+            int border = options.RegionBorderThickness;
+            if (border == 0)
+                return regionId;
+
             Resolution resolution = options.Resolution;
 
             ushort region0 = SetBorderRegion(regionId++);
             ushort region1 = SetBorderRegion(regionId++);
 
+            int xBorder = Math.Min(border, resolution.Width);
+            int zBorder = Math.Min(border, resolution.Depth);
+
             for (int x = 0; x < resolution.Width; x++)
             {
-                int index = resolution.Depth * x;
-                Debug.Assert(index == resolution.GetIndex(x, 0));
-                openHeightField.Columns[index].Span(regions).Fill(region0);
+                int index = resolution.GetIndex(x, 0);
+                for (int z = 0; z < zBorder; z++)
+                {
+                    Debug.Assert(index == resolution.GetIndex(x, z));
+                    openHeightField.Columns[index++].Span(regions).Fill(region0);
+                }
 
-                index += resolution.Depth - 1;
-                Debug.Assert(index == resolution.GetIndex(x, resolution.Depth - 1));
-                openHeightField.Columns[index].Span(regions).Fill(region1);
+                index = resolution.GetIndex(x, resolution.Depth - zBorder - 1) + 1; // TODO: Why +1?
+                for (int z = resolution.Depth - zBorder; z < resolution.Depth; z++)
+                {
+                    Debug.Assert(index == resolution.GetIndex(x, z));
+                    openHeightField.Columns[index++].Span(regions).Fill(region1);
+                }
             }
 
             ushort region2 = SetBorderRegion(regionId++);
             ushort region3 = SetBorderRegion(regionId++);
             for (int z = 0; z < resolution.Depth; z++)
             {
-                int index = z;
-                Debug.Assert(index == resolution.GetIndex(0, z));
-                openHeightField.Columns[index].Span(regions).Fill(region2);
+                int index = resolution.GetIndex(0, z);
+                for (int x = 0; x < xBorder; x++)
+                {
+                    Debug.Assert(index == resolution.GetIndex(x, z));
+                    openHeightField.Columns[index].Span(regions).Fill(region2);
+                    index += resolution.Depth;
+                }
 
-                index += resolution.Depth * (resolution.Width - 1);
-                Debug.Assert(index == resolution.GetIndex(resolution.Width - 1, z));
-                openHeightField.Columns[index].Span(regions).Fill(region3);
+                index = resolution.GetIndex(resolution.Width - xBorder - 1, z) + resolution.Depth; // TODO: Why + resolution.Depth?
+                for (int x = resolution.Depth - xBorder; x < resolution.Depth; x++)
+                {
+                    Debug.Assert(index == resolution.GetIndex(x, z));
+                    openHeightField.Columns[index].Span(regions).Fill(region3);
+                }
             }
 
             return regionId;

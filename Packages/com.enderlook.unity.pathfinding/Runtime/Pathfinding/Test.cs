@@ -67,6 +67,7 @@ namespace Enderlook.Unity.Pathfinding2
             options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             //options.UseMultithreading = false;
             //options.ExecutionTimeSlice = 0.0025f;
+            options.RegionBorderThickness = 1;
 
             options.PushTask(7, "All");
 
