@@ -36,7 +36,7 @@ namespace Enderlook.Unity.Pathfinding2
         public static async ValueTask<DistanceField> Create(CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
             options.Validate();
-            openHeightField.DebugAssert(nameof(openHeightField), options.Resolution, $"{nameof(options)}.{nameof(options.Resolution)}");
+            openHeightField.DebugAssert(nameof(openHeightField), options.Resolution_, $"{nameof(options)}.{nameof(options.Resolution_)}");
 
             int spansCount = openHeightField.SpansCount;
             byte[] status = ArrayPool<byte>.Shared.Rent(spansCount);

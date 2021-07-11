@@ -49,7 +49,6 @@ namespace Enderlook.Unity.Pathfinding2
                 void Throw() => throw new ArgumentOutOfRangeException(nameof(value), "Can't be negative.");
             }
         }
-
         private float executionTimeSlice = float.PositiveInfinity;
 
         /// <summary>
@@ -64,7 +63,7 @@ namespace Enderlook.Unity.Pathfinding2
                 resolution = value;
             }
         }
-
+        internal ref readonly Resolution Resolution_ => ref resolution;
         private Resolution resolution;
 
         /// <summary>

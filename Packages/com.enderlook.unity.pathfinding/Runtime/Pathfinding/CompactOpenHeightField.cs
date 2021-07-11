@@ -153,7 +153,7 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static RawPooledList<HeightSpan> InitializeWork(in HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, Resolution resolution, ref int index, int x, int z)
+        private static RawPooledList<HeightSpan> InitializeWork(in HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, in Resolution resolution, ref int index, int x, int z)
         {
             Debug.Assert(index == resolution.GetIndex(x, z));
             int startIndex = spanBuilder.Count;
