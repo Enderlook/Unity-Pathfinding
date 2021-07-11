@@ -22,6 +22,14 @@ namespace Enderlook.Unity.Pathfinding2
          * We are taking advantage that this value is 0 to perform some operations.*/
         public const ushort NULL_REGION = 0;
 
+        public const ushort BORDER_REGION_FLAG = 1 << 15;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsBorderRegion(ushort region) => (region & BORDER_REGION_FLAG) != 0;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort SetBorderRegion(ushort region) => (ushort)(region | BORDER_REGION_FLAG);
+
         /// <summary>
         /// Calculates the regions of the specified distance field.
         /// </summary>
@@ -47,6 +55,8 @@ namespace Enderlook.Unity.Pathfinding2
                 Array.Clear(this.regions, 0, regionsCount);
                 Debug.Assert(this.regions[0] == NULL_REGION);
 
+                ushort regionId = 1;
+                regionId = PaintRectangleRegionAsBorder(openHeightField, this.regions.AsSpan(0, regionsCount), regionId, options);
                 RawPooledList<Region> regions = RawPooledList<Region>.Create();
                 try
                 {
@@ -57,13 +67,13 @@ namespace Enderlook.Unity.Pathfinding2
                         for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
                         {
                             ExpandAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
-                            FindNewBasins(distances, spans, ref regions, ref tmp, waterLevel);
+                            FindNewBasins(distances, spans, ref regions, ref regionId, ref tmp, waterLevel);
                         }
 
                         // TODO: Handle small regions by deleting them or merging them.
 
                         Debug.Assert(regions.Count < ushort.MaxValue);
-                        NullifySmallRegions(ref regions, (ushort)regions.Count, options.MinimumRegionSurface);
+                        NullifySmallRegions(ref regions, options);
                     }
                     finally
                     {
@@ -90,6 +100,40 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="parameterName">Name of the instance.</param>
         [System.Diagnostics.Conditional("Debug")]
         public void DebugAssert(string parameterName) => Debug.Assert(!(regions is null), $"{parameterName} is default");
+
+        private static ushort PaintRectangleRegionAsBorder(in CompactOpenHeightField openHeightField, Span<ushort> regions, ushort regionId, MeshGenerationOptions options)
+        {
+            Resolution resolution = options.Resolution;
+
+            ushort region0 = SetBorderRegion(regionId++);
+            ushort region1 = SetBorderRegion(regionId++);
+
+            for (int x = 0; x < resolution.Width; x++)
+            {
+                int index = resolution.Depth * x;
+                Debug.Assert(index == resolution.GetIndex(x, 0));
+                openHeightField.Columns[index].Span(regions).Fill(region0);
+
+                index += resolution.Depth - 1;
+                Debug.Assert(index == resolution.GetIndex(x, resolution.Depth - 1));
+                openHeightField.Columns[index].Span(regions).Fill(region1);
+            }
+
+            ushort region2 = SetBorderRegion(regionId++);
+            ushort region3 = SetBorderRegion(regionId++);
+            for (int z = 0; z < resolution.Depth; z++)
+            {
+                int index = z;
+                Debug.Assert(index == resolution.GetIndex(0, z));
+                openHeightField.Columns[index].Span(regions).Fill(region2);
+
+                index += resolution.Depth * (resolution.Width - 1);
+                Debug.Assert(index == resolution.GetIndex(resolution.Width - 1, z));
+                openHeightField.Columns[index].Span(regions).Fill(region3);
+            }
+
+            return regionId;
+        }
 
         private void ExpandAllRegionsEqually(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
         {
@@ -151,7 +195,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void FindNewBasins(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
+        private void FindNewBasins(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref ushort regionId, ref int[] tmp, int waterLevel)
         {
             // TODO: If we stored a sorted copy of distances span, this would not require to loop the whole span. Research if it's worth the optimization.
 
@@ -161,12 +205,13 @@ namespace Enderlook.Unity.Pathfinding2
                 ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
                 if (distances[i] == waterLevel && thisRegions[i] == NULL_REGION)
                 {
-                    regions.Add(new Region((ushort)(regions.Count + 1)));
+                    regions.Add(new Region(regionId));
                     ref Region region = ref regions[regions.Count - 1];
                     region.AddSpanToBorder(i);
-                    Debug.Assert(thisRegions[i] != (ushort)regions.Count);
+                    Debug.Assert(thisRegions[i] != regionId);
                     region.count++;
-                    thisRegions[i] = (ushort)regions.Count;
+                    thisRegions[i] = regionId;
+                    regionId++;
                     FloodRegion(distances, spans, waterLevel, i, ref regions[regions.Count - 1], ref tmp);
                 }
             }
@@ -454,26 +499,26 @@ namespace Enderlook.Unity.Pathfinding2
         }
     }*/
 
-        /// <summary>
-        /// Removes all regions which consists on less than <paramref name="minRegionSurface"/> voxels.
-        /// </summary>
-        /// <param name="highestRegionId">The highest region id number.</param>
-        /// <param name="minRegionSurface">Minimal amount of voxels required by a region to survive.</param>
-        private void NullifySmallRegions(ref RawPooledList<Region> regionsBuilder, ushort highestRegionId, int minRegionSurface)
+        private void NullifySmallRegions(ref RawPooledList<Region> regionsBuilder, MeshGenerationOptions options)
         {
-            if (minRegionSurface < 1)
+            int minimumRegionSurface = options.MinimumRegionSurface;
+            if (minimumRegionSurface < 1)
                 return;
-            if (highestRegionId == NULL_REGION)
+
+            if (unchecked((uint)regionsCount >= (uint)regions.Length))
+            {
+                Debug.Assert(false, "Index out of range.");
                 return;
+            }
 
             for (int i = 0; i < regionsCount; i++)
             {
                 ref ushort region = ref regions[i];
-                if (region == NULL_REGION)
+                if (region - 1 - 4 >= 0)
                     continue;
                 Debug.Assert(NULL_REGION == 0);
-                // The -1 is because NULL_REGION is 0.
-                if (regionsBuilder[region - 1].count < minRegionSurface)
+                // The -1 is because NULL_REGION is 0, and -4 because the first 4 regions are borders and aren't stored on the list.
+                if (regionsBuilder[region - 1 - 4].count < minimumRegionSurface)
                     region = NULL_REGION;
             }
         }

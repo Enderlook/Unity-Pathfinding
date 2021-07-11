@@ -702,7 +702,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Span<T> Span<T>(Span<T> span) => span.Slice(First, Last);
+            public Span<T> Span<T>(Span<T> span) => span.Slice(First, Last - First);
         }
 
         internal readonly struct HeightSpan

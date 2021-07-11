@@ -1,12 +1,10 @@
-﻿using Enderlook.Utils;
-
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 using UnityEngine;
-using UnityEngine.Profiling;
 
 namespace Enderlook.Unity.Pathfinding2
 {
@@ -19,14 +17,14 @@ namespace Enderlook.Unity.Pathfinding2
         private List<long> q2 = new List<long>();
 
         private int work;
+        private ValueTask valueTask;
         private HeightField heightField;
         private CompactOpenHeightField openHeightField;
         private DistanceField distanceField;
         private DistanceField distanceField2;
         private RegionsField regions;
         private Contours contours;
-
-        (int, int, int) resolution = (60, 12, 60);
+        private (int, int, int) resolution = (60, 12, 60);
         private MeshGenerationOptions options;
         private Bounds bounds;
 
@@ -35,9 +33,12 @@ namespace Enderlook.Unity.Pathfinding2
             if (work == 0)
             {
                 work = 1;
-                GenerateAsync().GetAwaiter().OnCompleted(() =>
+                valueTask = GenerateAsync();
+                valueTask.GetAwaiter().OnCompleted(() =>
                 {
                     work = 2;
+                    if (valueTask.IsFaulted)
+                        throw valueTask.AsTask().Exception;
                     Debug.Log("Completed");
                 });
             }
@@ -48,6 +49,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Debug.Log($"Working {options.Progress * 100}%");
                 return;
             }
+
             Debug.Log($"Working {options.Progress * 100}%");
             Resolution r = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
             //heightField.DrawGizmos(r, false);
@@ -63,8 +65,8 @@ namespace Enderlook.Unity.Pathfinding2
             options = new MeshGenerationOptions();
             bounds = new Bounds(transform.position, new Vector3(10, 2f, 10));
             options.Resolution = new Resolution(resolution.Item1, resolution.Item2, resolution.Item3, bounds);
-            options.UseMultithreading = false;
-            options.ExecutionTimeSlice = 0.0025f;
+            //options.UseMultithreading = false;
+            //options.ExecutionTimeSlice = 0.0025f;
 
             options.PushTask(7, "All");
 
