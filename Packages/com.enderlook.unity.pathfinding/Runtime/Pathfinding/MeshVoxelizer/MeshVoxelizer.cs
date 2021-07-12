@@ -60,14 +60,21 @@ namespace Enderlook.Unity.Pathfinding2
             mesh.GetVertices(vertices);
 
             Vector3[] vertices_ = ArrayPool<Vector3>.Shared.Rent(vertices.Count);
+            try
+            {
+                int count = vertices.Count;
+                for (int i = 0; i < count; i++)
+                    vertices_[i] = transform.TransformPoint(vertices[i]);
 
-            int count = vertices.Count;
-            for (int i = 0; i < count; i++)
-                vertices_[i] = transform.TransformPoint(vertices[i]);
+                int[] triangles = mesh.triangles;
 
-            int[] triangles = mesh.triangles;
-
-            stack.Add((vertices_, count, triangles));
+                stack.Add((vertices_, count, triangles));
+            }
+            catch
+            {
+                ArrayPool<Vector3>.Shared.Return(vertices_);
+                throw;
+            }
         }
 
         /// <summary>
@@ -79,7 +86,10 @@ namespace Enderlook.Unity.Pathfinding2
             stack = RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)>.Create();
 
             if (stack_.Count == 0)
+            {
+                stack_.Dispose();
                 return;
+            }
 
             if (options.UseMultithreading && stack_.Count > 1)
                 await ProcessMultiThread(stack_, voxels, options);
@@ -100,40 +110,46 @@ namespace Enderlook.Unity.Pathfinding2
                     Vector3 size = resolution.Size;
 
                     bool[] voxels_ = ArrayPool<bool>.Shared.Rent(voxelsLength);
-
-                    for (int i = 0; i < count; i++)
+                    try
                     {
-                        (Vector3[] vertices, int verticesCount, int[] triangles) content = stack[i];
-
-                        if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
+                        for (int i = 0; i < count; i++)
                         {
-                            Debug.Assert(false, "Index out of range.");
-                            return;
+                            (Vector3[] vertices, int verticesCount, int[] triangles) content = stack[i];
+
+                            if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
+                            {
+                                Debug.Assert(false, "Index out of range.");
+                                return;
+                            }
+
+                            for (int j = 0; j < content.verticesCount; j++)
+                                content.vertices[j] -= center;
+
+                            if (options.CheckIfMustYield())
+                                await options.Yield();
+
+                            Voxelizer.Voxelize(
+                                MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
+                                content.triangles,
+                                voxels_,
+                                Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
+                                (resolution.Width, resolution.Height, resolution.Depth)
+                            );
+
+                            if (options.CheckIfMustYield())
+                                await options.Yield();
+
+                            // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
+                            OrSingleThread(voxels, voxels_, voxelsLength);
+                            voxels_.AsSpan(0, voxelsLength).Clear();
+
+                            if (options.StepTaskAndCheckIfMustYield())
+                                await options.Yield();
                         }
-
-                        for (int j = 0; j < content.verticesCount; j++)
-                            content.vertices[j] -= center;
-
-                        if (options.CheckIfMustYield())
-                            await options.Yield();
-
-                        Voxelizer.Voxelize(
-                            MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
-                            content.triangles,
-                            voxels_,
-                            Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
-                            (resolution.Width, resolution.Height, resolution.Depth)
-                        );
-
-                        if (options.CheckIfMustYield())
-                            await options.Yield();
-
-                        // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
-                        OrSingleThread(voxels, voxels_, voxelsLength);
-                        voxels_.AsSpan(0, voxelsLength).Clear();
-
-                        if (options.StepTaskAndCheckIfMustYield())
-                            await options.Yield();
+                    }
+                    finally
+                    {
+                        ArrayPool<bool>.Shared.Return(voxels_);
                     }
                 }
                 options.PopTask();
