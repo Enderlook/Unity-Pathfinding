@@ -1,6 +1,4 @@
-﻿using Enderlook.Collections.Pooled;
-using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Enumerables;
+﻿using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Unity.Jobs;
 using Enderlook.Voxelization;
 
@@ -10,10 +8,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
-
-using Unity.Jobs;
 
 using UnityEngine;
 
@@ -257,75 +252,83 @@ namespace Enderlook.Unity.Pathfinding2
             for (int j = 0; j < content.verticesCount; j++)
                 content.vertices[j] -= center;
 
-            // Calculate bounds of the mesh.
-            // TODO: we may be calculating this twice.
-            Vector3 min = content.vertices[0];
-            Vector3 max = content.vertices[0];
-            for (int j = 0; j < content.vertices.Length; j++)
-            {
-                Vector3 vertice = content.vertices[j];
-                min = Vector3.Min(min, vertice);
-                max = Vector3.Max(max, vertice);
-            }
-
-            // Fit bounds to global resolution.
-            Vector3 cellSize = resolution.CellSize;
-
-            int xMinMultiple = Mathf.FloorToInt(min.x / cellSize.x);
-            int yMinMultiple = Mathf.FloorToInt(min.y / cellSize.y);
-            int zMinMultiple = Mathf.FloorToInt(min.z / cellSize.z);
-
-            int xMaxMultiple = Mathf.CeilToInt(max.x / cellSize.x);
-            int yMaxMultiple = Mathf.CeilToInt(max.y / cellSize.y);
-            int zMaxMultiple = Mathf.CeilToInt(max.z / cellSize.z);
-
-            // Fix offset
-            xMinMultiple += resolution.Width / 2;
-            yMinMultiple += resolution.Height / 2;
-            zMinMultiple += resolution.Depth / 2;
-            xMaxMultiple += resolution.Width / 2;
-            yMaxMultiple += resolution.Height / 2;
-            zMaxMultiple += resolution.Depth / 2;
-
-            // Clamp values because a part of the mesh may be outside the voxelization area.
-            xMinMultiple = Mathf.Max(xMinMultiple, 0);
-            yMinMultiple = Mathf.Max(yMinMultiple, 0);
-            zMinMultiple = Mathf.Max(zMinMultiple, 0);
-            xMaxMultiple = Mathf.Min(xMaxMultiple, resolution.Width);
-            yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.Height);
-            zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
-
             bool[] voxels = ArrayPool<bool>.Shared.Rent(resolution.Cells);
-            Span<Voxelizer.VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels);
-
-            Vector3 size = resolution.Size;
-            Voxelizer.Voxelize(
-                MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
-                content.triangles,
-                voxelsInfo,
-                Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
-                (resolution.Width, resolution.Height, resolution.Depth)
-            );
-
-            int index = resolution.Depth * (resolution.Height * xMinMultiple);
-            for (int x = xMinMultiple; x < xMaxMultiple; x++)
+            try
             {
-                index += resolution.Depth * yMinMultiple;
-                for (int y = yMinMultiple; y < yMaxMultiple; y++)
-                {
-                    index += zMinMultiple;
-                    for (int z = zMinMultiple; z < zMaxMultiple; z++)
-                    {
-                        Debug.Assert(index == resolution.GetIndex(x, y, z));
-                        voxels[index] = voxelsInfo[index].Fill;
-                        index++;
-                    }
-                    index += resolution.Depth - zMaxMultiple;
-                }
-                index += resolution.Depth * (resolution.Height - yMaxMultiple);
-            }
+                Span<Voxelizer.VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels);
 
-            orJobs.Add((voxels, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple));
+                Vector3 size = resolution.Size;
+                Voxelizer.Voxelize(
+                    MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
+                    content.triangles,
+                    voxelsInfo,
+                    Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
+                    (resolution.Width, resolution.Height, resolution.Depth)
+                );
+
+                // Calculate bounds of the mesh.
+                // TODO: we may be calculating this twice.
+                Vector3 min = content.vertices[0];
+                Vector3 max = content.vertices[0];
+                for (int j = 0; j < content.vertices.Length; j++)
+                {
+                    Vector3 vertice = content.vertices[j];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+                }
+
+                // Fit bounds to global resolution.
+                Vector3 cellSize = resolution.CellSize;
+
+                int xMinMultiple = Mathf.FloorToInt(min.x / cellSize.x);
+                int yMinMultiple = Mathf.FloorToInt(min.y / cellSize.y);
+                int zMinMultiple = Mathf.FloorToInt(min.z / cellSize.z);
+
+                int xMaxMultiple = Mathf.CeilToInt(max.x / cellSize.x);
+                int yMaxMultiple = Mathf.CeilToInt(max.y / cellSize.y);
+                int zMaxMultiple = Mathf.CeilToInt(max.z / cellSize.z);
+
+                // Fix offset
+                xMinMultiple += resolution.Width / 2;
+                yMinMultiple += resolution.Height / 2;
+                zMinMultiple += resolution.Depth / 2;
+                xMaxMultiple += resolution.Width / 2;
+                yMaxMultiple += resolution.Height / 2;
+                zMaxMultiple += resolution.Depth / 2;
+
+                // Clamp values because a part of the mesh may be outside the voxelization area.
+                xMinMultiple = Mathf.Max(xMinMultiple, 0);
+                yMinMultiple = Mathf.Max(yMinMultiple, 0);
+                zMinMultiple = Mathf.Max(zMinMultiple, 0);
+                xMaxMultiple = Mathf.Min(xMaxMultiple, resolution.Width);
+                yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.Height);
+                zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
+
+                int index = resolution.Depth * (resolution.Height * xMinMultiple);
+                for (int x = xMinMultiple; x < xMaxMultiple; x++)
+                {
+                    index += resolution.Depth * yMinMultiple;
+                    for (int y = yMinMultiple; y < yMaxMultiple; y++)
+                    {
+                        index += zMinMultiple;
+                        for (int z = zMinMultiple; z < zMaxMultiple; z++)
+                        {
+                            Debug.Assert(index == resolution.GetIndex(x, y, z));
+                            voxels[index] = voxelsInfo[index].Fill;
+                            index++;
+                        }
+                        index += resolution.Depth - zMaxMultiple;
+                    }
+                    index += resolution.Depth * (resolution.Height - yMaxMultiple);
+                }
+
+                orJobs.Add((voxels, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple));
+            }
+            catch
+            {
+                ArrayPool<bool>.Shared.Return(voxels);
+                throw;
+            }
         }
 
         private static void OrMultithread(in Resolution resolution, bool[] voxels, (bool[] voxels, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple) tuple)
