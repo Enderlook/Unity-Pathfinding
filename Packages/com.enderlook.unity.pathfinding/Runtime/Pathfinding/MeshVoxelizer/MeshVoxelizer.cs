@@ -131,7 +131,7 @@ namespace Enderlook.Unity.Pathfinding2
                             Voxelizer.Voxelize(
                                 MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
                                 content.triangles,
-                                voxels_,
+                                MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels_),
                                 Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
                                 (resolution.Width, resolution.Height, resolution.Depth)
                             );
@@ -139,12 +139,78 @@ namespace Enderlook.Unity.Pathfinding2
                             if (options.CheckIfMustYield())
                                 await options.Yield();
 
-                            // TODO: This can be optimized to only copy relevant voxels instead of the whole array.
-                            OrSingleThread(voxels, voxels_, voxelsLength);
+                            // Calculate bounds of the mesh.
+                            // TODO: we may be calculating this twice.
+                            Vector3 min = content.vertices[0];
+                            Vector3 max = content.vertices[0];
+                            for (int j = 0; j < content.vertices.Length; j++)
+                            {
+                                Vector3 vertice = content.vertices[j];
+                                min = Vector3.Min(min, vertice);
+                                max = Vector3.Max(max, vertice);
+                            }
+
+                            if (options.CheckIfMustYield())
+                                await options.Yield();
+
+                            // Fit bounds to global resolution.
+                            Vector3 cellSize = resolution.CellSize;
+
+                            int xMinMultiple = Mathf.FloorToInt(min.x / cellSize.x);
+                            int yMinMultiple = Mathf.FloorToInt(min.y / cellSize.y);
+                            int zMinMultiple = Mathf.FloorToInt(min.z / cellSize.z);
+
+                            int xMaxMultiple = Mathf.CeilToInt(max.x / cellSize.x);
+                            int yMaxMultiple = Mathf.CeilToInt(max.y / cellSize.y);
+                            int zMaxMultiple = Mathf.CeilToInt(max.z / cellSize.z);
+
+                            // Fix offset
+                            xMinMultiple += resolution.Width / 2;
+                            yMinMultiple += resolution.Height / 2;
+                            zMinMultiple += resolution.Depth / 2;
+                            xMaxMultiple += resolution.Width / 2;
+                            yMaxMultiple += resolution.Height / 2;
+                            zMaxMultiple += resolution.Depth / 2;
+
+                            // Clamp values because a part of the mesh may be outside the voxelization area.
+                            xMinMultiple = Mathf.Max(xMinMultiple, 0);
+                            yMinMultiple = Mathf.Max(yMinMultiple, 0);
+                            zMinMultiple = Mathf.Max(zMinMultiple, 0);
+                            xMaxMultiple = Mathf.Min(xMaxMultiple, resolution.Width);
+                            yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.Height);
+                            zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
+
+                            Or(voxels);
+
+                            if(options.StepTaskAndCheckIfMustYield())
+                                await options.Yield();
+
                             voxels_.AsSpan(0, voxelsLength).Clear();
 
                             if (options.StepTaskAndCheckIfMustYield())
                                 await options.Yield();
+
+                            void Or(bool[] voxels)
+                            {
+                                Span<Voxelizer.VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels_);
+                                int index = resolution.Depth * (resolution.Height * xMinMultiple);
+                                for (int x = xMinMultiple; x < xMaxMultiple; x++)
+                                {
+                                    index += resolution.Depth * yMinMultiple;
+                                    for (int y = yMinMultiple; y < yMaxMultiple; y++)
+                                    {
+                                        index += zMinMultiple;
+                                        for (int z = zMinMultiple; z < zMaxMultiple; z++)
+                                        {
+                                            Debug.Assert(index == resolution.GetIndex(x, y, z));
+                                            voxels[index] |= voxelsInfo[index].Fill;
+                                            index++;
+                                        }
+                                        index += resolution.Depth - zMaxMultiple;
+                                    }
+                                    index += resolution.Depth * (resolution.Height - yMaxMultiple);
+                                }
+                            }
                         }
                     }
                     finally
@@ -158,36 +224,6 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 stack.Dispose();
             }
-        }
-
-        private static void OrSingleThread(bool[] a, bool[] b, int count)
-        {
-            Debug.Assert(count > 0);
-            Debug.Assert(a.Length >= count);
-            Debug.Assert(b.Length >= count);
-
-            // This check allow the jitter to remove bound checks in the loop.
-            if (a.Length < count || b.Length < count || count == 0)
-            {
-                Debug.Assert(false, "Index out of range.");
-                return;
-            }
-
-            Span<System.Numerics.Vector<byte>> a_ = MemoryMarshal.Cast<bool, System.Numerics.Vector<byte>>(a.AsSpan(0, count));
-            Span<System.Numerics.Vector<byte>> b_ = MemoryMarshal.Cast<bool, System.Numerics.Vector<byte>>(b.AsSpan(0, count));
-
-            // This check allow the jitter to remove bound checks in the loop.
-            if (a_.Length != b_.Length)
-            {
-                Debug.Assert(false, "Index out of range.");
-                return;
-            }
-
-            for (int i = 0; i < a_.Length; i++)
-                a_[i] |= b_[i];
-
-            for (int i = count / System.Numerics.Vector<byte>.Count; i < count; i++)
-                a[i] |= b[i];
         }
 
         private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, bool[] voxels, MeshGenerationOptions options)
