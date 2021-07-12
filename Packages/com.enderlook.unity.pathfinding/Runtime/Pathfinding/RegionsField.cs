@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding2
         public const ushort BORDER_REGION_FLAG = 1 << 15;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsBorderRegion(ushort region) => (region & BORDER_REGION_FLAG) != 0;
+        public static bool IsBorderRegion(ushort region) => (region & BORDER_REGION_FLAG) != 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ushort SetOnBorderRegion(ushort region) => (ushort)(region | BORDER_REGION_FLAG);

@@ -106,15 +106,15 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
-                        //RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
+                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
                         try
                         {
-                            //contours.Add(simplified);
-                            contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
+                            contours.Add(simplified);
+                            //contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
                         }
                         catch
                         {
-                            //simplified.Dispose();
+                            simplified.Dispose();
                             throw;
                         }
                         spanIndex++;
@@ -321,13 +321,18 @@ namespace Enderlook.Unity.Pathfinding2
         {
             // The vertex is a border vertex if there are two same exterior cells in a row,
             // followed by two interior cells and none of the regions are out of bounds.
-            bool twoSameExts = (regionA + regionB) == RegionsField.NULL_REGION;
+            bool twoSameExteriors = regionA == regionB && RegionsField.IsBorderRegion(regionA);
+            bool twoInteriors = !RegionsField.IsBorderRegion((ushort)(regionC | regionD));
+            bool noNulls = regionA != RegionsField.NULL_REGION
+                && regionB != RegionsField.NULL_REGION
+                && regionC != RegionsField.NULL_REGION
+                && regionD != RegionsField.NULL_REGION;
+
+            /*bool twoSameExteriors = (regionA + regionB) == RegionsField.NULL_REGION;
             Debug.Assert(twoSameExts == (regionA == RegionsField.NULL_REGION && regionB == RegionsField.NULL_REGION && regionA == regionB));
-            bool twoInts = regionC != RegionsField.NULL_REGION && regionD != RegionsField.NULL_REGION;
-            bool noZeros = regionA != 0 && regionB != 0 && regionC != 0 && regionD != 0;
-            if (twoSameExts && twoInts && noZeros)
-                return true;
-            return false;
+            bool twoInteriors = regionC != RegionsField.NULL_REGION && regionD != RegionsField.NULL_REGION;
+            bool noNulls = regionA != 0 && regionB != 0 && regionC != 0 && regionD != 0;*/
+            return twoSameExteriors && twoInteriors && noNulls;
         }
 
         private RawPooledList<ContourPoint> SimplifyContour(ref RawPooledList<ContourPoint> edgeContour, int maximumEdgeDeviation, int maximumEdgeLength)
@@ -354,7 +359,7 @@ namespace Enderlook.Unity.Pathfinding2
                     for (int i = 0; i < edgeContourCount - 1; i++)
                     {
                         int ii = (i + 1) % edgeContourCount;
-                        ContourPoint point = edgeContour[i];
+                        ref ContourPoint point = ref edgeContour[i];
                         bool differentRegions = point.Region != edgeContour[ii].Region;
                         if (differentRegions)
                             simplified.Add(new ContourPoint(point.X, point.Y, point.Z, i));
@@ -365,7 +370,7 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     // If there are not connections, create some initial points for the simplification process.
                     // Find lower-left and upper-right vertices of the contour.
-                    ContourPoint point = edgeContour[0];
+                    ref ContourPoint point = ref edgeContour[0];
                     int lowerLeftX = point.X;
                     int lowerLeftY = point.Y;
                     int lowerLeftZ = point.Z;
@@ -376,19 +381,19 @@ namespace Enderlook.Unity.Pathfinding2
                     int upperRightI = 0;
                     for (int i = 0; i < edgeContourCount; i++)
                     {
-                        point = edgeContour[i];
-                        if (point.X < lowerLeftX || (point.X == lowerLeftX && point.Z < lowerLeftZ))
+                        ref ContourPoint point_ = ref edgeContour[i];
+                        if (point_.X < lowerLeftX || (point_.X == lowerLeftX && point_.Z < lowerLeftZ))
                         {
-                            lowerLeftX = point.X;
-                            lowerLeftY = point.Y;
-                            lowerLeftZ = point.Z;
+                            lowerLeftX = point_.X;
+                            lowerLeftY = point_.Y;
+                            lowerLeftZ = point_.Z;
                             lowerLeftI = i;
                         }
-                        if (point.X > upperRightX || (point.X == upperRightX && lowerLeftZ > upperRightZ))
+                        if (point_.X > upperRightX || (point_.X == upperRightX && lowerLeftZ > upperRightZ))
                         {
-                            upperRightX = point.X;
-                            upperRightY = point.Y;
-                            upperRightZ = point.Z;
+                            upperRightX = point_.X;
+                            upperRightY = point_.Y;
+                            upperRightZ = point_.Z;
                             upperRightI = i;
                         }
                     }
@@ -427,7 +432,6 @@ namespace Enderlook.Unity.Pathfinding2
                     }
 
                     // Tesselate only outer edges or edges between areas.
-
                     if (edgeContour[ci].Region == RegionsField.NULL_REGION)
                     {
                         while (ci != endi)
