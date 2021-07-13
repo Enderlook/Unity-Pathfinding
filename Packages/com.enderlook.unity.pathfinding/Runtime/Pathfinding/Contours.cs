@@ -150,115 +150,115 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, byte initialFlags, int maxIterations)
         {
-            edgeContour.Clear();
-
-            // Choose the first non-connected edge.
-            int direction = 0;
-            while (!IsRegion(initialFlags, ToFlag(direction)))
-            {
-                Debug.Assert(direction < 4);
-#if UNITY_ASSERTIONS
-                if (direction >= 4)
-                {
-                    Debug.Assert(false);
-                    return;
-                }
-#endif
-                direction++;
-            }
-
-            int py = GetIndexOfSideCheckNeighbours(spans, spanIndex, direction, spans[spanIndex]);
-
+            Work(spans, ref edgeContour, out int startDirection, out int py);
             int startSpan = spanIndex;
-            int startDirection = direction;
 
-            Loop(regions, spans, ref edgeContour);
-
-            void Loop(ReadOnlySpan<ushort> regions_, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<ContourPoint> edgeContour_)
+            int direction = startDirection;
+            int iterations = 0;
+            do
             {
-                int iterations = 0;
-                do
+                ref byte flags = ref edgeFlags[spanIndex];
+
+                if (IsRegion(flags, ToFlag(direction)))
+                {
+                    GetPoints(x, z, direction, out int px, out int pz);
+                    bool isBorderVertex_ = IsBorderVertex(spans, regions, spanIndex, direction);
+
+                    edgeContour.Add(new ContourPoint(px, py, pz, regions[spanIndex], isBorderVertex_));
+
+                    flags |= IS_USED;
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+                }
+                else
+                {
+                    GetIndexOfSide(spans, ref spanIndex, ref x, ref z, out py, direction);
+
+                    if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                    {
+                        // Should not happen?
+                        Debug.Assert(false, "Impossible state");
+                        break;
+                    }
+
+                    direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
+                }
+            } while (iterations++ < maxIterations && !(startSpan == spanIndex && startDirection == direction));
+
+            /*while (true)
+            {
+
                 {
                     ref byte flags = ref edgeFlags[spanIndex];
 
-                    if (IsRegion(flags, ToFlag(direction)))
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+
+                    edgeContour_.Add((px, pz, py));
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+                    flags |= IS_USED;
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
+
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
+
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
+
+                    if (!IsRegion(flags, ToFlag(direction)))
+                        goto end;
+                    GetPoints(x, z, direction, out px, out pz);
+                    edgeContour_.Add((px, pz, py));
+                    direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+                    if (startSpan == spanIndex && startDirection == direction)
+                        break;
+
+                    end:
+                    GetIndexOfSide(spans_, ref spanIndex, ref x, ref z, out py, direction);
+
+                    if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                     {
-                        GetPoints(x, z, direction, out int px, out int pz);
-                        bool isBorderVertex_ = IsBorderVertex(spans_, regions_, spanIndex, direction);
-
-                        edgeContour_.Add(new ContourPoint(px, py, pz, regions_[spanIndex], isBorderVertex_));
-
-                        flags |= IS_USED;
-                        direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+                        // Should not happen?
+                        Debug.Assert(false);
+                        break;
                     }
-                    else
-                    {
-                        GetIndexOfSide(spans_, ref spanIndex, ref x, ref z, out py, direction);
 
-                        if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
-                        {
-                            // Should not happen?
-                            Debug.Assert(false, "Impossible state");
-                            break;
-                        }
+                    direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
+                }
+            }*/
 
-                        direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
-                    }
-                } while (iterations++ < maxIterations && !(startSpan == spanIndex && startDirection == direction));
+            void Work(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<ContourPoint> edgeContour_, out int startDirection_, out int py_)
+            {
+                edgeContour_.Clear();
 
-                /*while (true)
+                // Choose the first non-connected edge.
+                startDirection_ = 0;
+                while (!IsRegion(initialFlags, ToFlag(startDirection_)))
                 {
-
+                    Debug.Assert(startDirection_ < 4);
+#if UNITY_ASSERTIONS
+                    if (startDirection_ >= 4)
                     {
-                        ref byte flags = ref edgeFlags[spanIndex];
-
-                        if (!IsRegion(flags, ToFlag(direction)))
-                            goto end;
-                        GetPoints(x, z, direction, out px, out pz);
-
-                        edgeContour_.Add((px, pz, py));
-                        direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
-                        flags |= IS_USED;
-                        if (startSpan == spanIndex && startDirection == direction)
-                            break;
-
-                        if (!IsRegion(flags, ToFlag(direction)))
-                            goto end;
-                        GetPoints(x, z, direction, out px, out pz);
-                        edgeContour_.Add((px, pz, py));
-                        direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
-                        if (startSpan == spanIndex && startDirection == direction)
-                            break;
-
-                        if (!IsRegion(flags, ToFlag(direction)))
-                            goto end;
-                        GetPoints(x, z, direction, out px, out pz);
-                        edgeContour_.Add((px, pz, py));
-                        direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
-                        if (startSpan == spanIndex && startDirection == direction)
-                            break;
-
-                        if (!IsRegion(flags, ToFlag(direction)))
-                            goto end;
-                        GetPoints(x, z, direction, out px, out pz);
-                        edgeContour_.Add((px, pz, py));
-                        direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
-                        if (startSpan == spanIndex && startDirection == direction)
-                            break;
-
-                        end:
-                        GetIndexOfSide(spans_, ref spanIndex, ref x, ref z, out py, direction);
-
-                        if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
-                        {
-                            // Should not happen?
-                            Debug.Assert(false);
-                            break;
-                        }
-
-                        direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
+                        Debug.Assert(false);
+                        py_ = 0;
+                        return;
                     }
-                }*/
+#endif
+                    startDirection_++;
+                }
+
+                py_ = GetIndexOfSideCheckNeighbours(spans_, spanIndex, startDirection_, spans_[spanIndex]);
             }
         }
 
