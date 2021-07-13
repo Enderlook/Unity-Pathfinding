@@ -150,7 +150,7 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, byte initialFlags, int maxIterations)
         {
-            Work(spans, ref edgeContour, out int startDirection, out int py);
+            Work(ref edgeContour, out int startDirection);
             int startSpan = spanIndex;
 
             int direction = startDirection;
@@ -162,16 +162,15 @@ namespace Enderlook.Unity.Pathfinding2
                 if (IsRegion(flags, ToFlag(direction)))
                 {
                     GetPoints(x, z, direction, out int px, out int pz);
-                    bool isBorderVertex_ = IsBorderVertex(spans, regions, spanIndex, direction);
-
-                    edgeContour.Add(new ContourPoint(px, py, pz, regions[spanIndex], isBorderVertex_));
+                    int py = GetCornerHeight(spans, regions, spanIndex, direction, out bool isBorderVertex);
+                    edgeContour.Add(new ContourPoint(px, py, pz, regions[spanIndex], isBorderVertex));
 
                     flags |= IS_USED;
                     direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                 }
                 else
                 {
-                    GetIndexOfSide(spans, ref spanIndex, ref x, ref z, out py, direction);
+                    GetIndexOfSide(spans, ref spanIndex, ref x, ref z, direction);
 
                     if (spanIndex == CompactOpenHeightField.HeightSpan.NULL_SIDE)
                     {
@@ -238,7 +237,7 @@ namespace Enderlook.Unity.Pathfinding2
                 }
             }*/
 
-            void Work(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans_, ref RawPooledList<ContourPoint> edgeContour_, out int startDirection_, out int py_)
+            void Work(ref RawPooledList<ContourPoint> edgeContour_, out int startDirection_)
             {
                 edgeContour_.Clear();
 
@@ -251,18 +250,15 @@ namespace Enderlook.Unity.Pathfinding2
                     if (startDirection_ >= 4)
                     {
                         Debug.Assert(false);
-                        py_ = 0;
                         return;
                     }
 #endif
                     startDirection_++;
                 }
-
-                py_ = GetIndexOfSideCheckNeighbours(spans_, spanIndex, startDirection_, spans_[spanIndex]);
             }
         }
 
-        private static int GetIndexOfSideCheckNeighbours(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int direction, in CompactOpenHeightField.HeightSpan span)
+        /*private static int GetIndexOfSideCheckNeighbours(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int direction, in CompactOpenHeightField.HeightSpan span)
         {
             switch (direction)
             {
@@ -278,13 +274,26 @@ namespace Enderlook.Unity.Pathfinding2
                     Debug.Assert(false, "Impossible state.");
                     goto case CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION;
             }
-        }
+        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsBorderVertex(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<ushort> regions, int spanIndex, int direction)
+        private static int GetCornerHeight(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ReadOnlySpan<ushort> regions, int spanIndex, int direction, out bool isBorderVertex)
         {
+            /* This function parameters to point to the specified spans.
+             * We must also return the Y value of the corner.
+             * However each corner can be composed up to 4 spans (neighbours). E.g:
+             * s s
+             *  .
+             * s s
+             * That means we have from 1 to 4 different Y values, which one we must choose?
+             * We choose the highest value of them.
+             * This ensures that the final vertex is above the surface of the source mesh.
+             * And provides a common selection mechanism so that all contours that use the vertex will use the same height.
+             */
+
             ref readonly CompactOpenHeightField.HeightSpan span = ref spans[spanIndex];
             int direction_ = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
+            int y = span.Floor;
 
             ushort region0 = regions[spanIndex];
             ushort region1 = 0;
@@ -295,27 +304,37 @@ namespace Enderlook.Unity.Pathfinding2
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
                 region1 = regions[neighbour];
+                y = Math.Max(y, spans[neighbour].Floor);
 
                 neighbour = spans[neighbour].GetSide(direction_);
                 if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                {
                     region2 = regions[neighbour];
+                    y = Math.Max(y, spans[neighbour].Floor);
+                }
             }
 
             neighbour = span.GetSide(direction_);
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
             {
                 region3 = regions[neighbour];
+                y = Math.Max(y, spans[neighbour].Floor);
 
                 neighbour = spans[neighbour].GetSide(direction);
                 if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                {
                     region2 = regions[neighbour];
+                    y = Math.Max(y, spans[neighbour].Floor);
+                }
             }
 
             // Check if the vertex is special edge vertex, these vertices will be removed later.
-            return IsSpecialEdgeVertex(region0, region1, region2, region3)
+            isBorderVertex = IsSpecialEdgeVertex(region0, region1, region2, region3)
                 || IsSpecialEdgeVertex(region1, region2, region3, region0)
                 || IsSpecialEdgeVertex(region2, region3, region0, region1)
                 || IsSpecialEdgeVertex(region3, region0, region1, region2);
+
+            return y;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -546,51 +565,35 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void GetIndexOfSide(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, out int y, int direction)
+        private static void GetIndexOfSide(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref int spanIndex, ref int x, ref int z, int direction)
         {
-            /* This function parameters to point to the specified spans.
-             * We must also return the Y value of the corner.
-             * However each corner can be composed up to 4 spans (neighbours). E.g:
-             * s s
-             *  .
-             * s s
-             * That means we have from 1 to 4 different Y values, which one we must choose?
-             * We choose the highest value of them.
-             * This ensures that the final vertex is above the surface of the source mesh.
-             * And provides a common selection mechanism so that all contours that use the vertex will use the same height.
-             */
             ref readonly CompactOpenHeightField.HeightSpan span = ref spans[spanIndex];
-            y = span.Floor;
 
             // Don't use a switch statement because the Jitter doesn't inline them.
             if (direction == CompactOpenHeightField.HeightSpan.LEFT_DIRECTION)
             {
                 spanIndex = span.Left;
                 x--;
-                y = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, y, in span);
             }
             else if (direction == CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION)
             {
                 spanIndex = span.Forward;
                 z++;
-                y = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, y, in span);
             }
             else if (direction == CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION)
             {
                 spanIndex = span.Right;
                 x++;
-                y = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, y, in span);
             }
             else
             {
                 Debug.Assert(direction == CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION);
                 spanIndex = span.Backward;
                 z--;
-                y = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, y, in span);
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int GetIndexOfSideCheckNeighbours<T>(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int y, in CompactOpenHeightField.HeightSpan span)
         {
             Side.DebugAssert<T>();
@@ -647,7 +650,7 @@ namespace Enderlook.Unity.Pathfinding2
             }
 
             return y;
-        }
+        }*/
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void GetPoints(int x, int z, int direction, out int px, out int pz)
