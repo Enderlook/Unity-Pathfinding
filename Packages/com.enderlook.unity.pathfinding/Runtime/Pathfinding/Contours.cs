@@ -423,6 +423,7 @@ namespace Enderlook.Unity.Pathfinding2
                 }
 
                 // Add points until all raw points are within error tolerance of the simplified shape.
+                int oldSimplifiedCount = simplified.Count;
                 for (int i = 0; i < simplified.Count;)
                 {
                     int ii = (i + 1) % simplified.Count;
@@ -442,13 +443,13 @@ namespace Enderlook.Unity.Pathfinding2
                     if (pointB.X > pointA.X || (pointB.X == pointA.X && pointB.Z > pointA.Z))
                     {
                         cinc = 1;
-                        ci = (pointA.I + cinc) % edgeContourCount;
+                        ci = (pointA.I + cinc) % oldSimplifiedCount;
                         endi = pointB.I;
                     }
                     else
                     {
-                        cinc = edgeContourCount - 1;
-                        ci = (pointB.I + cinc) % edgeContourCount;
+                        cinc = oldSimplifiedCount - 1;
+                        ci = (pointB.I + cinc) % oldSimplifiedCount;
                         endi = pointA.I;
                     }
 
@@ -464,7 +465,7 @@ namespace Enderlook.Unity.Pathfinding2
                                 maximumD = d;
                                 maximumI = ci;
                             }
-                            ci = (ci + cinc) % edgeContourCount;
+                            ci = (ci + cinc) % oldSimplifiedCount;
                         }
                     }
 
