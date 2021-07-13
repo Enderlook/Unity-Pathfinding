@@ -150,6 +150,8 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
         {
+            edgeContour.Clear();
+
             // Choose the first non-connected edge.
             int direction = 0;
             while (!IsRegion(initialFlags, ToFlag(direction)))
@@ -165,13 +167,9 @@ namespace Enderlook.Unity.Pathfinding2
                 direction++;
             }
 
-            int py = GetIndexOfSideCheckNeighbours(spans, spanIndex, direction, spans[spanIndex]);
-
-            edgeContour.Clear();
-            GetPoints(x, z, direction, out int px, out int pz);
-            bool isBorderVertex = IsBorderVertex(spans, regions, spanIndex, direction);
-            edgeContour.Add(new ContourPoint(px, py, pz, regions[spanIndex], isBorderVertex));
             initialFlags |= IS_USED;
+
+            int py = GetIndexOfSideCheckNeighbours(spans, spanIndex, direction, spans[spanIndex]);
 
             int startSpan = spanIndex;
             int startDirection = direction;
@@ -187,10 +185,11 @@ namespace Enderlook.Unity.Pathfinding2
 
                     if (IsRegion(flags, ToFlag(direction)))
                     {
-                        GetPoints(x, z, direction, out px, out pz);
+                        GetPoints(x, z, direction, out int px, out int pz);
                         bool isBorderVertex_ = IsBorderVertex(spans_, regions_, spanIndex, direction);
 
                         edgeContour_.Add(new ContourPoint(px, py, pz, regions_[spanIndex], isBorderVertex_));
+
                         flags |= IS_USED;
                         direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
                     }
