@@ -150,35 +150,22 @@ namespace Enderlook.Unity.Pathfinding2
 
         private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
         {
-            ref readonly CompactOpenHeightField.HeightSpan heightSpan = ref spans[spanIndex];
-            int py = heightSpan.Floor;
-            // Choose first edge.
-            int direction;
-            if (IsRegion(initialFlags, LEFT_IS_REGIONAL))
+            // Choose the first non-connected edge.
+            int direction = 0;
+            while (!IsRegion(initialFlags, ToFlag(direction)))
             {
-                direction = CompactOpenHeightField.HeightSpan.LEFT_DIRECTION;
-                py = GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, py, heightSpan);
+                Debug.Assert(direction < 4);
+#if UNITY_ASSERTIONS
+                if (direction >= 4)
+                {
+                    Debug.Assert(false);
+                    return;
+                }
+#endif
+                direction++;
             }
-            else if (IsRegion(initialFlags, FORWARD_IS_REGIONAL))
-            {
-                direction = CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION;
-                py = GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, py, heightSpan);
-            }
-            else if (IsRegion(initialFlags, RIGHT_IS_REGIONAL))
-            {
-                direction = CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION;
-                py = GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, py, heightSpan);
-            }
-            else if (IsRegion(initialFlags, BACKWARD_IS_REGIONAL))
-            {
-                direction = CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION;
-                py = GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, py, heightSpan);
-            }
-            else
-            {
-                Debug.Assert(false, "Impossible state.");
-                return;
-            }
+
+            int py = GetIndexOfSideCheckNeighbours(spans, spanIndex, direction, spans[spanIndex]);
 
             edgeContour.Clear();
             GetPoints(x, z, direction, out int px, out int pz);
@@ -275,6 +262,24 @@ namespace Enderlook.Unity.Pathfinding2
                         direction = CompactOpenHeightField.HeightSpan.RotateCounterClockwise(direction);
                     }
                 }*/
+            }
+        }
+
+        private static int GetIndexOfSideCheckNeighbours(ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int spanIndex, int direction, in CompactOpenHeightField.HeightSpan span)
+        {
+            switch (direction)
+            {
+                case CompactOpenHeightField.HeightSpan.LEFT_DIRECTION:
+                    return GetIndexOfSideCheckNeighbours<Side.Left>(spans, spanIndex, span.Floor, span);
+                case CompactOpenHeightField.HeightSpan.FORWARD_DIRECTION:
+                    return GetIndexOfSideCheckNeighbours<Side.Forward>(spans, spanIndex, span.Floor, span);
+                case CompactOpenHeightField.HeightSpan.RIGHT_DIRECTION:
+                    return GetIndexOfSideCheckNeighbours<Side.Right>(spans, spanIndex, span.Floor, span);
+                case CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION:
+                    return GetIndexOfSideCheckNeighbours<Side.Backward>(spans, spanIndex, span.Floor, span);
+                default:
+                    Debug.Assert(false, "Impossible state.");
+                    goto case CompactOpenHeightField.HeightSpan.BACKWARD_DIRECTION;
             }
         }
 
