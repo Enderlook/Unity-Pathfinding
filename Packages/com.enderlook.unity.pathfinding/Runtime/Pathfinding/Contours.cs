@@ -105,8 +105,8 @@ namespace Enderlook.Unity.Pathfinding2
                             continue;
                         }
 
-                        WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, ref flags, maxIterations);
                         RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
+                        WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags, maxIterations);
                         try
                         {
                             contours.Add(simplified);
@@ -148,7 +148,7 @@ namespace Enderlook.Unity.Pathfinding2
             return edgeFlags;
         }
 
-        private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, ref byte initialFlags, int maxIterations)
+        private void WalkContour(ReadOnlySpan<ushort> regions, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, byte[] edgeFlags, ref RawPooledList<ContourPoint> edgeContour, int x, int z, int spanIndex, byte initialFlags, int maxIterations)
         {
             edgeContour.Clear();
 
@@ -166,8 +166,6 @@ namespace Enderlook.Unity.Pathfinding2
 #endif
                 direction++;
             }
-
-            initialFlags |= IS_USED;
 
             int py = GetIndexOfSideCheckNeighbours(spans, spanIndex, direction, spans[spanIndex]);
 
