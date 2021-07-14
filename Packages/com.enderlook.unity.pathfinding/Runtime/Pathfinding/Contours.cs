@@ -105,8 +105,8 @@ namespace Enderlook.Unity.Pathfinding2
                             continue;
                         }
 
-                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags, maxIterations);
+                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
                         try
                         {
                             contours.Add(simplified);
@@ -163,7 +163,13 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     GetPoints(x, z, direction, out int px, out int pz);
                     int py = GetCornerHeight(spans, regions, spanIndex, direction, out bool isBorderVertex);
-                    edgeContour.Add(new ContourPoint(px, py, pz, regions[spanIndex], isBorderVertex));
+
+                    ushort region = RegionsField.NULL_REGION; // TODO: Should this be null or undefined region?
+                    int neighbour = spans[spanIndex].GetSide(direction);
+                    if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                        region = regions[neighbour];
+
+                    edgeContour.Add(new ContourPoint(px, py, pz, region, isBorderVertex));
 
                     flags |= IS_USED;
                     direction = CompactOpenHeightField.HeightSpan.RotateClockwise(direction);
@@ -456,6 +462,7 @@ namespace Enderlook.Unity.Pathfinding2
                     // Tesselate only outer edges or edges between areas.
                     if (edgeContour[ci].Region == RegionsField.NULL_REGION)
                     {
+                        int start = ci;
                         while (ci != endi)
                         {
                             ContourPoint pointCI = edgeContour[ci];
@@ -465,15 +472,27 @@ namespace Enderlook.Unity.Pathfinding2
                                 maximumD = d;
                                 maximumI = ci;
                             }
+                            int old = ci;
                             ci = (ci + cinc) % oldSimplifiedCount;
+
+                            if (ci == old || ci == start)
+                            {
+                                //Debug.Assert(false, "Endless loop.");
+                                break;
+                            }
                         }
                     }
 
                     // If the maximum deviation is larger than accepted error, add new point, else continue to next segment.
                     if (maximumI != -1 && maximumD > (maximumEdgeDeviation * maximumEdgeDeviation))
                     {
-                        ContourPoint pointMaximumI = edgeContour[maximumI];
-                        simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                        if (simplified[i].I == maximumI || simplified[ii].I == maximumI || simplified[i == 0 ? simplified.Count - 1 : i - 1].I == maximumI)
+                            i++;
+                        else
+                        {
+                            ContourPoint pointMaximumI = edgeContour[maximumI];
+                            simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                        }
                     }
                     else
                         i++;
