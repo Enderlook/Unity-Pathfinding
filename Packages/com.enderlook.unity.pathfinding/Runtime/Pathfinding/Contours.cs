@@ -106,16 +106,31 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags, maxIterations);
-                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
-                        try
+                        /*if (maximumEdgeDeviation == 0)
                         {
-                            contours.Add(simplified);
-                            //contours.Add(RawPooledList<ContourPoint>.Create(edgeContour.AsSpan()));
+                            RawPooledList<ContourPoint> clone = RawPooledList<ContourPoint>.Create(edgeContour.AsSpan());
+                            try
+                            {
+                                contours.Add(clone);
+                            }
+                            catch
+                            {
+                                clone.Dispose();
+                                throw;
+                            }
                         }
-                        catch
+                        else*/
                         {
-                            simplified.Dispose();
-                            throw;
+                            RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
+                            try
+                            {
+                                contours.Add(simplified);
+                            }
+                            catch
+                            {
+                                simplified.Dispose();
+                                throw;
+                            }
                         }
                         spanIndex++;
                     }
@@ -428,8 +443,9 @@ namespace Enderlook.Unity.Pathfinding2
                     simplified.Add(new ContourPoint(upperRightX, upperRightY, upperRightZ, upperRightI));
                 }
 
+                //return simplified;
+
                 // Add points until all raw points are within error tolerance of the simplified shape.
-                int oldSimplifiedCount = simplified.Count;
                 for (int i = 0; i < simplified.Count;)
                 {
                     int ii = (i + 1) % simplified.Count;
@@ -449,13 +465,13 @@ namespace Enderlook.Unity.Pathfinding2
                     if (pointB.X > pointA.X || (pointB.X == pointA.X && pointB.Z > pointA.Z))
                     {
                         cinc = 1;
-                        ci = (pointA.I + cinc) % oldSimplifiedCount;
+                        ci = (pointA.I + cinc) % edgeContourCount;
                         endi = pointB.I;
                     }
                     else
                     {
-                        cinc = oldSimplifiedCount - 1;
-                        ci = (pointB.I + cinc) % oldSimplifiedCount;
+                        cinc = edgeContourCount - 1;
+                        ci = (pointB.I + cinc) % edgeContourCount;
                         endi = pointA.I;
                     }
 
@@ -473,7 +489,7 @@ namespace Enderlook.Unity.Pathfinding2
                                 maximumI = ci;
                             }
                             int old = ci;
-                            ci = (ci + cinc) % oldSimplifiedCount;
+                            ci = (ci + cinc) % edgeContourCount;
 
                             if (ci == old || ci == start)
                             {
@@ -486,13 +502,19 @@ namespace Enderlook.Unity.Pathfinding2
                     // If the maximum deviation is larger than accepted error, add new point, else continue to next segment.
                     if (maximumI != -1 && maximumD > (maximumEdgeDeviation * maximumEdgeDeviation))
                     {
-                        if (simplified[i].I == maximumI || simplified[ii].I == maximumI || simplified[i == 0 ? simplified.Count - 1 : i - 1].I == maximumI)
-                            i++;
-                        else
+                        for (int j = 0; j < simplified.Count; j++)
                         {
-                            ContourPoint pointMaximumI = edgeContour[maximumI];
-                            simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                            if (simplified[j].I == maximumI)
+                            {
+                                i++;
+                                goto end;
+                            }
                         }
+
+                        ContourPoint pointMaximumI = edgeContour[maximumI];
+                        simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                        end:
+                        continue;
                     }
                     else
                         i++;
