@@ -21,8 +21,8 @@ namespace Enderlook.Unity.Pathfinding2
         public ReadOnlySpan<ushort> Distances => distances.AsSpan(0, spansCount);
 
         /* The status array must start with this value.
-         * Currently in order to do that we are using Array.Empty method.
-         * If you replace this value with any other than 0, you shall replicate it by replacing Array.Empty with Array.Fill. */
+         * Currently in order to do that we are using Array.Clear method.
+         * If you replace this value with any other than 0, you shall replicate it by replacing Array.Clear with Array.Fill. */
         private const int STATUS_OPEN = 0;
         private const int STATUS_IN_PROGRESS = 1;
         private const int STATUS_CLOSED = 2;
