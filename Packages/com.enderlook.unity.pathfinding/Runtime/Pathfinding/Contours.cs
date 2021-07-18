@@ -478,38 +478,48 @@ namespace Enderlook.Unity.Pathfinding2
                     // Tesselate only outer edges or edges between areas.
                     if (edgeContour[ci].Region == RegionsField.NULL_REGION)
                     {
+#if UNITY_ASSERTIONS
                         int start = ci;
+#endif
                         while (ci != endi)
                         {
                             ContourPoint pointCI = edgeContour[ci];
-                            float d = DistancePointSegment(pointCI.X, pointCI.Z, pointA.X, pointA.Z, pointB.X, pointB.Z);
+                            float d = DistancePointSegment(new Vector2(pointCI.X, pointCI.Z), new Vector2(pointA.X, pointA.Z), new Vector2(pointB.X, pointB.Z));
                             if (d > maximumD)
                             {
                                 maximumD = d;
                                 maximumI = ci;
                             }
+#if UNITY_ASSERTIONS
                             int old = ci;
+#endif
                             ci = (ci + cinc) % edgeContourCount;
 
+#if UNITY_ASSERTIONS
                             if (ci == old || ci == start)
                             {
-                                //Debug.Assert(false, "Endless loop.");
+                                Debug.Assert(false, "Endless loop.");
                                 break;
                             }
+#endif
                         }
                     }
 
                     // If the maximum deviation is larger than accepted error, add new point, else continue to next segment.
                     if (maximumI != -1 && maximumD > (maximumEdgeDeviation * maximumEdgeDeviation))
                     {
+#if UNITY_ASSERTIONS
                         for (int j = 0; j < simplified.Count; j++)
                         {
                             if (simplified[j].I == maximumI)
                             {
+                                //Debug.Assert(false, "Endless loop.");
+                                Debug.Log("B");
                                 i++;
                                 goto end;
                             }
                         }
+#endif
 
                         ContourPoint pointMaximumI = edgeContour[maximumI];
                         simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
@@ -584,9 +594,26 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float DistancePointSegment(int x, int z, int px, int pz, int qx, int qz)
+        private static float DistancePointSegment(Vector2 i, Vector2 p, Vector2 q)
         {
-            float pqx = qx - px;
+            Vector2 pq = q - p;
+            Vector2 ip = i - p;
+
+            float d = pq.sqrMagnitude;
+            Vector2 pqi = pq * ip;
+            float t = pqi.x + pqi.y;
+
+            if (d > 0)
+                t /= d;
+
+            if (t < 0)
+                t = 0;
+            else if (t > 1)
+                t = 1;
+
+            return (p + (t * pq) - i).sqrMagnitude;
+
+            /*float pqx = qx - px;
             float pqz = qz - pz;
             float dx = x - px;
             float dz = z - pz;
@@ -595,15 +622,16 @@ namespace Enderlook.Unity.Pathfinding2
 
             if (d > 0)
                 t /= d;
+
             if (t < 0)
                 t = 0;
             else if (t > 1)
                 t = 1;
 
-            dx = px + (t * pqx) - x;
-            dz = pz + (t * pqz) - z;
+            float dx_ = px + (t * pqx) - x;
+            float dz_ = pz + (t * pqz) - z;
 
-            return (dx * dx) + (dz * dz);
+            return (dx_ * dx_) + (dz_ * dz_);*/
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
