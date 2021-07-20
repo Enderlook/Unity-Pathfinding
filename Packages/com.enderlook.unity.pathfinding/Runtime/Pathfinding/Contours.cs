@@ -522,7 +522,7 @@ namespace Enderlook.Unity.Pathfinding2
 #endif
 
                         ContourPoint pointMaximumI = edgeContour[maximumI];
-                        simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                        simplified.Insert(ii, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
                         end:
                         continue;
                     }
