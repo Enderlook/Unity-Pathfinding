@@ -106,31 +106,15 @@ namespace Enderlook.Unity.Pathfinding2
                         }
 
                         WalkContour(regions, spans, edgeFlags, ref edgeContour, x, z, spanIndex, flags, maxIterations);
-                        /*if (maximumEdgeDeviation == 0)
+                        RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
+                        try
                         {
-                            RawPooledList<ContourPoint> clone = RawPooledList<ContourPoint>.Create(edgeContour.AsSpan());
-                            try
-                            {
-                                contours.Add(clone);
-                            }
-                            catch
-                            {
-                                clone.Dispose();
-                                throw;
-                            }
+                            contours.Add(simplified);
                         }
-                        else*/
+                        catch
                         {
-                            RawPooledList<ContourPoint> simplified = SimplifyContour(ref edgeContour, maximumEdgeDeviation, maximumEdgeLength);
-                            try
-                            {
-                                contours.Add(simplified);
-                            }
-                            catch
-                            {
-                                simplified.Dispose();
-                                throw;
-                            }
+                            simplified.Dispose();
+                            throw;
                         }
                         spanIndex++;
                     }
@@ -443,8 +427,6 @@ namespace Enderlook.Unity.Pathfinding2
                     simplified.Add(new ContourPoint(upperRightX, upperRightY, upperRightZ, upperRightI));
                 }
 
-                //return simplified;
-
                 // Add points until all raw points are within error tolerance of the simplified shape.
                 for (int i = 0; i < simplified.Count;)
                 {
@@ -513,8 +495,7 @@ namespace Enderlook.Unity.Pathfinding2
                         {
                             if (simplified[j].I == maximumI)
                             {
-                                //Debug.Assert(false, "Endless loop.");
-                                Debug.Log("B");
+                                Debug.Assert(false, "Endless loop.");
                                 i++;
                                 goto end;
                             }
