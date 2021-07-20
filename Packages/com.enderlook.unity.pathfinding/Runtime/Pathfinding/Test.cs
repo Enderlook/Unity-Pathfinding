@@ -38,7 +38,7 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     work = 2;
                     if (valueTask.IsFaulted)
-                        throw valueTask.AsTask().Exception;
+                        Debug.LogException(valueTask.AsTask().Exception);
                     Debug.Log("Completed");
                 });
             }
