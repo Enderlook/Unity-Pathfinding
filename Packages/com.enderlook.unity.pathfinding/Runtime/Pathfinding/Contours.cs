@@ -484,7 +484,7 @@ namespace Enderlook.Unity.Pathfinding2
                         while (ci != endi)
                         {
                             ContourPoint pointCI = edgeContour[ci];
-                            float d = DistancePointSegment(new Vector2(pointCI.X, pointCI.Z), new Vector2(pointA.X, pointA.Z), new Vector2(pointB.X, pointB.Z));
+                            float d = SquaredDistancePointSegment(new Vector2(pointCI.X, pointCI.Z), new Vector2(pointA.X, pointA.Z), new Vector2(pointB.X, pointB.Z));
                             if (d > maximumD)
                             {
                                 maximumD = d;
@@ -594,44 +594,27 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float DistancePointSegment(Vector2 i, Vector2 p, Vector2 q)
+        private static float SquaredDistancePointSegment(Vector2 p0, Vector2 p1, Vector2 p2)
         {
-            Vector2 pq = q - p;
-            Vector2 ip = i - p;
+            // https://stackoverflow.com/a/6853926/7655838 from https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
 
-            float d = pq.sqrMagnitude;
-            Vector2 pqi = pq * ip;
-            float t = pqi.x + pqi.y;
+            Vector2 p01 = p0 - p1;
+            Vector2 p21 = p2 - p1;
 
-            if (d > 0)
-                t /= d;
+            float param = Vector2.Dot(p01, p21);
+            float squaredMagnitude = p21.sqrMagnitude;
+            if (squaredMagnitude > 0)
+                param /= squaredMagnitude;
 
-            if (t < 0)
-                t = 0;
-            else if (t > 1)
-                t = 1;
+            Vector2 result;
+            if (param < 0)
+                result = p1;
+            else if (param > 1)
+                result = p2;
+            else
+                result = p1 + (param * p21);
 
-            return (p + (t * pq) - i).sqrMagnitude;
-
-            /*float pqx = qx - px;
-            float pqz = qz - pz;
-            float dx = x - px;
-            float dz = z - pz;
-            float d = (pqx * pqx) + (pqz * pqz);
-            float t = (pqx * dx) + (pqz * dz);
-
-            if (d > 0)
-                t /= d;
-
-            if (t < 0)
-                t = 0;
-            else if (t > 1)
-                t = 1;
-
-            float dx_ = px + (t * pqx) - x;
-            float dz_ = pz + (t * pqz) - z;
-
-            return (dx_ * dx_) + (dz_ * dz_);*/
+            return (p0 - result).sqrMagnitude;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -805,6 +788,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose() => contours.Dispose();
 
+        [System.Diagnostics.DebuggerDisplay("{X} {Y} {Z} {Region} {IsBorder} {I}")]
         private readonly struct ContourPoint
         {
             public readonly int X;
