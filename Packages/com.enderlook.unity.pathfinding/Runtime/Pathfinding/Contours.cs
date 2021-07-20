@@ -504,14 +504,13 @@ namespace Enderlook.Unity.Pathfinding2
 
                         ContourPoint pointMaximumI = edgeContour[maximumI];
                         simplified.Insert(ii, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
-                        end:
-                        continue;
+                        end:;
                     }
                     else
                         i++;
                 }
 
-                // Split too long edge.
+                // Split too long edges.
                 if (maximumEdgeLength > 0)
                 {
                     for (int i = 0; i < simplified.Count;)
@@ -548,8 +547,21 @@ namespace Enderlook.Unity.Pathfinding2
                         // If the maximum deviation is larger than accepted error, add new point, else continue to next segment.
                         if (maximumI != -1)
                         {
+#if UNITY_ASSERTIONS
+                            for (int j = 0; j < simplified.Count; j++)
+                            {
+                                if (simplified[j].I == maximumI)
+                                {
+                                    Debug.Assert(false, "Endless loop.");
+                                    i++;
+                                    goto end;
+                                }
+                            }
+#endif
+
                             ContourPoint pointMaximumI = edgeContour[maximumI];
-                            simplified.Insert(i, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                            simplified.Insert(ii, new ContourPoint(pointMaximumI.X, pointMaximumI.Y, pointMaximumI.Z, maximumI));
+                            end:;
                         }
                         else
                             i++;
@@ -753,6 +765,7 @@ namespace Enderlook.Unity.Pathfinding2
                 Vector3 center_ = offset + position;
                 Vector3 center_1 = center_;
                 Vector3 center_2 = center_;
+                Gizmos.DrawSphere(center_, .025f);
                 for (int j = 1; j < contour.Count; j++)
                 {
                     point = contour[j];
@@ -761,6 +774,7 @@ namespace Enderlook.Unity.Pathfinding2
                     center_2 = offset + position;
                     Gizmos.DrawLine(center_, center_2);
                     center_ = center_2;
+                    Gizmos.DrawSphere(center_, .025f);
                 }
                 Gizmos.DrawLine(center_2, center_1);
             }
@@ -769,7 +783,6 @@ namespace Enderlook.Unity.Pathfinding2
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose() => contours.Dispose();
 
-        [System.Diagnostics.DebuggerDisplay("{X} {Y} {Z} {Region} {IsBorder} {I}")]
         private readonly struct ContourPoint
         {
             public readonly int X;
