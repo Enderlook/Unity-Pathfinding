@@ -42,7 +42,7 @@ namespace Enderlook.Unity.Pathfinding2
                 else
                 {
                     if (executionTimeSlice == float.PositiveInfinity)
-                        nextYield = Time.realtimeSinceStartup  + value;
+                        nextYield = Time.realtimeSinceStartup + value;
                     executionTimeSlice = value;
                 }
 
@@ -203,9 +203,9 @@ namespace Enderlook.Unity.Pathfinding2
         internal void Validate() => resolution.ThrowIfDefault();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void PushTask(int steps, string name = "") => PushTask(steps, 0, name);
+        internal void PushTask(int steps, string name) => PushTask(steps, 0, name);
 
-        internal void PushTask(int steps, int step, string name = "")
+        internal void PushTask(int steps, int step, string name)
         {
             Lock();
             {
