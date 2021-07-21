@@ -68,40 +68,24 @@ namespace Enderlook.Unity.Pathfinding2
             heightField.DebugAssert(nameof(heightField), resolution, $"{nameof(options)}.{nameof(options.Resolution)}");
 
             HeightColumn[] columns = ArrayPool<HeightColumn>.Shared.Rent(resolution.Width * resolution.Depth);
-            try
+            RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
+            options.PushTask(2, "Compact Open Height Field");
             {
-                RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
-                try
-                {
-                    options.PushTask(2, "Compact Open Height Field");
-                    {
-                        spans = await Initialize(heightField, columns, spans, options);
-                        options.StepTask();
+                spans = await Initialize(heightField, columns, spans, options);
+                options.StepTask();
 
-                        options.PushTask(resolution.Cells2D, "Calculate Neighbours");
-                        {
-                            if (options.UseMultithreading)
-                                CalculateNeighboursMultiThread(options, columns, spans.UnderlyingArray);
-                            else
-                                await CalculateNeighboursSingleThread(options, columns, spans.UnderlyingArray);
-                        }
-                        options.PopTask();
-                        options.StepTask();
-                    }
-                    options.PopTask();
-                    return new CompactOpenHeightField(columns, resolution.Width * resolution.Depth, spans.UnderlyingArray, spans.Count);
-                }
-                catch
+                options.PushTask(resolution.Cells2D, "Calculate Neighbours");
                 {
-                    spans.Dispose();
-                    throw;
+                    if (options.UseMultithreading)
+                        CalculateNeighboursMultiThread(options, columns, spans.UnderlyingArray);
+                    else
+                        await CalculateNeighboursSingleThread(options, columns, spans.UnderlyingArray);
                 }
+                options.PopTask();
+                options.StepTask();
             }
-            catch
-            {
-                ArrayPool<HeightColumn>.Shared.Return(columns);
-                throw;
-            }
+            options.PopTask();
+            return new CompactOpenHeightField(columns, resolution.Width * resolution.Depth, spans.UnderlyingArray, spans.Count);
         }
 
         /// <summary>

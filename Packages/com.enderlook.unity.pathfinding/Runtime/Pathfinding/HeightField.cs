@@ -50,24 +50,16 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(voxels.Length >= resolution.Cells, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(resolution)}.{nameof(resolution.Cells)}.");
 
             HeightColumn[] columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
-            try
+            options.PushTask(resolution.Cells, "Generating Height Field");
+            HeightSpan[] spans;
             {
-                options.PushTask(resolution.Cells, "Generating Height Field");
-                HeightSpan[] spans;
-                {
-                    if (options.UseMultithreading)
-                        spans = MultiThread(columns, voxels, options);
-                    else
-                        spans = await SingleThread(columns, voxels, options);
-                }
-                options.PopTask();
-                return new HeightField(columns, xzLength, spans);
+                if (options.UseMultithreading)
+                    spans = MultiThread(columns, voxels, options);
+                else
+                    spans = await SingleThread(columns, voxels, options);
             }
-            catch
-            {
-                ArrayPool<HeightColumn>.Shared.Return(columns);
-                throw;
-            }
+            options.PopTask();
+            return new HeightField(columns, xzLength, spans);
         }
 
         private static async ValueTask<HeightSpan[]> SingleThread(HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
@@ -75,28 +67,20 @@ namespace Enderlook.Unity.Pathfinding2
             Resolution resolution = options.Resolution;
             // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
-            try
+            int index = 0;
+            for (int x = 0; x < resolution.Width; x++)
             {
-                int index = 0;
-                for (int x = 0; x < resolution.Width; x++)
+                for (int z = 0; z < resolution.Depth; z++)
                 {
-                    for (int z = 0; z < resolution.Depth; z++)
-                    {
-                        int start = spans.Count;
-                        SingleThreadWork(resolution, voxels, options, ref spans, x, z);
-                        Debug.Assert(index == resolution.GetIndex(x, z));
-                        columns[index++] = new HeightColumn(start, spans.Count - start);
-                        if (options.CheckIfMustYield())
-                            await options.Yield();
-                    }
+                    int start = spans.Count;
+                    SingleThreadWork(resolution, voxels, options, ref spans, x, z);
+                    Debug.Assert(index == resolution.GetIndex(x, z));
+                    columns[index++] = new HeightColumn(start, spans.Count - start);
+                    if (options.CheckIfMustYield())
+                        await options.Yield();
                 }
-                return spans.UnderlyingArray;
             }
-            catch
-            {
-                spans.Dispose();
-                throw;
-            }
+            return spans.UnderlyingArray;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -128,46 +112,38 @@ namespace Enderlook.Unity.Pathfinding2
         {
             Resolution resolution = options.Resolution;
             HeightSpan[] spans = ArrayPool<HeightSpan>.Shared.Rent(resolution.Cells);
-            try
+            Parallel.For(0, resolution.Cells2D, index =>
             {
-                Parallel.For(0, resolution.Cells2D, index =>
+                int x = index / resolution.Width;
+                int z = index % resolution.Width;
+
+                Span<bool> voxels_ = voxels.Span;
+                bool added = false;
+                int start = index * resolution.Height;
+                int count = start;
+
+                for (int y = 0; y < resolution.Height; y++)
                 {
-                    int x = index / resolution.Width;
-                    int z = index % resolution.Width;
-
-                    Span<bool> voxels_ = voxels.Span;
-                    bool added = false;
-                    int start = index * resolution.Height;
-                    int count = start;
-
-                    for (int y = 0; y < resolution.Height; y++)
+                    bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
+                    if (!added)
                     {
-                        bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
-                        if (!added)
-                        {
-                            spans[count++] = new HeightSpan(isSolid);
-                            added = true;
-                        }
-                        else
-                        {
-                            ref HeightSpan span = ref spans[count - 1];
-                            if (span.IsSolid == isSolid)
-                                Unsafe.AsRef(span.Height)++;
-                            else
-                                spans[count++] = new HeightSpan(isSolid);
-                        }
-                        options.StepTask();
+                        spans[count++] = new HeightSpan(isSolid);
+                        added = true;
                     }
-                    Debug.Assert(index == resolution.GetIndex(x, z));
-                    columns[index] = new HeightColumn(start, count - start);
-                });
-                return spans;
-            }
-            catch
-            {
-                ArrayPool<HeightSpan>.Shared.Return(spans);
-                throw;
-            }
+                    else
+                    {
+                        ref HeightSpan span = ref spans[count - 1];
+                        if (span.IsSolid == isSolid)
+                            Unsafe.AsRef(span.Height)++;
+                        else
+                            spans[count++] = new HeightSpan(isSolid);
+                    }
+                    options.StepTask();
+                }
+                Debug.Assert(index == resolution.GetIndex(x, z));
+                columns[index] = new HeightColumn(start, count - start);
+            });
+            return spans;
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
