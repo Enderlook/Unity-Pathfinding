@@ -104,18 +104,9 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     (Vector3[] vertices, int verticesCount, int[] triangles) content = stack[i];
 
-                    if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
-                    {
-                        Debug.Assert(false, "Index out of range.");
-                        return;
-                    }
+                    await ApplyOffset(options, content, center);
 
-                    for (int j = 0; j < content.verticesCount; j++)
-                        content.vertices[j] -= center;
-
-                    if (options.CheckIfMustYield())
-                        await options.Yield();
-
+                    Debug.Assert(sizeof(bool) == Unsafe.SizeOf<Voxelizer.VoxelInfo>());
                     Voxelizer.Voxelize(
                         MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.vertices.AsSpan(0, content.verticesCount)),
                         content.triangles,
@@ -123,34 +114,21 @@ namespace Enderlook.Unity.Pathfinding2
                         Unsafe.As<Vector3, System.Numerics.Vector3>(ref size),
                         (resolution.Width, resolution.Height, resolution.Depth)
                     );
-
                     if (options.CheckIfMustYield())
                         await options.Yield();
 
-                    // Calculate bounds of the mesh.
-                    // TODO: we may be calculating this twice.
-                    Vector3 min = content.vertices[0];
-                    Vector3 max = content.vertices[0];
-                    for (int j = 0; j < content.vertices.Length; j++)
-                    {
-                        Vector3 vertice = content.vertices[j];
-                        min = Vector3.Min(min, vertice);
-                        max = Vector3.Max(max, vertice);
-                    }
-
-                    if (options.CheckIfMustYield())
-                        await options.Yield();
+                    (Vector3 min, Vector3 max) bounds = await CalculateBounds(options, content);
 
                     // Fit bounds to global resolution.
                     Vector3 cellSize = resolution.CellSize;
 
-                    int xMinMultiple = Mathf.FloorToInt(min.x / cellSize.x);
-                    int yMinMultiple = Mathf.FloorToInt(min.y / cellSize.y);
-                    int zMinMultiple = Mathf.FloorToInt(min.z / cellSize.z);
+                    int xMinMultiple = Mathf.FloorToInt(bounds.min.x / cellSize.x);
+                    int yMinMultiple = Mathf.FloorToInt(bounds.min.y / cellSize.y);
+                    int zMinMultiple = Mathf.FloorToInt(bounds.min.z / cellSize.z);
 
-                    int xMaxMultiple = Mathf.CeilToInt(max.x / cellSize.x);
-                    int yMaxMultiple = Mathf.CeilToInt(max.y / cellSize.y);
-                    int zMaxMultiple = Mathf.CeilToInt(max.z / cellSize.z);
+                    int xMaxMultiple = Mathf.CeilToInt(bounds.max.x / cellSize.x);
+                    int yMaxMultiple = Mathf.CeilToInt(bounds.max.y / cellSize.y);
+                    int zMaxMultiple = Mathf.CeilToInt(bounds.max.z / cellSize.z);
 
                     // Fix offset
                     xMinMultiple += resolution.Width / 2;
@@ -168,42 +146,222 @@ namespace Enderlook.Unity.Pathfinding2
                     yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.Height);
                     zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
 
-                    Or(voxels);
-
-                    if(options.StepTaskAndCheckIfMustYield())
-                        await options.Yield();
+                    Or(options, resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
 
                     voxels_.AsSpan(0, voxelsLength).Clear();
 
                     if (options.StepTaskAndCheckIfMustYield())
                         await options.Yield();
-
-                    void Or(bool[] voxels)
-                    {
-                        Span<Voxelizer.VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, Voxelizer.VoxelInfo>(voxels_);
-                        int index = resolution.Depth * (resolution.Height * xMinMultiple);
-                        for (int x = xMinMultiple; x < xMaxMultiple; x++)
-                        {
-                            index += resolution.Depth * yMinMultiple;
-                            for (int y = yMinMultiple; y < yMaxMultiple; y++)
-                            {
-                                index += zMinMultiple;
-                                for (int z = zMinMultiple; z < zMaxMultiple; z++)
-                                {
-                                    Debug.Assert(index == resolution.GetIndex(x, y, z));
-                                    voxels[index] |= voxelsInfo[index].Fill;
-                                    index++;
-                                }
-                                index += resolution.Depth - zMaxMultiple;
-                            }
-                            index += resolution.Depth * (resolution.Height - yMaxMultiple);
-                        }
-                    }
                 }
                 ArrayPool<bool>.Shared.Return(voxels_);
             }
             options.PopTask();
             stack.Dispose();
+
+            async ValueTask ApplyOffset(MeshGenerationOptions options, (Vector3[] vertices, int verticesCount, int[] triangles) content, Vector3 center)
+            {
+                if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
+                {
+                    Debug.Assert(false, "Index out of range.");
+                    return;
+                }
+
+                const int unroll = 16;
+                for (int j = 0; j < content.verticesCount; j += unroll)
+                {
+                    // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
+
+                    content.vertices[j + 0] -= center;
+                    content.vertices[j + 1] -= center;
+                    content.vertices[j + 2] -= center;
+                    content.vertices[j + 3] -= center;
+                    content.vertices[j + 4] -= center;
+                    content.vertices[j + 5] -= center;
+                    content.vertices[j + 6] -= center;
+                    content.vertices[j + 7] -= center;
+                    content.vertices[j + 8] -= center;
+                    content.vertices[j + 9] -= center;
+                    content.vertices[j + 10] -= center;
+                    content.vertices[j + 11] -= center;
+                    content.vertices[j + 12] -= center;
+                    content.vertices[j + 13] -= center;
+                    content.vertices[j + 14] -= center;
+                    content.vertices[j + 15] -= center;
+
+                    if (options.CheckIfMustYield())
+                        await options.Yield();
+                }
+
+                for (int j = (content.verticesCount / unroll) * unroll; j < content.verticesCount; j++)
+                    content.vertices[j] -= center;
+
+                if (options.CheckIfMustYield())
+                    await options.Yield();
+            }
+
+            async ValueTask<(Vector3 min, Vector3 max)> CalculateBounds(MeshGenerationOptions options, (Vector3[] vertices, int verticesCount, int[] triangles) content)
+            {
+                if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
+                {
+                    Debug.Assert(false, "Index out of range.");
+                    return default;
+                }
+
+                // Calculate bounds of the mesh.
+                // TODO: we may be calculating this twice.
+                Vector3 min = content.vertices[0];
+                Vector3 max = content.vertices[0];
+                const int unroll = 16;
+                for (int j = 0; j < content.verticesCount; j += unroll)
+                {
+                    // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
+
+                    Vector3 vertice = content.vertices[j + 0];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 1];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 2];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 3];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 4];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 5];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 6];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 7];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 8];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 9];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 10];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 11];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 12];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 13];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 14];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    vertice = content.vertices[j + 15];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+
+                    if (options.CheckIfMustYield())
+                        await options.Yield();
+                }
+
+                for (int j = (content.verticesCount / unroll) * unroll; j < content.verticesCount; j++)
+                {
+                    Vector3 vertice = content.vertices[j];
+                    min = Vector3.Min(min, vertice);
+                    max = Vector3.Max(max, vertice);
+                }
+
+                if (options.CheckIfMustYield())
+                    await options.Yield();
+
+                return (min, max);
+            }
+
+            async void Or(MeshGenerationOptions options, Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
+            {
+                Voxelizer.VoxelInfo[] voxelsInfo = Unsafe.As<Voxelizer.VoxelInfo[]>(voxels_);
+                int index = resolution.Depth * (resolution.Height * xMinMultiple);
+                for (int x = xMinMultiple; x < xMaxMultiple; x++)
+                {
+                    index += resolution.Depth * yMinMultiple;
+                    for (int y = yMinMultiple; y < yMaxMultiple; y++)
+                    {
+                        index += zMinMultiple;
+                        const int unroll = 16;
+                        int z = zMinMultiple;
+                        for (; z < zMaxMultiple; z += unroll, index += unroll)
+                        {
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 0));
+                            voxels[index + 0] |= voxelsInfo[index + 0].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 1));
+                            voxels[index + 1] |= voxelsInfo[index + 1].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 2));
+                            voxels[index + 2] |= voxelsInfo[index + 2].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 3));
+                            voxels[index + 3] |= voxelsInfo[index + 3].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 4));
+                            voxels[index + 4] |= voxelsInfo[index + 4].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 5));
+                            voxels[index + 5] |= voxelsInfo[index + 5].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 6));
+                            voxels[index + 6] |= voxelsInfo[index + 6].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 7));
+                            voxels[index + 7] |= voxelsInfo[index + 7].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 8));
+                            voxels[index + 8] |= voxelsInfo[index + 8].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 9));
+                            voxels[index + 9] |= voxelsInfo[index + 9].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 10));
+                            voxels[index + 10] |= voxelsInfo[index + 10].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 11));
+                            voxels[index + 11] |= voxelsInfo[index + 11].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 12));
+                            voxels[index + 12] |= voxelsInfo[index + 12].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 13));
+                            voxels[index + 13] |= voxelsInfo[index + 13].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 14));
+                            voxels[index + 14] |= voxelsInfo[index + 14].Fill;
+                            Debug.Assert(index == resolution.GetIndex(x, y, z + 15));
+                            voxels[index + 15] |= voxelsInfo[index + 15].Fill;
+
+                            if (options.CheckIfMustYield())
+                                await options.Yield();
+                        }
+
+                        for (; z < zMaxMultiple; z++, index++)
+                        {
+                            Debug.Assert(index == resolution.GetIndex(x, y, z));
+                            voxels[index] |= voxelsInfo[index].Fill;
+                        }
+
+                        if (options.CheckIfMustYield())
+                            await options.Yield();
+
+                        index += resolution.Depth - zMaxMultiple;
+                    }
+                    index += resolution.Depth * (resolution.Height - yMaxMultiple);
+                }
+            }
         }
 
         private static async ValueTask ProcessMultiThread(RawPooledList<(Vector3[] vertices, int verticesCount, int[] triangles)> stack, bool[] voxels, MeshGenerationOptions options)
