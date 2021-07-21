@@ -90,6 +90,8 @@ namespace Enderlook.Unity.Pathfinding2
             bool added = false;
             for (int y = 0; y < resolution.Height; y++)
             {
+                // TODO: Should allow yielding here?
+
                 bool isSolid = voxels_[resolution.GetIndex(x, y, z)];
                 if (!added)
                 {

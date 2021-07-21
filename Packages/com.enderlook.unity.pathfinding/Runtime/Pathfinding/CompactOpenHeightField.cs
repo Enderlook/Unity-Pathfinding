@@ -505,6 +505,7 @@ namespace Enderlook.Unity.Pathfinding2
 
             for (int i = column.First; i < column.Last; i++)
             {
+                // TODO: Should allow yielding here?
                 // TODO: This can be optimized so neighbour spans must not be iterated all the time.
                 // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
 
@@ -549,6 +550,7 @@ namespace Enderlook.Unity.Pathfinding2
         private static void CalculateNeighboursLoop(HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpanBuilder span, ref int side)
         {
             for (int j = column.First, end = column.Last; j < end; j++)
+                // TODO: Should allow yielding here?
                 if (span.PresentNeighbour(ref side, j, spans[j], maxTraversableStep, minTraversableHeight))
                     break;
         }

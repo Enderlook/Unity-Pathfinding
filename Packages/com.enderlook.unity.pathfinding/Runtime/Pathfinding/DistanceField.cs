@@ -197,12 +197,15 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 for (int i = 0; i < length; i++)
                 {
+                    // TODO: Should unroll this loop? The idea would be to reduce the amount of yield checks.
+
                     if (openHeightField.Span(i).IsBorder)
                     {
                         status[i] = STATUS_IN_PROGRESS;
                         distances[i] = 0;
                         handeling.Enqueue(i);
                     }
+
                     if (options.StepTaskAndCheckIfMustYield())
                         await options.Yield();
                 }
