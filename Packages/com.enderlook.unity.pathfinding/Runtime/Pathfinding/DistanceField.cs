@@ -61,6 +61,7 @@ namespace Enderlook.Unity.Pathfinding2
                     (maximumDistance, handeling) = await CalculateDistances<MeshGenerationOptions.WithoutYield>(distances, handeling, status, openHeightField, options);
 
                 handeling.Dispose();
+                options.StepTask();
             }
             options.PopTask();
             ArrayPool<byte>.Shared.Return(status);
