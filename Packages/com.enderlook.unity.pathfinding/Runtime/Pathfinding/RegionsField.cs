@@ -70,7 +70,7 @@ namespace Enderlook.Unity.Pathfinding2
             int agentSize = options.AgentSize;
             for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
             {
-                self.ExpandAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
+                (regions, tmp) = await self.ExpandAllRegionsEqually(distances, spans, regions, tmp, waterLevel, options);
                 self.FindNewBasins(distances, spans, ref regions, ref regionId, ref tmp, waterLevel);
             }
 
@@ -86,7 +86,8 @@ namespace Enderlook.Unity.Pathfinding2
             else
             {
                 const int unroll = 16;
-                for (int i = 0; i < regions.Count; i += unroll)
+                int i = 0;
+                for (; (i + unroll) < regions.Count; i += unroll)
                 {
                     // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
 
@@ -110,7 +111,7 @@ namespace Enderlook.Unity.Pathfinding2
                     if (options.CheckIfMustYield())
                         await options.Yield();
                 }
-                for (int i = (regions.Count / unroll) * unroll; i < regions.Count; i++)
+                for (; i < regions.Count; i++)
                     regions[i].Dispose();
             }
             regions.Dispose();
@@ -168,6 +169,8 @@ namespace Enderlook.Unity.Pathfinding2
 
             async ValueTask SingleThread()
             {
+                // TODO: Should be specialize another function for single thread without slices?
+
                 for (int x = 0; x < resolution.Width; x++)
                 {
                     int index = resolution.GetIndex(x, 0);
@@ -213,50 +216,84 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private void ExpandAllRegionsEqually(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
+        private ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> ExpandAllRegionsEqually(ReadOnlyArraySlice<ushort> distances, ReadOnlyArraySlice<CompactOpenHeightField.HeightSpan> spans, RawPooledList<Region> regions, int[] tmp, int waterLevel, MeshGenerationOptions options)
         {
-            RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
-            bool change = true;
-            while (change)
+            ushort[] regions_ = this.regions;
+            if (options.UseMultithreading || !options.HasTimeSlice)
+                return WithoutYield();
+            else
+                return WithYield();
+
+            async ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> WithYield()
             {
-                change = false;
-                for (int i = 0; i < regions.Count; i++)
+                RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
+                bool change = true;
+                while (change)
                 {
-                    ref Region region = ref regions[i];
-                    change = ExpandRegion(distances, spans, waterLevel, ref tmp_, ref region);
+                    change = false;
+                    for (int i = 0; i < regions.Count; i++)
+                    {
+                        // Flood fill mark region.
+                        Region region = regions[i];
+
+                        tmp_.Clear();
+                        tmp_ = region.SwapBorder(tmp_);
+                        for (int j = 0; j < tmp_.Count; j++)
+                        {
+                            ExpandRegionsBodyLoop(regions_, distances, spans, waterLevel, ref tmp_, ref change, ref region, j);
+                            if (options.CheckIfMustYield())
+                                await options.Yield();
+                        }
+
+                        regions[i] = region;
+                    }
                 }
+                return (regions, tmp_.UnderlyingArray);
             }
-            tmp = tmp_.UnderlyingArray;
-        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool ExpandRegion(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp, ref Region region)
-        {
-            // Flood fill mark region.
-
-            tmp.Clear();
-            tmp = region.SwapBorder(tmp);
-            bool change = false;
-            for (int j = 0; j < tmp.Count; j++)
+            ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> WithoutYield()
             {
-                int i = tmp[j];
-                ref readonly CompactOpenHeightField.HeightSpan span = ref spans[i];
+                RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
+                bool change = true;
+                while (change)
+                {
+                    change = false;
+                    for (int i = 0; i < regions.Count; i++)
+                    {
+                        // Flood fill mark region.
+                        Region region = regions[i];
 
-                bool canKeepGrowing = false;
+                        tmp_.Clear();
+                        tmp_ = region.SwapBorder(tmp_);
+                        for (int j = 0; j < tmp_.Count; j++)
+                            ExpandRegionsBodyLoop(regions_, distances, spans, waterLevel, ref tmp_, ref change, ref region, j);
 
-                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Left, ref change, ref canKeepGrowing);
-                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
-                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Right, ref change, ref canKeepGrowing);
-                ExpandRegionCheckNeighbour(distances, waterLevel, ref region, span.Backward, ref change, ref canKeepGrowing);
-
-                if (canKeepGrowing)
-                    region.AddSpanToBorder(i);
+                        regions[i] = region;
+                    }
+                }
+                return new ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)>((regions, tmp_.UnderlyingArray));
             }
-            return change;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ExpandRegionCheckNeighbour(ReadOnlySpan<ushort> distances, int waterLevel, ref Region region, int neighbour, ref bool didGrow, ref bool canGrow)
+        private static void ExpandRegionsBodyLoop(ushort[] regions, ReadOnlyArraySlice<ushort> distances, ReadOnlyArraySlice<CompactOpenHeightField.HeightSpan> spans, int waterLevel, ref RawPooledList<int> tmp_, ref bool change, ref Region region, int j)
+        {
+            int k = tmp_[j];
+            ref readonly CompactOpenHeightField.HeightSpan span = ref spans[k];
+
+            bool canKeepGrowing = false;
+
+            ExpandRegionCheckNeighbour(regions, distances, waterLevel, ref region, span.Left, ref change, ref canKeepGrowing);
+            ExpandRegionCheckNeighbour(regions, distances, waterLevel, ref region, span.Forward, ref change, ref canKeepGrowing);
+            ExpandRegionCheckNeighbour(regions, distances, waterLevel, ref region, span.Right, ref change, ref canKeepGrowing);
+            ExpandRegionCheckNeighbour(regions, distances, waterLevel, ref region, span.Backward, ref change, ref canKeepGrowing);
+
+            if (canKeepGrowing)
+                region.AddSpanToBorder(k);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ExpandRegionCheckNeighbour(ushort[] regions, ReadOnlyArraySlice<ushort> distances, int waterLevel, ref Region region, int neighbour, ref bool didGrow, ref bool canGrow)
         {
             if (neighbour != CompactOpenHeightField.HeightSpan.NULL_SIDE && regions[neighbour] == NULL_REGION)
             {
@@ -290,7 +327,7 @@ namespace Enderlook.Unity.Pathfinding2
                     region.count++;
                     thisRegions[i] = regionId;
                     regionId++;
-                    FloodRegion(distances, spans, waterLevel, i, ref regions[regions.Count - 1], ref tmp);
+                    FloodRegion(distances, spans, waterLevel, i, ref region, ref tmp);
                 }
             }
         }
@@ -594,7 +631,7 @@ namespace Enderlook.Unity.Pathfinding2
                         options.StepTask();
                     });
                 }
-                else
+                else if (options.HasTimeSlice)
                 {
                     for (int i = 0; i < regionsCount; i++)
                     {
@@ -602,6 +639,14 @@ namespace Enderlook.Unity.Pathfinding2
                         NullifySmallRegionsLoopBody(regions, regionsBuilder, minimumRegionSurface, i);
                         if (options.StepTaskAndCheckIfMustYield())
                             await options.Yield();
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < regionsCount; i++)
+                    {
+                        NullifySmallRegionsLoopBody(regions, regionsBuilder, minimumRegionSurface, i);
+                        options.StepTask();
                     }
                 }
             }
