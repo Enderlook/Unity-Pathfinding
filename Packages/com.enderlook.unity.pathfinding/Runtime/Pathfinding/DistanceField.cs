@@ -18,7 +18,7 @@ namespace Enderlook.Unity.Pathfinding2
         private readonly int spansCount;
         private readonly ushort[] distances;
 
-        public ReadOnlySpan<ushort> Distances => distances.AsSpan(0, spansCount);
+        public ReadOnlyArraySlice<ushort> Distances => new ReadOnlyArraySlice<ushort>(distances, spansCount);
 
         /* The status array must start with this value.
          * Currently in order to do that we are using Array.Clear method.

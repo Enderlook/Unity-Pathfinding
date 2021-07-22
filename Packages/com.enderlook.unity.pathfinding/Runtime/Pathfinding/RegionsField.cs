@@ -1,9 +1,9 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Enumerables;
 
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -34,6 +34,12 @@ namespace Enderlook.Unity.Pathfinding2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ushort SetOffBorderRegion(ushort region) => (ushort)(region & ~BORDER_REGION_FLAG);
 
+        private RegionsField(ushort[] regions, int regionsCount)
+        {
+            this.regions = regions;
+            this.regionsCount = regionsCount;
+        }
+
         /// <summary>
         /// Calculates the regions of the specified distance field.
         /// </summary>
@@ -41,62 +47,75 @@ namespace Enderlook.Unity.Pathfinding2
         /// <param name="openHeightField">Open height field owner of the <paramref name="distanceField"/>.</param>
         /// <param name="options">Stores configuration information.</param>
         /// <returns>The generated regions field.</return>
-        public RegionsField(in DistanceField distanceField, in CompactOpenHeightField openHeightField, MeshGenerationOptions options)
+        public static async ValueTask<RegionsField> Create(DistanceField distanceField, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
             Resolution resolution = options.Resolution;
             openHeightField.DebugAssert(nameof(openHeightField), resolution, $"{nameof(options)}.{nameof(resolution)}");
             distanceField.DebugAssert(nameof(distanceField), resolution,  $"{nameof(options)}.{nameof(resolution)}");
 
-            ReadOnlySpan<ushort> distances = distanceField.Distances;
-            regionsCount = distances.Length;
-            ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
-            regions = ArrayPool<ushort>.Shared.Rent(regionsCount);
-            try
+            ReadOnlyArraySlice<ushort> distances = distanceField.Distances;
+            ReadOnlyArraySlice<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
+
+            RegionsField self = new RegionsField(ArrayPool<ushort>.Shared.Rent(distances.Length), distances.Length);
+            Array.Clear(self.regions, 0, self.regionsCount);
+            Debug.Assert(self.regions[0] == NULL_REGION);
+            if (options.CheckIfMustYield())
+                await options.Yield();
+
+            ushort regionId = 1;
+            regionId = await PaintRectangleRegionAsBorder(openHeightField, self.regions, regionId, options);
+
+            RawPooledList<Region> regions = RawPooledList<Region>.Create();
+            int[] tmp = ArrayPool<int>.Shared.Rent(0);
+            int agentSize = options.AgentSize;
+            for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
             {
-                if (regionsCount == 0)
-                    return;
-
-                Array.Clear(this.regions, 0, regionsCount);
-                Debug.Assert(this.regions[0] == NULL_REGION);
-
-                ushort regionId = 1;
-                regionId = PaintRectangleRegionAsBorder(openHeightField, this.regions.AsSpan(0, regionsCount), regionId, options);
-                RawPooledList<Region> regions = RawPooledList<Region>.Create();
-                try
-                {
-                    int[] tmp = ArrayPool<int>.Shared.Rent(0);
-                    try
-                    {
-                        int agentSize = options.AgentSize;
-                        for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
-                        {
-                            ExpandAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
-                            FindNewBasins(distances, spans, ref regions, ref regionId, ref tmp, waterLevel);
-                        }
-
-                        Debug.Assert(regionId <= SetOffBorderRegion(ushort.MaxValue));
-
-                        // TODO: Handle small regions by deleting them or merging them.
-
-                        NullifySmallRegions(ref regions, options);
-                    }
-                    finally
-                    {
-                        ArrayPool<int>.Shared.Return(tmp);
-                    }
-                }
-                finally
-                {
-                    for (int i = 0; i < regions.Count; i++)
-                        regions[i].Dispose();
-                    regions.Dispose();
-                }
+                self.ExpandAllRegionsEqually(distances, spans, ref regions, ref tmp, waterLevel);
+                self.FindNewBasins(distances, spans, ref regions, ref regionId, ref tmp, waterLevel);
             }
-            catch
+
+            Debug.Assert(regionId <= SetOffBorderRegion(ushort.MaxValue));
+
+            // TODO: Handle small regions by deleting them or merging them.
+
+            regions = await self.NullifySmallRegions(regions, options);
+
+            ArrayPool<int>.Shared.Return(tmp);
+            if (options.UseMultithreading)
+                Parallel.For(0, regions.Count, i => regions[i].Dispose());
+            else
             {
-                ArrayPool<ushort>.Shared.Return(regions);
-                throw;
+                const int unroll = 16;
+                for (int i = 0; i < regions.Count; i += unroll)
+                {
+                    // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
+
+                    regions[i + 0].Dispose();
+                    regions[i + 1].Dispose();
+                    regions[i + 2].Dispose();
+                    regions[i + 3].Dispose();
+                    regions[i + 4].Dispose();
+                    regions[i + 5].Dispose();
+                    regions[i + 6].Dispose();
+                    regions[i + 7].Dispose();
+                    regions[i + 8].Dispose();
+                    regions[i + 9].Dispose();
+                    regions[i + 10].Dispose();
+                    regions[i + 11].Dispose();
+                    regions[i + 12].Dispose();
+                    regions[i + 13].Dispose();
+                    regions[i + 14].Dispose();
+                    regions[i + 15].Dispose();
+
+                    if (options.CheckIfMustYield())
+                        await options.Yield();
+                }
+                for (int i = (regions.Count / unroll) * unroll; i < regions.Count; i++)
+                    regions[i].Dispose();
             }
+            regions.Dispose();
+
+            return self;
         }
 
         /// <summary>
@@ -106,7 +125,7 @@ namespace Enderlook.Unity.Pathfinding2
         [System.Diagnostics.Conditional("Debug")]
         public void DebugAssert(string parameterName) => Debug.Assert(!(regions is null), $"{parameterName} is default");
 
-        private static ushort PaintRectangleRegionAsBorder(in CompactOpenHeightField openHeightField, Span<ushort> regions, ushort regionId, MeshGenerationOptions options)
+        private static async ValueTask<ushort> PaintRectangleRegionAsBorder(CompactOpenHeightField openHeightField, ushort[] regions, ushort regionId, MeshGenerationOptions options)
         {
             int border = options.RegionBorderThickness;
             if (border == 0)
@@ -116,48 +135,82 @@ namespace Enderlook.Unity.Pathfinding2
 
             ushort region0 = SetOnBorderRegion(regionId++);
             ushort region1 = SetOnBorderRegion(regionId++);
+            ushort region2 = SetOnBorderRegion(regionId++);
+            ushort region3 = SetOnBorderRegion(regionId++);
 
             int xBorder = Math.Min(border, resolution.Width);
             int zBorder = Math.Min(border, resolution.Depth);
 
-            for (int x = 0; x < resolution.Width; x++)
-            {
-                int index = resolution.GetIndex(x, 0);
-                for (int z = 0; z < zBorder; z++)
-                {
-                    Debug.Assert(index == resolution.GetIndex(x, z));
-                    openHeightField.Columns[index++].Span(regions).Fill(region0);
-                }
-
-                index = resolution.GetIndex(x, resolution.Depth - zBorder - 1) + 1; // TODO: Why +1?
-                for (int z = resolution.Depth - zBorder; z < resolution.Depth; z++)
-                {
-                    Debug.Assert(index == resolution.GetIndex(x, z));
-                    openHeightField.Columns[index++].Span(regions).Fill(region1);
-                }
-            }
-
-            ushort region2 = SetOnBorderRegion(regionId++);
-            ushort region3 = SetOnBorderRegion(regionId++);
-            for (int z = 0; z < resolution.Depth; z++)
-            {
-                int index = resolution.GetIndex(0, z);
-                for (int x = 0; x < xBorder; x++)
-                {
-                    Debug.Assert(index == resolution.GetIndex(x, z));
-                    openHeightField.Columns[index].Span(regions).Fill(region2);
-                    index += resolution.Depth;
-                }
-
-                index = resolution.GetIndex(resolution.Width - xBorder - 1, z) + resolution.Depth; // TODO: Why + resolution.Depth?
-                for (int x = resolution.Depth - xBorder; x < resolution.Depth; x++)
-                {
-                    Debug.Assert(index == resolution.GetIndex(x, z));
-                    openHeightField.Columns[index].Span(regions).Fill(region3);
-                }
-            }
+            if (options.UseMultithreading)
+                MultiThread();
+            else
+                await SingleThread();
 
             return regionId;
+
+            void MultiThread()
+            {
+                Parallel.For(0, resolution.Width * zBorder, i =>
+                {
+                    int x = i / zBorder;
+                    int z = i % zBorder;
+                    openHeightField.Columns[resolution.GetIndex(x, z)].Span<ushort>(regions).Fill(region0);
+                    openHeightField.Columns[resolution.GetIndex(x, resolution.Depth - z - 1)].Span<ushort>(regions).Fill(region1);
+                });
+                Parallel.For(0, resolution.Depth * xBorder, i =>
+                {
+                    int z = i / xBorder;
+                    int x = i % xBorder;
+                    openHeightField.Columns[resolution.GetIndex(x, z)].Span<ushort>(regions).Fill(region2);
+                    openHeightField.Columns[resolution.GetIndex(resolution.Width - x - 1, z)].Span<ushort>(regions).Fill(region3);
+                });
+            }
+
+            async ValueTask SingleThread()
+            {
+                for (int x = 0; x < resolution.Width; x++)
+                {
+                    int index = resolution.GetIndex(x, 0);
+                    for (int z = 0; z < zBorder; z++)
+                    {
+                        Debug.Assert(index == resolution.GetIndex(x, z));
+                        openHeightField.Columns[index++].Span<ushort>(regions).Fill(region0);
+                    }
+
+                    index = resolution.GetIndex(x, resolution.Depth - zBorder - 1) + 1; // TODO: Why +1?
+                    for (int z = resolution.Depth - zBorder; z < resolution.Depth; z++)
+                    {
+                        Debug.Assert(index == resolution.GetIndex(x, z));
+                        openHeightField.Columns[index++].Span<ushort>(regions).Fill(region1);
+                    }
+
+                    // TODO: Should the yield check be done inside the inner loops?
+                    if (options.CheckIfMustYield())
+                        await options.Yield();
+                }
+
+                for (int z = 0; z < resolution.Depth; z++)
+                {
+                    int index = resolution.GetIndex(0, z);
+                    for (int x = 0; x < xBorder; x++)
+                    {
+                        Debug.Assert(index == resolution.GetIndex(x, z));
+                        openHeightField.Columns[index].Span<ushort>(regions).Fill(region2);
+                        index += resolution.Width;
+                    }
+
+                    index = resolution.GetIndex(resolution.Width - xBorder - 1, z) + resolution.Depth; // TODO: Why + resolution.Depth?
+                    for (int x = resolution.Width - xBorder; x < resolution.Width; x++)
+                    {
+                        Debug.Assert(index == resolution.GetIndex(x, z));
+                        openHeightField.Columns[index].Span<ushort>(regions).Fill(region3);
+                    }
+
+                    // TODO: Should the yield check be done inside the inner loops?
+                    if (options.CheckIfMustYield())
+                        await options.Yield();
+                }
+            }
         }
 
         private void ExpandAllRegionsEqually(ReadOnlySpan<ushort> distances, ReadOnlySpan<CompactOpenHeightField.HeightSpan> spans, ref RawPooledList<Region> regions, ref int[] tmp, int waterLevel)
@@ -524,30 +577,51 @@ namespace Enderlook.Unity.Pathfinding2
         }
     }*/
 
-        private void NullifySmallRegions(ref RawPooledList<Region> regionsBuilder, MeshGenerationOptions options)
+        private async ValueTask<RawPooledList<Region>> NullifySmallRegions(RawPooledList<Region> regionsBuilder, MeshGenerationOptions options)
         {
             int minimumRegionSurface = options.MinimumRegionSurface;
             if (minimumRegionSurface <= 1)
-                return;
+                return regionsBuilder;
 
-            if (unchecked((uint)regionsCount >= (uint)regions.Length))
+            options.PushTask(regionsCount, "Nullify Small Regions");
             {
-                Debug.Assert(false, "Index out of range.");
-                return;
+                if (options.UseMultithreading)
+                {
+                    ushort[] regions = this.regions;
+                    Parallel.For(0, regionsCount, i =>
+                    {
+                        NullifySmallRegionsLoopBody(regions, regionsBuilder, minimumRegionSurface, i);
+                        options.StepTask();
+                    });
+                }
+                else
+                {
+                    for (int i = 0; i < regionsCount; i++)
+                    {
+                        // TODO: Should unroll this loop? The idea would be to reduce the amount of yield checks.
+                        NullifySmallRegionsLoopBody(regions, regionsBuilder, minimumRegionSurface, i);
+                        if (options.StepTaskAndCheckIfMustYield())
+                            await options.Yield();
+                    }
+                }
             }
+            options.PopTask();
 
-            for (int i = 0; i < regionsCount; i++)
-            {
-                ref ushort region = ref regions[i];
-                Debug.Assert(NULL_REGION == 0);
-                ushort region_ = SetOffBorderRegion(region);
-                // The 1 is because NULL_REGION is 0, and 4 because the first 4 regions are borders and aren't stored on the list.
-                if (region_ < (1 + 4))
-                    continue;
-                ushort index = (ushort)(region_ - 1 - 4);
-                if (regionsBuilder[index].count < minimumRegionSurface)
-                    region = NULL_REGION;
-            }
+            return regionsBuilder;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void NullifySmallRegionsLoopBody(ushort[] regions, RawPooledList<Region> regionsBuilder, int minimumRegionSurface, int i)
+        {
+            ref ushort region = ref regions[i];
+            Debug.Assert(NULL_REGION == 0);
+            ushort region_ = SetOffBorderRegion(region);
+            // The 1 is because NULL_REGION is 0, and 4 because the first 4 regions are borders and aren't stored on the list.
+            if (region_ < (1 + 4))
+                return;
+            ushort index = (ushort)(region_ - 1 - 4);
+            if (regionsBuilder[index].count < minimumRegionSurface)
+                region = NULL_REGION;
         }
 
         public void DrawGizmos(in Resolution resolution, in CompactOpenHeightField openHeightField)

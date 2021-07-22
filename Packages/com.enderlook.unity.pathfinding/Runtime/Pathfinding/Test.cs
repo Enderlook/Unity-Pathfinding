@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -111,7 +110,7 @@ namespace Enderlook.Unity.Pathfinding2
 
 
 
-            regions = new RegionsField(distanceField2, openHeightField, options);
+            regions = await RegionsField.Create(distanceField2, openHeightField, options);
             if (options.StepTaskAndCheckIfMustYield())
                 await options.Yield();
 

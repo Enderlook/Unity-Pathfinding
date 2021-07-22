@@ -28,7 +28,7 @@ namespace Enderlook.Unity.Pathfinding2
         /// <summary>
         /// Spans of the compacted open height field.
         /// </summary>
-        public ReadOnlySpan<HeightSpan> Spans => spans.AsSpan(0, spansCount);
+        public ReadOnlyArraySlice<HeightSpan> Spans => new ReadOnlyArraySlice<HeightSpan>(spans, spansCount);
 
         /// <summary>
         /// Amount of spans.
