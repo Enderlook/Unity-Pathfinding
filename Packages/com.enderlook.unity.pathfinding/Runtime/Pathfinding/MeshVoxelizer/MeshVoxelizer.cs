@@ -132,8 +132,7 @@ namespace Enderlook.Unity.Pathfinding2
                         // TODO: we may be calculating this twice.
                         bounds.min = content.vertices[0];
                         bounds.max = content.vertices[0];
-                        const int unroll = 16;
-                        for (int j = 0; j < content.verticesCount; j += unroll)
+                        for (int j = 0; j < content.verticesCount; j++)
                         {
                             Vector3 vertice = content.vertices[j + 0];
                             bounds.min = Vector3.Min(bounds.min, vertice);
