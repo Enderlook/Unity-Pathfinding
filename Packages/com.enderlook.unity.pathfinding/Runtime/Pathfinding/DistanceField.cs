@@ -184,57 +184,113 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private static async ValueTask<RawPooledQueue<int>> FindInitialBorders(ushort[] distances, RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
+        private static ValueTask<RawPooledQueue<int>> FindInitialBorders(ushort[] distances, RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            int length = openHeightField.SpansCount;
-            if (unchecked((uint)length > (uint)distances.Length))
+            if (options.UseMultithreading || !options.HasTimeSlice)
+                return WithoutYield();
+            else
+                return WithYield();
+
+            async ValueTask<RawPooledQueue<int>> WithYield()
             {
-                Debug.Assert(false, "Index out of range.");
+                int length = openHeightField.SpansCount;
+                options.PushTask(length, "Find Initial Borders");
+                {
+                    for (int i = 0; i < length; i++)
+                    {
+                        // TODO: Should unroll this loop? The idea would be to reduce the amount of yield checks.
+
+                        if (openHeightField.Span(i).IsBorder)
+                        {
+                            status[i] = STATUS_IN_PROGRESS;
+                            distances[i] = 0;
+                            handeling.Enqueue(i);
+                        }
+
+                        if (options.StepTaskAndCheckIfMustYield())
+                            await options.Yield();
+                    }
+                }
+                options.PopTask();
                 return handeling;
             }
 
-            options.PushTask(length, "Find Initial Borders");
+            ValueTask<RawPooledQueue<int>> WithoutYield()
             {
-                for (int i = 0; i < length; i++)
+                int length = openHeightField.SpansCount;
+                if (unchecked((uint)length > (uint)distances.Length))
                 {
-                    // TODO: Should unroll this loop? The idea would be to reduce the amount of yield checks.
-
-                    if (openHeightField.Span(i).IsBorder)
-                    {
-                        status[i] = STATUS_IN_PROGRESS;
-                        distances[i] = 0;
-                        handeling.Enqueue(i);
-                    }
-
-                    if (options.StepTaskAndCheckIfMustYield())
-                        await options.Yield();
+                    Debug.Assert(false, "Index out of range.");
+                    goto end;
                 }
+
+                options.PushTask(length, "Find Initial Borders");
+                {
+                    for (int i = 0; i < length; i++)
+                    {
+                        if (openHeightField.Span(i).IsBorder)
+                        {
+                            status[i] = STATUS_IN_PROGRESS;
+                            distances[i] = 0;
+                            handeling.Enqueue(i);
+                        }
+                    }
+                }
+                options.PopTask();
+                end:
+                return new ValueTask<RawPooledQueue<int>>(handeling);
             }
-            options.PopTask();
-            return handeling;
         }
 
-        private static async ValueTask<(ushort maximumDistance, RawPooledQueue<int> handeling)> CalculateDistances(ushort[] distances, RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
+        private static ValueTask<(ushort maximumDistance, RawPooledQueue<int> handeling)> CalculateDistances(ushort[] distances, RawPooledQueue<int> handeling, byte[] status, CompactOpenHeightField openHeightField, MeshGenerationOptions options)
         {
-            ushort maximumDistance = 0;
-            options.PushTask(1, "Calculate Distances");
+            if (options.UseMultithreading || !options.HasTimeSlice)
+                return WithoutYield();
+            else
+                return WithYield();
+
+            async ValueTask<(ushort maximumDistance, RawPooledQueue<int> handeling)> WithYield()
             {
-                while (handeling.TryDequeue(out int i))
+                ushort maximumDistance = 0;
+                options.PushTask(1, "Calculate Distances");
                 {
-                    CalculateDistancesBody(distances, ref handeling, status, openHeightField, i);
+                    while (handeling.TryDequeue(out int i))
+                    {
+                        CalculateDistancesBody(distances, ref handeling, status, openHeightField, i);
 
-                    if (distances[i] > maximumDistance)
-                        maximumDistance = distances[i];
+                        if (distances[i] > maximumDistance)
+                            maximumDistance = distances[i];
 
-                    status[i] = STATUS_CLOSED;
+                        status[i] = STATUS_CLOSED;
 
-                    if (options.CheckIfMustYield())
-                        await options.Yield();
+                        if (options.CheckIfMustYield())
+                            await options.Yield();
+                    }
+                    options.StepTask();
                 }
-                options.StepTask();
+                options.PopTask();
+                return (maximumDistance, handeling);
             }
-            options.PopTask();
-            return (maximumDistance, handeling);
+
+            ValueTask<(ushort maximumDistance, RawPooledQueue<int> handeling)> WithoutYield()
+            {
+                ushort maximumDistance = 0;
+                options.PushTask(1, "Calculate Distances");
+                {
+                    while (handeling.TryDequeue(out int i))
+                    {
+                        CalculateDistancesBody(distances, ref handeling, status, openHeightField, i);
+
+                        if (distances[i] > maximumDistance)
+                            maximumDistance = distances[i];
+
+                        status[i] = STATUS_CLOSED;
+                    }
+                    options.StepTask();
+                }
+                options.PopTask();
+                return new ValueTask<(ushort maximumDistance, RawPooledQueue<int> handeling)>((maximumDistance, handeling));
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

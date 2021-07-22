@@ -104,7 +104,13 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     (Vector3[] vertices, int verticesCount, int[] triangles) content = stack[i];
 
-                    await ApplyOffset(options, content, center);
+                    if (options.HasTimeSlice)
+                        await ApplyOffset(options, content, center);
+                    else
+                    {
+                        for (int j = 0; j < content.verticesCount; j++)
+                            content.vertices[j] -= center;
+                    }
 
                     Debug.Assert(sizeof(bool) == Unsafe.SizeOf<Voxelizer.VoxelInfo>());
                     Voxelizer.Voxelize(
@@ -117,7 +123,23 @@ namespace Enderlook.Unity.Pathfinding2
                     if (options.CheckIfMustYield())
                         await options.Yield();
 
-                    (Vector3 min, Vector3 max) bounds = await CalculateBounds(options, content);
+                    (Vector3 min, Vector3 max) bounds;
+                    if (options.HasTimeSlice)
+                        bounds = await CalculateBounds(options, content);
+                    else
+                    {
+                        // Calculate bounds of the mesh.
+                        // TODO: we may be calculating this twice.
+                        bounds.min = content.vertices[0];
+                        bounds.max = content.vertices[0];
+                        const int unroll = 16;
+                        for (int j = 0; j < content.verticesCount; j += unroll)
+                        {
+                            Vector3 vertice = content.vertices[j + 0];
+                            bounds.min = Vector3.Min(bounds.min, vertice);
+                            bounds.max = Vector3.Max(bounds.max, vertice);
+                        }
+                    }
 
                     // Fit bounds to global resolution.
                     Vector3 cellSize = resolution.CellSize;
@@ -146,7 +168,10 @@ namespace Enderlook.Unity.Pathfinding2
                     yMaxMultiple = Mathf.Min(yMaxMultiple, resolution.Height);
                     zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
 
-                    Or(options, resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
+                    if (options.HasTimeSlice)
+                        await OrWithYield(options, resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
+                    else
+                        OrWithoutYield(resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
 
                     voxels_.AsSpan(0, voxelsLength).Clear();
 
@@ -161,7 +186,8 @@ namespace Enderlook.Unity.Pathfinding2
             async ValueTask ApplyOffset(MeshGenerationOptions options, (Vector3[] vertices, int verticesCount, int[] triangles) content, Vector3 center)
             {
                 const int unroll = 16;
-                for (int j = 0; j < content.verticesCount; j += unroll)
+                int j = 0;
+                for (; j < content.verticesCount; j += unroll)
                 {
                     // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
 
@@ -186,7 +212,7 @@ namespace Enderlook.Unity.Pathfinding2
                         await options.Yield();
                 }
 
-                for (int j = (content.verticesCount / unroll) * unroll; j < content.verticesCount; j++)
+                for (; j < content.verticesCount; j++)
                     content.vertices[j] -= center;
 
                 if (options.CheckIfMustYield())
@@ -200,7 +226,8 @@ namespace Enderlook.Unity.Pathfinding2
                 Vector3 min = content.vertices[0];
                 Vector3 max = content.vertices[0];
                 const int unroll = 16;
-                for (int j = 0; j < content.verticesCount; j += unroll)
+                int j = 0;
+                for (; j < content.verticesCount; j += unroll)
                 {
                     // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
 
@@ -272,7 +299,7 @@ namespace Enderlook.Unity.Pathfinding2
                         await options.Yield();
                 }
 
-                for (int j = (content.verticesCount / unroll) * unroll; j < content.verticesCount; j++)
+                for (; j < content.verticesCount; j++)
                 {
                     Vector3 vertice = content.vertices[j];
                     min = Vector3.Min(min, vertice);
@@ -285,7 +312,7 @@ namespace Enderlook.Unity.Pathfinding2
                 return (min, max);
             }
 
-            async void Or(MeshGenerationOptions options, Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
+            async ValueTask OrWithYield(MeshGenerationOptions options, Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
             {
                 Voxelizer.VoxelInfo[] voxelsInfo = Unsafe.As<Voxelizer.VoxelInfo[]>(voxels_);
                 int index = resolution.Depth * (resolution.Height * xMinMultiple);
@@ -295,42 +322,61 @@ namespace Enderlook.Unity.Pathfinding2
                     for (int y = yMinMultiple; y < yMaxMultiple; y++)
                     {
                         index += zMinMultiple;
-                        const int unroll = 16;
                         int z = zMinMultiple;
-                        for (; z < zMaxMultiple; z += unroll, index += unroll)
+                        const int unroll = 16;
+                        int iTotal = (zMaxMultiple - z) / unroll;
+                        for (int i = 0; i < iTotal; i++)
                         {
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 0));
+                            Debug.Assert(index + 0 == resolution.GetIndex(x, y, z + 0));
                             voxels[index + 0] |= voxelsInfo[index + 0].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 1));
+
+                            Debug.Assert(index + 1 == resolution.GetIndex(x, y, z + 1));
                             voxels[index + 1] |= voxelsInfo[index + 1].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 2));
+
+                            Debug.Assert(index + 2 == resolution.GetIndex(x, y, z + 2));
                             voxels[index + 2] |= voxelsInfo[index + 2].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 3));
+
+                            Debug.Assert(index + 2 == resolution.GetIndex(x, y, z + 2));
+                            voxels[index + 2] |= voxelsInfo[index + 2].Fill;
+
+                            Debug.Assert(index + 3 == resolution.GetIndex(x, y, z + 3));
                             voxels[index + 3] |= voxelsInfo[index + 3].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 4));
-                            voxels[index + 4] |= voxelsInfo[index + 4].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 5));
+
+                            Debug.Assert(index + 5 == resolution.GetIndex(x, y, z + 5));
                             voxels[index + 5] |= voxelsInfo[index + 5].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 6));
+
+                            Debug.Assert(index + 6 == resolution.GetIndex(x, y, z + 6));
                             voxels[index + 6] |= voxelsInfo[index + 6].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 7));
+
+                            Debug.Assert(index + 7 == resolution.GetIndex(x, y, z + 7));
                             voxels[index + 7] |= voxelsInfo[index + 7].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 8));
+
+                            Debug.Assert(index + 8 == resolution.GetIndex(x, y, z + 8));
                             voxels[index + 8] |= voxelsInfo[index + 8].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 9));
+
+                            Debug.Assert(index + 9 == resolution.GetIndex(x, y, z + 9));
                             voxels[index + 9] |= voxelsInfo[index + 9].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 10));
+
+                            Debug.Assert(index + 10 == resolution.GetIndex(x, y, z + 10));
                             voxels[index + 10] |= voxelsInfo[index + 10].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 11));
+
+                            Debug.Assert(index + 11 == resolution.GetIndex(x, y, z + 11));
                             voxels[index + 11] |= voxelsInfo[index + 11].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 12));
+
+                            Debug.Assert(index + 12 == resolution.GetIndex(x, y, z + 12));
                             voxels[index + 12] |= voxelsInfo[index + 12].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 13));
+
+                            Debug.Assert(index + 13 == resolution.GetIndex(x, y, z + 13));
                             voxels[index + 13] |= voxelsInfo[index + 13].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 14));
+
+                            Debug.Assert(index + 14 == resolution.GetIndex(x, y, z + 14));
                             voxels[index + 14] |= voxelsInfo[index + 14].Fill;
-                            Debug.Assert(index == resolution.GetIndex(x, y, z + 15));
+
+                            Debug.Assert(index + 15 == resolution.GetIndex(x, y, z + 15));
                             voxels[index + 15] |= voxelsInfo[index + 15].Fill;
+
+                            z += unroll;
+                            index += unroll;
 
                             if (options.CheckIfMustYield())
                                 await options.Yield();
@@ -345,6 +391,28 @@ namespace Enderlook.Unity.Pathfinding2
                         if (options.CheckIfMustYield())
                             await options.Yield();
 
+                        index += resolution.Depth - zMaxMultiple;
+                    }
+                    index += resolution.Depth * (resolution.Height - yMaxMultiple);
+                }
+            }
+
+            void OrWithoutYield(Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
+            {
+                Voxelizer.VoxelInfo[] voxelsInfo = Unsafe.As<Voxelizer.VoxelInfo[]>(voxels_);
+                int index = resolution.Depth * (resolution.Height * xMinMultiple);
+                for (int x = xMinMultiple; x < xMaxMultiple; x++)
+                {
+                    index += resolution.Depth * yMinMultiple;
+                    for (int y = yMinMultiple; y < yMaxMultiple; y++)
+                    {
+                        index += zMinMultiple;
+                        int z = zMinMultiple;
+                        for (; z < zMaxMultiple; z++, index++)
+                        {
+                            Debug.Assert(index == resolution.GetIndex(x, y, z));
+                            voxels[index] |= voxelsInfo[index].Fill;
+                        }
                         index += resolution.Depth - zMaxMultiple;
                     }
                     index += resolution.Depth * (resolution.Height - yMaxMultiple);

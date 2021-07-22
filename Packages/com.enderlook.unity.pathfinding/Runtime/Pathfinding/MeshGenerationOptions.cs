@@ -52,6 +52,11 @@ namespace Enderlook.Unity.Pathfinding2
         private float executionTimeSlice = float.PositiveInfinity;
 
         /// <summary>
+        /// Whenever it has time slice.
+        /// </summary>
+        internal bool HasTimeSlice => executionTimeSlice != float.PositiveInfinity;
+
+        /// <summary>
         /// Resolution of the voxelization.
         /// </summary>
         public Resolution Resolution {

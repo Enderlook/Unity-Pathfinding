@@ -118,22 +118,46 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private static async ValueTask<RawPooledList<HeightSpan>> Initialize(HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, MeshGenerationOptions options)
+        private static ValueTask<RawPooledList<HeightSpan>> Initialize(HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, MeshGenerationOptions options)
         {
-            Resolution resolution = options.Resolution; 
-            options.PushTask(resolution.Cells2D, "Initialize");
-            int index = 0;
-            for (int x = 0; x < resolution.Width; x++)
+            if (options.UseMultithreading || !options.HasTimeSlice)
+                return WithoutYield();
+            else
+                return WithYield();
+
+            async ValueTask<RawPooledList<HeightSpan>> WithYield()
             {
-                for (int z = 0; z < resolution.Depth; z++)
+                Resolution resolution = options.Resolution;
+                options.PushTask(resolution.Cells2D, "Initialize");
                 {
-                    spanBuilder = InitializeWork(heightField, columns, spanBuilder, resolution, ref index, x, z);
-                    if (options.StepTaskAndCheckIfMustYield())
-                       await options.Yield();
+                    int index = 0;
+                    for (int x = 0; x < resolution.Width; x++)
+                    {
+                        for (int z = 0; z < resolution.Depth; z++)
+                        {
+                            spanBuilder = InitializeWork(heightField, columns, spanBuilder, resolution, ref index, x, z);
+                            if (options.StepTaskAndCheckIfMustYield())
+                                await options.Yield();
+                        }
+                    }
                 }
+                options.PopTask();
+                return spanBuilder;
             }
-            options.PopTask();
-            return spanBuilder;
+
+            ValueTask<RawPooledList<HeightSpan>> WithoutYield()
+            {
+                Resolution resolution = options.Resolution;
+                options.PushTask(resolution.Cells2D, "Initialize");
+                {
+                    int index = 0;
+                    for (int x = 0; x < resolution.Width; x++)
+                        for (int z = 0; z < resolution.Depth; z++)
+                            spanBuilder = InitializeWork(heightField, columns, spanBuilder, resolution, ref index, x, z);
+                }
+                options.PopTask();
+                return new ValueTask<RawPooledList<HeightSpan>>(spanBuilder);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
