@@ -238,6 +238,13 @@ namespace Enderlook.Unity.Pathfinding2
             return CheckIfMustYield();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool StepTaskAndCheckIfMustYield<TYield>()
+        {
+            StepTask();
+            return CheckIfMustYield<TYield>();
+        }
+
         internal void PopTask()
         {
             Lock();
@@ -254,6 +261,14 @@ namespace Enderlook.Unity.Pathfinding2
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool CheckIfMustYield() => Time.realtimeSinceStartup >= nextYield;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool CheckIfMustYield<TYield>()
+        {
+            if (UseYields<TYield>())
+                return CheckIfMustYield();
+            return false;
+        }
 
         internal Yielder Yield()
         {
@@ -305,6 +320,19 @@ namespace Enderlook.Unity.Pathfinding2
                     continuation();
                 options.continuations.Enqueue(continuation);
             }
+        }
+
+        internal struct WithYield { }
+        internal struct WithoutYield { }
+
+        [System.Diagnostics.Conditional("UNITY_ASSERTIONS")]
+        internal static void DebugAssertYield<T>() => Debug.Assert(typeof(T) == typeof(WithYield) || typeof(T) == typeof(WithoutYield));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool UseYields<T>()
+        {
+            DebugAssertYield<T>();
+            return typeof(T) == typeof(WithYield);
         }
     }
 }

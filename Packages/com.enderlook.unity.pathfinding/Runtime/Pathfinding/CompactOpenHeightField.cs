@@ -78,8 +78,10 @@ namespace Enderlook.Unity.Pathfinding2
                 {
                     if (options.UseMultithreading)
                         CalculateNeighboursMultiThread(options, columns, spans.UnderlyingArray);
+                    else if (options.HasTimeSlice)
+                        await CalculateNeighboursSingleThread<MeshGenerationOptions.WithYield>(options, columns, spans.UnderlyingArray);
                     else
-                        await CalculateNeighboursSingleThread(options, columns, spans.UnderlyingArray);
+                        await CalculateNeighboursSingleThread<MeshGenerationOptions.WithoutYield>(options, columns, spans.UnderlyingArray);
                 }
                 options.PopTask();
                 options.StepTask();
@@ -263,8 +265,10 @@ namespace Enderlook.Unity.Pathfinding2
             return spanBuilder;
         }
 
-        private static async ValueTask CalculateNeighboursSingleThread(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
+        private static async ValueTask CalculateNeighboursSingleThread<TYield>(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
+            MeshGenerationOptions.DebugAssertYield<TYield>();
+
             Resolution resolution = options.Resolution;
             int maxTraversableStep = options.MaximumTraversableStep;
             int minTraversableHeight = options.MaximumTraversableStep;
@@ -278,17 +282,17 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 int z = 0;
                 CalculateNeighboursBody<RightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                if (options.StepTaskAndCheckIfMustYield())
+                if (options.StepTaskAndCheckIfMustYield<TYield>())
                    await options.Yield();
                 for (z++; z < zM; z++)
                 {
                     CalculateNeighboursBody<RightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    if (options.StepTaskAndCheckIfMustYield())
+                    if (options.StepTaskAndCheckIfMustYield<TYield>())
                        await options.Yield();
                 }
                 Debug.Assert(z == zM);
                 CalculateNeighboursBody<RightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                if (options.StepTaskAndCheckIfMustYield())
+                if (options.StepTaskAndCheckIfMustYield<TYield>())
                    await options.Yield();
             }
 
@@ -296,7 +300,7 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 int z = 0;
                 CalculateNeighboursBody<LeftRightForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                if (options.StepTaskAndCheckIfMustYield())
+                if (options.StepTaskAndCheckIfMustYield<TYield>())
                    await options.Yield();
                 for (z = 1; z < zM; z++)
                 {
@@ -304,12 +308,12 @@ namespace Enderlook.Unity.Pathfinding2
                         * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
                         * TODO: Does this actually improves perfomance? */
                     CalculateNeighboursBody<LeftRightForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    if (options.StepTaskAndCheckIfMustYield())
+                    if (options.StepTaskAndCheckIfMustYield<TYield>())
                        await options.Yield();
                 }
                 Debug.Assert(z == zM);
                 CalculateNeighboursBody<LeftRightBackwardIncrement>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                if (options.StepTaskAndCheckIfMustYield())
+                if (options.StepTaskAndCheckIfMustYield<TYield>())
                    await options.Yield();
             }
 
@@ -317,16 +321,17 @@ namespace Enderlook.Unity.Pathfinding2
             {
                 int z = 0;
                 CalculateNeighboursBody<LeftForward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                if (options.StepTaskAndCheckIfMustYield())
+                if (options.StepTaskAndCheckIfMustYield<TYield>())
                    await options.Yield();
                 for (z++; z < zM; z++)
                 {
                     CalculateNeighboursBody<LeftForwardBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    options.StepTask();
+                    if (options.StepTaskAndCheckIfMustYield<TYield>())
+                        await options.Yield();
                 }
                 Debug.Assert(z == zM);
                 CalculateNeighboursBody<LeftBackward>(resolution, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                if (options.StepTaskAndCheckIfMustYield())
+                if (options.StepTaskAndCheckIfMustYield<TYield>())
                    await options.Yield();
             }
         }

@@ -168,9 +168,9 @@ namespace Enderlook.Unity.Pathfinding2
                     zMaxMultiple = Mathf.Min(zMaxMultiple, resolution.Depth);
 
                     if (options.HasTimeSlice)
-                        await OrWithYield(options, resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
+                        await Or<MeshGenerationOptions.WithYield>(options, resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
                     else
-                        OrWithoutYield(resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
+                        await Or<MeshGenerationOptions.WithoutYield>(options, resolution, voxels, voxels_, xMinMultiple, yMinMultiple, zMinMultiple, xMaxMultiple, yMaxMultiple, zMaxMultiple);
 
                     voxels_.AsSpan(0, voxelsLength).Clear();
 
@@ -311,8 +311,10 @@ namespace Enderlook.Unity.Pathfinding2
                 return (min, max);
             }
 
-            async ValueTask OrWithYield(MeshGenerationOptions options, Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
+            async ValueTask Or<TYield>(MeshGenerationOptions options, Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
             {
+                MeshGenerationOptions.DebugAssertYield<TYield>();
+
                 Voxelizer.VoxelInfo[] voxelsInfo = Unsafe.As<Voxelizer.VoxelInfo[]>(voxels_);
                 int index = resolution.Depth * (resolution.Height * xMinMultiple);
                 for (int x = xMinMultiple; x < xMaxMultiple; x++)
@@ -322,63 +324,67 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         index += zMinMultiple;
                         int z = zMinMultiple;
-                        const int unroll = 16;
-                        int iTotal = (zMaxMultiple - z) / unroll;
-                        for (int i = 0; i < iTotal; i++)
+
+                        if (MeshGenerationOptions.UseYields<TYield>())
                         {
-                            Debug.Assert(index + 0 == resolution.GetIndex(x, y, z + 0));
-                            voxels[index + 0] |= voxelsInfo[index + 0].Fill;
+                            const int unroll = 16;
+                            int iTotal = (zMaxMultiple - z) / unroll;
+                            for (int i = 0; i < iTotal; i++)
+                            {
+                                Debug.Assert(index + 0 == resolution.GetIndex(x, y, z + 0));
+                                voxels[index + 0] |= voxelsInfo[index + 0].Fill;
 
-                            Debug.Assert(index + 1 == resolution.GetIndex(x, y, z + 1));
-                            voxels[index + 1] |= voxelsInfo[index + 1].Fill;
+                                Debug.Assert(index + 1 == resolution.GetIndex(x, y, z + 1));
+                                voxels[index + 1] |= voxelsInfo[index + 1].Fill;
 
-                            Debug.Assert(index + 2 == resolution.GetIndex(x, y, z + 2));
-                            voxels[index + 2] |= voxelsInfo[index + 2].Fill;
+                                Debug.Assert(index + 2 == resolution.GetIndex(x, y, z + 2));
+                                voxels[index + 2] |= voxelsInfo[index + 2].Fill;
 
-                            Debug.Assert(index + 2 == resolution.GetIndex(x, y, z + 2));
-                            voxels[index + 2] |= voxelsInfo[index + 2].Fill;
+                                Debug.Assert(index + 2 == resolution.GetIndex(x, y, z + 2));
+                                voxels[index + 2] |= voxelsInfo[index + 2].Fill;
 
-                            Debug.Assert(index + 3 == resolution.GetIndex(x, y, z + 3));
-                            voxels[index + 3] |= voxelsInfo[index + 3].Fill;
+                                Debug.Assert(index + 3 == resolution.GetIndex(x, y, z + 3));
+                                voxels[index + 3] |= voxelsInfo[index + 3].Fill;
 
-                            Debug.Assert(index + 5 == resolution.GetIndex(x, y, z + 5));
-                            voxels[index + 5] |= voxelsInfo[index + 5].Fill;
+                                Debug.Assert(index + 5 == resolution.GetIndex(x, y, z + 5));
+                                voxels[index + 5] |= voxelsInfo[index + 5].Fill;
 
-                            Debug.Assert(index + 6 == resolution.GetIndex(x, y, z + 6));
-                            voxels[index + 6] |= voxelsInfo[index + 6].Fill;
+                                Debug.Assert(index + 6 == resolution.GetIndex(x, y, z + 6));
+                                voxels[index + 6] |= voxelsInfo[index + 6].Fill;
 
-                            Debug.Assert(index + 7 == resolution.GetIndex(x, y, z + 7));
-                            voxels[index + 7] |= voxelsInfo[index + 7].Fill;
+                                Debug.Assert(index + 7 == resolution.GetIndex(x, y, z + 7));
+                                voxels[index + 7] |= voxelsInfo[index + 7].Fill;
 
-                            Debug.Assert(index + 8 == resolution.GetIndex(x, y, z + 8));
-                            voxels[index + 8] |= voxelsInfo[index + 8].Fill;
+                                Debug.Assert(index + 8 == resolution.GetIndex(x, y, z + 8));
+                                voxels[index + 8] |= voxelsInfo[index + 8].Fill;
 
-                            Debug.Assert(index + 9 == resolution.GetIndex(x, y, z + 9));
-                            voxels[index + 9] |= voxelsInfo[index + 9].Fill;
+                                Debug.Assert(index + 9 == resolution.GetIndex(x, y, z + 9));
+                                voxels[index + 9] |= voxelsInfo[index + 9].Fill;
 
-                            Debug.Assert(index + 10 == resolution.GetIndex(x, y, z + 10));
-                            voxels[index + 10] |= voxelsInfo[index + 10].Fill;
+                                Debug.Assert(index + 10 == resolution.GetIndex(x, y, z + 10));
+                                voxels[index + 10] |= voxelsInfo[index + 10].Fill;
 
-                            Debug.Assert(index + 11 == resolution.GetIndex(x, y, z + 11));
-                            voxels[index + 11] |= voxelsInfo[index + 11].Fill;
+                                Debug.Assert(index + 11 == resolution.GetIndex(x, y, z + 11));
+                                voxels[index + 11] |= voxelsInfo[index + 11].Fill;
 
-                            Debug.Assert(index + 12 == resolution.GetIndex(x, y, z + 12));
-                            voxels[index + 12] |= voxelsInfo[index + 12].Fill;
+                                Debug.Assert(index + 12 == resolution.GetIndex(x, y, z + 12));
+                                voxels[index + 12] |= voxelsInfo[index + 12].Fill;
 
-                            Debug.Assert(index + 13 == resolution.GetIndex(x, y, z + 13));
-                            voxels[index + 13] |= voxelsInfo[index + 13].Fill;
+                                Debug.Assert(index + 13 == resolution.GetIndex(x, y, z + 13));
+                                voxels[index + 13] |= voxelsInfo[index + 13].Fill;
 
-                            Debug.Assert(index + 14 == resolution.GetIndex(x, y, z + 14));
-                            voxels[index + 14] |= voxelsInfo[index + 14].Fill;
+                                Debug.Assert(index + 14 == resolution.GetIndex(x, y, z + 14));
+                                voxels[index + 14] |= voxelsInfo[index + 14].Fill;
 
-                            Debug.Assert(index + 15 == resolution.GetIndex(x, y, z + 15));
-                            voxels[index + 15] |= voxelsInfo[index + 15].Fill;
+                                Debug.Assert(index + 15 == resolution.GetIndex(x, y, z + 15));
+                                voxels[index + 15] |= voxelsInfo[index + 15].Fill;
 
-                            z += unroll;
-                            index += unroll;
+                                z += unroll;
+                                index += unroll;
 
-                            if (options.CheckIfMustYield())
-                                await options.Yield();
+                                if (options.CheckIfMustYield())
+                                    await options.Yield();
+                            }
                         }
 
                         for (; z < zMaxMultiple; z++, index++)
@@ -387,31 +393,9 @@ namespace Enderlook.Unity.Pathfinding2
                             voxels[index] |= voxelsInfo[index].Fill;
                         }
 
-                        if (options.CheckIfMustYield())
+                        if (options.CheckIfMustYield<TYield>())
                             await options.Yield();
 
-                        index += resolution.Depth - zMaxMultiple;
-                    }
-                    index += resolution.Depth * (resolution.Height - yMaxMultiple);
-                }
-            }
-
-            void OrWithoutYield(Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
-            {
-                Voxelizer.VoxelInfo[] voxelsInfo = Unsafe.As<Voxelizer.VoxelInfo[]>(voxels_);
-                int index = resolution.Depth * (resolution.Height * xMinMultiple);
-                for (int x = xMinMultiple; x < xMaxMultiple; x++)
-                {
-                    index += resolution.Depth * yMinMultiple;
-                    for (int y = yMinMultiple; y < yMaxMultiple; y++)
-                    {
-                        index += zMinMultiple;
-                        int z = zMinMultiple;
-                        for (; z < zMaxMultiple; z++, index++)
-                        {
-                            Debug.Assert(index == resolution.GetIndex(x, y, z));
-                            voxels[index] |= voxelsInfo[index].Fill;
-                        }
                         index += resolution.Depth - zMaxMultiple;
                     }
                     index += resolution.Depth * (resolution.Height - yMaxMultiple);

@@ -50,20 +50,24 @@ namespace Enderlook.Unity.Pathfinding2
             Debug.Assert(voxels.Length >= resolution.Cells, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(resolution)}.{nameof(resolution.Cells)}.");
 
             HeightColumn[] columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
-            options.PushTask(resolution.Cells, "Generating Height Field");
             HeightSpan[] spans;
+            options.PushTask(resolution.Cells, "Generating Height Field");
             {
                 if (options.UseMultithreading)
                     spans = MultiThread(columns, voxels, options);
+                else if (options.HasTimeSlice)
+                    spans = await SingleThread<MeshGenerationOptions.WithYield>(columns, voxels, options);
                 else
-                    spans = await SingleThread(columns, voxels, options);
+                    spans = await SingleThread<MeshGenerationOptions.WithoutYield>(columns, voxels, options);
             }
             options.PopTask();
             return new HeightField(columns, xzLength, spans);
         }
 
-        private static async ValueTask<HeightSpan[]> SingleThread(HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
+        private static async ValueTask<HeightSpan[]> SingleThread<TYield>(HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
         {
+            MeshGenerationOptions.DebugAssertYield<TYield>();
+
             Resolution resolution = options.Resolution;
             // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
@@ -76,7 +80,8 @@ namespace Enderlook.Unity.Pathfinding2
                     SingleThreadWork(resolution, voxels, options, ref spans, x, z);
                     Debug.Assert(index == resolution.GetIndex(x, z));
                     columns[index++] = new HeightColumn(start, spans.Count - start);
-                    if (options.CheckIfMustYield())
+
+                    if (options.CheckIfMustYield<TYield>())
                         await options.Yield();
                 }
             }

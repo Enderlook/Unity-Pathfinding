@@ -68,9 +68,14 @@ namespace Enderlook.Unity.Pathfinding2
             RawPooledList<Region> regions = RawPooledList<Region>.Create();
             int[] tmp = ArrayPool<int>.Shared.Rent(0);
             int agentSize = options.AgentSize;
+            bool yield = options.HasTimeSlice && !options.UseMultithreading;
             for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
             {
-                (regions, tmp) = await self.ExpandAllRegionsEqually(distances, spans, regions, tmp, waterLevel, options);
+                if (yield)
+                    (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithYield>(distances, spans, regions, tmp, waterLevel, options);
+                else
+                    (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithoutYield>(distances, spans, regions, tmp, waterLevel, options);
+
                 self.FindNewBasins(distances, spans, ref regions, ref regionId, ref tmp, waterLevel);
             }
 
@@ -216,63 +221,32 @@ namespace Enderlook.Unity.Pathfinding2
             }
         }
 
-        private ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> ExpandAllRegionsEqually(ReadOnlyArraySlice<ushort> distances, ReadOnlyArraySlice<CompactOpenHeightField.HeightSpan> spans, RawPooledList<Region> regions, int[] tmp, int waterLevel, MeshGenerationOptions options)
+        private async ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> ExpandAllRegionsEqually<TYield>(ReadOnlyArraySlice<ushort> distances, ReadOnlyArraySlice<CompactOpenHeightField.HeightSpan> spans, RawPooledList<Region> regions, int[] tmp, int waterLevel, MeshGenerationOptions options)
         {
             ushort[] regions_ = this.regions;
-            if (options.UseMultithreading || !options.HasTimeSlice)
-                return WithoutYield();
-            else
-                return WithYield();
-
-            async ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> WithYield()
+            RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
+            bool change = true;
+            while (change)
             {
-                RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
-                bool change = true;
-                while (change)
+                change = false;
+                for (int i = 0; i < regions.Count; i++)
                 {
-                    change = false;
-                    for (int i = 0; i < regions.Count; i++)
+                    // Flood fill mark region.
+                    Region region = regions[i];
+
+                    tmp_.Clear();
+                    tmp_ = region.SwapBorder(tmp_);
+                    for (int j = 0; j < tmp_.Count; j++)
                     {
-                        // Flood fill mark region.
-                        Region region = regions[i];
-
-                        tmp_.Clear();
-                        tmp_ = region.SwapBorder(tmp_);
-                        for (int j = 0; j < tmp_.Count; j++)
-                        {
-                            ExpandRegionsBodyLoop(regions_, distances, spans, waterLevel, ref tmp_, ref change, ref region, j);
-                            if (options.CheckIfMustYield())
-                                await options.Yield();
-                        }
-
-                        regions[i] = region;
+                        ExpandRegionsBodyLoop(regions_, distances, spans, waterLevel, ref tmp_, ref change, ref region, j);
+                        if (options.CheckIfMustYield<TYield>())
+                            await options.Yield();
                     }
+
+                    regions[i] = region;
                 }
-                return (regions, tmp_.UnderlyingArray);
             }
-
-            ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)> WithoutYield()
-            {
-                RawPooledList<int> tmp_ = RawPooledList<int>.FromEmpty(tmp);
-                bool change = true;
-                while (change)
-                {
-                    change = false;
-                    for (int i = 0; i < regions.Count; i++)
-                    {
-                        // Flood fill mark region.
-                        Region region = regions[i];
-
-                        tmp_.Clear();
-                        tmp_ = region.SwapBorder(tmp_);
-                        for (int j = 0; j < tmp_.Count; j++)
-                            ExpandRegionsBodyLoop(regions_, distances, spans, waterLevel, ref tmp_, ref change, ref region, j);
-
-                        regions[i] = region;
-                    }
-                }
-                return new ValueTask<(RawPooledList<Region> regions, int[] UnderlyingArray)>((regions, tmp_.UnderlyingArray));
-            }
+            return (regions, tmp_.UnderlyingArray);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
