@@ -313,8 +313,6 @@ namespace Enderlook.Unity.Pathfinding2
 
             async ValueTask Or<TYield>(MeshGenerationOptions options, Resolution resolution, bool[] voxels, bool[] voxels_, int xMinMultiple, int yMinMultiple, int zMinMultiple, int xMaxMultiple, int yMaxMultiple, int zMaxMultiple)
             {
-                MeshGenerationOptions.DebugAssertYield<TYield>();
-
                 Voxelizer.VoxelInfo[] voxelsInfo = Unsafe.As<Voxelizer.VoxelInfo[]>(voxels_);
                 int index = resolution.Depth * (resolution.Height * xMinMultiple);
                 for (int x = xMinMultiple; x < xMaxMultiple; x++)

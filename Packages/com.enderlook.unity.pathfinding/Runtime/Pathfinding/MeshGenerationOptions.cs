@@ -326,7 +326,7 @@ namespace Enderlook.Unity.Pathfinding2
         internal struct WithoutYield { }
 
         [System.Diagnostics.Conditional("UNITY_ASSERTIONS")]
-        internal static void DebugAssertYield<T>() => Debug.Assert(typeof(T) == typeof(WithYield) || typeof(T) == typeof(WithoutYield));
+        private static void DebugAssertYield<T>() => Debug.Assert(typeof(T) == typeof(WithYield) || typeof(T) == typeof(WithoutYield));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool UseYields<T>()

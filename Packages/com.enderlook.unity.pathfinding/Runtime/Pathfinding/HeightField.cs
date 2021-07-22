@@ -66,8 +66,6 @@ namespace Enderlook.Unity.Pathfinding2
 
         private static async ValueTask<HeightSpan[]> SingleThread<TYield>(HeightColumn[] columns, Memory<bool> voxels, MeshGenerationOptions options)
         {
-            MeshGenerationOptions.DebugAssertYield<TYield>();
-
             Resolution resolution = options.Resolution;
             // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();

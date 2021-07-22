@@ -68,15 +68,17 @@ namespace Enderlook.Unity.Pathfinding2
             RawPooledList<Region> regions = RawPooledList<Region>.Create();
             int[] tmp = ArrayPool<int>.Shared.Rent(0);
             int agentSize = options.AgentSize;
-            bool yield = options.HasTimeSlice && !options.UseMultithreading;
-            for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
+            if (options.HasTimeSlice && !options.UseMultithreading)
             {
-                if (yield)
+                for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
                 {
                     (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithYield>(distances, spans, regions, tmp, waterLevel, options);
                     (regions, regionId, tmp) = await self.FindNewBasins<MeshGenerationOptions.WithYield>(distances, spans, regions, regionId, tmp, waterLevel, options);
                 }
-                else
+            }
+            else
+            {
+                for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
                 {
                     (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithoutYield>(distances, spans, regions, tmp, waterLevel, options);
                     (regions, regionId, tmp) = await self.FindNewBasins<MeshGenerationOptions.WithoutYield>(distances, spans, regions, regionId, tmp, waterLevel, options);
@@ -153,8 +155,10 @@ namespace Enderlook.Unity.Pathfinding2
 
             if (options.UseMultithreading)
                 MultiThread();
+            else if (options.HasTimeSlice)
+                await SingleThread<MeshGenerationOptions.WithYield>();
             else
-                await SingleThread();
+                await SingleThread<MeshGenerationOptions.WithoutYield>();
 
             return regionId;
 
@@ -176,10 +180,8 @@ namespace Enderlook.Unity.Pathfinding2
                 });
             }
 
-            async ValueTask SingleThread()
+            async ValueTask SingleThread<TYield>()
             {
-                // TODO: Should be specialize another function for single thread without slices?
-
                 for (int x = 0; x < resolution.Width; x++)
                 {
                     int index = resolution.GetIndex(x, 0);
@@ -197,7 +199,7 @@ namespace Enderlook.Unity.Pathfinding2
                     }
 
                     // TODO: Should the yield check be done inside the inner loops?
-                    if (options.CheckIfMustYield())
+                    if (options.CheckIfMustYield<TYield>())
                         await options.Yield();
                 }
 
@@ -219,7 +221,7 @@ namespace Enderlook.Unity.Pathfinding2
                     }
 
                     // TODO: Should the yield check be done inside the inner loops?
-                    if (options.CheckIfMustYield())
+                    if (options.CheckIfMustYield<TYield>())
                         await options.Yield();
                 }
             }

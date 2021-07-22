@@ -248,8 +248,6 @@ namespace Enderlook.Unity.Pathfinding2
 
         private static async ValueTask CalculateNeighboursSingleThread<TYield>(MeshGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
-            MeshGenerationOptions.DebugAssertYield<TYield>();
-
             Resolution resolution = options.Resolution;
             int maxTraversableStep = options.MaximumTraversableStep;
             int minTraversableHeight = options.MaximumTraversableStep;
