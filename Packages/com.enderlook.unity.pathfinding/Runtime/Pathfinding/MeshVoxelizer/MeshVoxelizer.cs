@@ -160,12 +160,6 @@ namespace Enderlook.Unity.Pathfinding2
 
             async ValueTask ApplyOffset(MeshGenerationOptions options, (Vector3[] vertices, int verticesCount, int[] triangles) content, Vector3 center)
             {
-                if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
-                {
-                    Debug.Assert(false, "Index out of range.");
-                    return;
-                }
-
                 const int unroll = 16;
                 for (int j = 0; j < content.verticesCount; j += unroll)
                 {
@@ -201,12 +195,6 @@ namespace Enderlook.Unity.Pathfinding2
 
             async ValueTask<(Vector3 min, Vector3 max)> CalculateBounds(MeshGenerationOptions options, (Vector3[] vertices, int verticesCount, int[] triangles) content)
             {
-                if (unchecked((uint)content.verticesCount > (uint)content.vertices.Length))
-                {
-                    Debug.Assert(false, "Index out of range.");
-                    return default;
-                }
-
                 // Calculate bounds of the mesh.
                 // TODO: we may be calculating this twice.
                 Vector3 min = content.vertices[0];
