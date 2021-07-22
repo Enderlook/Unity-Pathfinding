@@ -56,77 +56,109 @@ namespace Enderlook.Unity.Pathfinding2
             ReadOnlyArraySlice<ushort> distances = distanceField.Distances;
             ReadOnlyArraySlice<CompactOpenHeightField.HeightSpan> spans = openHeightField.Spans;
 
-            RegionsField self = new RegionsField(ArrayPool<ushort>.Shared.Rent(distances.Length), distances.Length);
-            Array.Clear(self.regions, 0, self.regionsCount);
-            Debug.Assert(self.regions[0] == NULL_REGION);
-            if (options.CheckIfMustYield())
-                await options.Yield();
-
-            ushort regionId = 1;
-            regionId = await PaintRectangleRegionAsBorder(openHeightField, self.regions, regionId, options);
-
-            RawPooledList<Region> regions = RawPooledList<Region>.Create();
-            int[] tmp = ArrayPool<int>.Shared.Rent(0);
-            int agentSize = options.AgentSize;
-            if (options.HasTimeSlice && !options.UseMultithreading)
+            RegionsField self;
+            options.PushTask(4, "Regions Field");
             {
-                for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
+                self = new RegionsField(ArrayPool<ushort>.Shared.Rent(distances.Length), distances.Length);
+                Array.Clear(self.regions, 0, self.regionsCount);
+                Debug.Assert(self.regions[0] == NULL_REGION);
+                if (options.CheckIfMustYield())
+                    await options.Yield();
+
+                ushort regionId = 1;
+                regionId = await PaintRectangleRegionAsBorder(openHeightField, self.regions, regionId, options);
+                options.StepTask();
+
+                RawPooledList<Region> regions = RawPooledList<Region>.Create();
+                int[] tmp = ArrayPool<int>.Shared.Rent(0);
+                int agentSize = options.AgentSize;
+                options.PushTask(distanceField.MaximumDistance - agentSize + 1, "Raise Level");
                 {
-                    (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithYield>(distances, spans, regions, tmp, waterLevel, options);
-                    (regions, regionId, tmp) = await self.FindNewBasins<MeshGenerationOptions.WithYield>(distances, spans, regions, regionId, tmp, waterLevel, options);
+                    if (options.HasTimeSlice && !options.UseMultithreading)
+                    {
+                        for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
+                        {
+                            (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithYield>(distances, spans, regions, tmp, waterLevel, options);
+                            (regions, regionId, tmp) = await self.FindNewBasins<MeshGenerationOptions.WithYield>(distances, spans, regions, regionId, tmp, waterLevel, options);
+                            options.StepTask();
+                        }
+                    }
+                    else
+                    {
+                        for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
+                        {
+                            (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithoutYield>(distances, spans, regions, tmp, waterLevel, options);
+                            (regions, regionId, tmp) = await self.FindNewBasins<MeshGenerationOptions.WithoutYield>(distances, spans, regions, regionId, tmp, waterLevel, options);
+                            options.StepTask();
+                        }
+                    }
+                    Debug.Assert(regionId <= SetOffBorderRegion(ushort.MaxValue));
                 }
-            }
-            else
-            {
-                for (int waterLevel = distanceField.MaximumDistance; waterLevel >= agentSize; waterLevel--)
+                options.PopTask();
+                options.StepTask();
+
+                // TODO: Handle small regions by deleting them or merging them.
+
+                regions = await self.NullifySmallRegions(regions, options);
+                options.StepTask();
+
+                options.PushTask(2 + regions.Count, "Dispose");
                 {
-                    (regions, tmp) = await self.ExpandAllRegionsEqually<MeshGenerationOptions.WithoutYield>(distances, spans, regions, tmp, waterLevel, options);
-                    (regions, regionId, tmp) = await self.FindNewBasins<MeshGenerationOptions.WithoutYield>(distances, spans, regions, regionId, tmp, waterLevel, options);
+                    ArrayPool<int>.Shared.Return(tmp);
+                    options.StepTask();
+                    if (options.UseMultithreading)
+                        Parallel.For(0, regions.Count, i =>
+                        {
+                            regions[i].Dispose();
+                            options.StepTask();
+                        });
+                    else
+                    {
+                        const int unroll = 16;
+                        int i = 0;
+
+                        if (options.HasTimeSlice)
+                        {
+                            int jTotal = regions.Count / unroll;
+                            for (int j = 0; j < jTotal; j++, i += unroll)
+                            {
+                                // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
+
+                                regions[i + 0].Dispose();
+                                regions[i + 1].Dispose();
+                                regions[i + 2].Dispose();
+                                regions[i + 3].Dispose();
+                                regions[i + 4].Dispose();
+                                regions[i + 5].Dispose();
+                                regions[i + 6].Dispose();
+                                regions[i + 7].Dispose();
+                                regions[i + 8].Dispose();
+                                regions[i + 9].Dispose();
+                                regions[i + 10].Dispose();
+                                regions[i + 11].Dispose();
+                                regions[i + 12].Dispose();
+                                regions[i + 13].Dispose();
+                                regions[i + 14].Dispose();
+                                regions[i + 15].Dispose();
+
+                                if (options.StepTaskAndCheckIfMustYield(unroll))
+                                    await options.Yield();
+                            }
+                        }
+
+                        for (; i < regions.Count; i++)
+                        {
+                            regions[i].Dispose();
+                            options.StepTask();
+                        }
+                    }
+                    regions.Dispose();
+                    options.StepTask();
                 }
+                options.PopTask();
+                options.StepTask();
             }
-
-            Debug.Assert(regionId <= SetOffBorderRegion(ushort.MaxValue));
-
-            // TODO: Handle small regions by deleting them or merging them.
-
-            regions = await self.NullifySmallRegions(regions, options);
-
-            ArrayPool<int>.Shared.Return(tmp);
-            if (options.UseMultithreading)
-                Parallel.For(0, regions.Count, i => regions[i].Dispose());
-            else
-            {
-                const int unroll = 16;
-                int i = 0;
-                for (; (i + unroll) < regions.Count; i += unroll)
-                {
-                    // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
-
-                    regions[i + 0].Dispose();
-                    regions[i + 1].Dispose();
-                    regions[i + 2].Dispose();
-                    regions[i + 3].Dispose();
-                    regions[i + 4].Dispose();
-                    regions[i + 5].Dispose();
-                    regions[i + 6].Dispose();
-                    regions[i + 7].Dispose();
-                    regions[i + 8].Dispose();
-                    regions[i + 9].Dispose();
-                    regions[i + 10].Dispose();
-                    regions[i + 11].Dispose();
-                    regions[i + 12].Dispose();
-                    regions[i + 13].Dispose();
-                    regions[i + 14].Dispose();
-                    regions[i + 15].Dispose();
-
-                    if (options.CheckIfMustYield())
-                        await options.Yield();
-                }
-                for (; i < regions.Count; i++)
-                    regions[i].Dispose();
-            }
-            regions.Dispose();
-
+            options.PopTask();
             return self;
         }
 
@@ -153,12 +185,16 @@ namespace Enderlook.Unity.Pathfinding2
             int xBorder = Math.Min(border, resolution.Width);
             int zBorder = Math.Min(border, resolution.Depth);
 
-            if (options.UseMultithreading)
-                MultiThread();
-            else if (options.HasTimeSlice)
-                await SingleThread<MeshGenerationOptions.WithYield>();
-            else
-                await SingleThread<MeshGenerationOptions.WithoutYield>();
+            options.PushTask(((resolution.Width * zBorder) + (resolution.Depth * xBorder)) * 2, "Paint Border");
+            {
+                if (options.UseMultithreading)
+                    MultiThread();
+                else if (options.HasTimeSlice)
+                    await SingleThread<MeshGenerationOptions.WithYield>();
+                else
+                    await SingleThread<MeshGenerationOptions.WithoutYield>();
+            }
+            options.PopTask();
 
             return regionId;
 
@@ -169,14 +205,18 @@ namespace Enderlook.Unity.Pathfinding2
                     int x = i / zBorder;
                     int z = i % zBorder;
                     openHeightField.Columns[resolution.GetIndex(x, z)].Span<ushort>(regions).Fill(region0);
+                    options.StepTask();
                     openHeightField.Columns[resolution.GetIndex(x, resolution.Depth - z - 1)].Span<ushort>(regions).Fill(region1);
+                    options.StepTask();
                 });
                 Parallel.For(0, resolution.Depth * xBorder, i =>
                 {
                     int z = i / xBorder;
                     int x = i % xBorder;
                     openHeightField.Columns[resolution.GetIndex(x, z)].Span<ushort>(regions).Fill(region2);
+                    options.StepTask();
                     openHeightField.Columns[resolution.GetIndex(resolution.Width - x - 1, z)].Span<ushort>(regions).Fill(region3);
+                    options.StepTask();
                 });
             }
 
@@ -189,6 +229,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         Debug.Assert(index == resolution.GetIndex(x, z));
                         openHeightField.Columns[index++].Span<ushort>(regions).Fill(region0);
+                        options.StepTask();
                     }
 
                     index = resolution.GetIndex(x, resolution.Depth - zBorder - 1) + 1; // TODO: Why +1?
@@ -196,6 +237,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         Debug.Assert(index == resolution.GetIndex(x, z));
                         openHeightField.Columns[index++].Span<ushort>(regions).Fill(region1);
+                        options.StepTask();
                     }
 
                     // TODO: Should the yield check be done inside the inner loops?
@@ -211,6 +253,7 @@ namespace Enderlook.Unity.Pathfinding2
                         Debug.Assert(index == resolution.GetIndex(x, z));
                         openHeightField.Columns[index].Span<ushort>(regions).Fill(region2);
                         index += resolution.Width;
+                        options.StepTask();
                     }
 
                     index = resolution.GetIndex(resolution.Width - xBorder - 1, z) + resolution.Depth; // TODO: Why + resolution.Depth?
@@ -218,6 +261,7 @@ namespace Enderlook.Unity.Pathfinding2
                     {
                         Debug.Assert(index == resolution.GetIndex(x, z));
                         openHeightField.Columns[index].Span<ushort>(regions).Fill(region3);
+                        options.StepTask();
                     }
 
                     // TODO: Should the yield check be done inside the inner loops?

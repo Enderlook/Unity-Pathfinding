@@ -232,9 +232,26 @@ namespace Enderlook.Unity.Pathfinding2
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void StepTask(int count)
+        {
+            Debug.Assert(tasks.Count > 0);
+            Debug.Assert(count > 0);
+            Debug.Assert(currentStep < currentSteps);
+            int value = Interlocked.Add(ref currentStep, count);
+            Debug.Assert(value < currentSteps);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool StepTaskAndCheckIfMustYield()
         {
             StepTask();
+            return CheckIfMustYield();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool StepTaskAndCheckIfMustYield(int count)
+        {
+            StepTask(count);
             return CheckIfMustYield();
         }
 
