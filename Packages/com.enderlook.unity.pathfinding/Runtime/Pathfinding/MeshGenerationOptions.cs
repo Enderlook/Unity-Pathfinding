@@ -112,7 +112,7 @@ namespace Enderlook.Unity.Pathfinding2
                     Throw();
                 distanceBlurThreshold = value;
 
-                void Throw() => throw new ArgumentOutOfRangeException(nameof(distanceBlurThreshold), "Can't be negative.");
+                void Throw() => throw new ArgumentOutOfRangeException(nameof(distanceBlurThreshold), "Must be positive.");
             }
         }
         private int distanceBlurThreshold = 1;

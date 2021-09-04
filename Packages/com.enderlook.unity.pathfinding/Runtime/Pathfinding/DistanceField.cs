@@ -108,16 +108,22 @@ namespace Enderlook.Unity.Pathfinding2
             options.PushTask(spansCount, "Blur Distance Field");
             {
                 if (options.UseMultithreading)
-                    Parallel.For(0, spansCount, i =>
-                    {
-                        Blur(threshold, openHeightField.Spans, distances, ref newMaximumDistance, newDistances, i);
-                        options.StepTask();
-                    });
+                    newMaximumDistance = WithBlurMultiThread(openHeightField, options, threshold, distances, newMaximumDistance, newDistances);
                 else
                     newMaximumDistance = await WithBlurSingleThread(openHeightField, threshold, distances, newMaximumDistance, newDistances, options);
             }
             options.PopTask();
             return new DistanceField(spansCount, newDistances, newMaximumDistance);
+        }
+
+        private static ushort WithBlurMultiThread(CompactOpenHeightField openHeightField, MeshGenerationOptions options, int threshold, ushort[] distances, ushort newMaximumDistance, ushort[] newDistances)
+        {
+            Parallel.For(0, openHeightField.SpansCount, i =>
+            {
+                Blur(threshold, openHeightField.Spans, distances, ref newMaximumDistance, newDistances, i);
+                options.StepTask();
+            });
+            return newMaximumDistance;
         }
 
         private static async ValueTask<ushort> WithBlurSingleThread(CompactOpenHeightField openHeightField, int threshold, ushort[] distances, ushort newMaximumDistance, ushort[] newDistances, MeshGenerationOptions options)

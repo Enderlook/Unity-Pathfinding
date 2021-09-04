@@ -326,6 +326,7 @@ namespace Enderlook.Unity.Pathfinding2
                         if (MeshGenerationOptions.UseYields<TYield>())
                         {
                             const int unroll = 16;
+                            // TODO: Is fine this loop unrolling? The idea is to rarely check the yield.
                             int iTotal = (zMaxMultiple - z) / unroll;
                             for (int i = 0; i < iTotal; i++)
                             {
