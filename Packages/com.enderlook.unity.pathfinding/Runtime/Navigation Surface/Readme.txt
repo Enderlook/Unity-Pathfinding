@@ -1,0 +1,1 @@
+Based on http://javid.nl/Navigation%20Mesh.pdf and http://www.critterai.org/projects/nmgen_study/regiongen.html
