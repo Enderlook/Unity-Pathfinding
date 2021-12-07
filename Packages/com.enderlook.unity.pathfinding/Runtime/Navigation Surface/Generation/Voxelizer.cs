@@ -58,12 +58,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return new ValueTask<Voxelizer>(this);
             }
 
-            if (options.UseMultithreading && information.Count > 1)
+            if (Info.SupportMultithreading && information.Count > 1)
                 return ProcessMultiThread();
             else if (options.ShouldUseTimeSlice)
-                return ProcessSingleThread<NavigationGenerationOptions.WithYield>();
+                return ProcessSingleThread<Toggle.Yes>();
             else
-                return ProcessSingleThread<NavigationGenerationOptions.WithoutYield>();
+                return ProcessSingleThread<Toggle.No>();
         }
 
         private async ValueTask<Voxelizer> ProcessSingleThread<TYield>()
@@ -80,7 +80,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     {
                         InformationElement pack = information[i];
                         int j = 0;
-                        if (NavigationGenerationOptions.UseYields<TYield>())
+                        if (Toggle.IsToggled<TYield>())
                         {
                             const int unroll = 4;
                             int total = (pack.Vertices.Length / unroll) * unroll;

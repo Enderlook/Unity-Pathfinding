@@ -88,19 +88,19 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.PushTask(2, "Compact Open Height Field");
             {
                 if (options.ShouldUseTimeSlice)
-                    spans = await Initialize<NavigationGenerationOptions.WithYield>(heightField, columns, spans, options);
+                    spans = await Initialize<Toggle.Yes>(heightField, columns, spans, options);
                 else
-                    spans = await Initialize<NavigationGenerationOptions.WithoutYield>(heightField, columns, spans, options);
+                    spans = await Initialize<Toggle.No>(heightField, columns, spans, options);
                 options.StepTask();
 
                 options.PushTask(parameters.ColumnsCount, "Calculate Neighbours");
                 {
-                    if (options.UseMultithreading)
+                    if (Info.SupportMultithreading)
                         CalculateNeighboursMultiThread(options, columns, spans.UnderlyingArray);
                     else if (options.ShouldUseTimeSlice)
-                        await CalculateNeighboursSingleThread<NavigationGenerationOptions.WithYield>(options, columns, spans.UnderlyingArray);
+                        await CalculateNeighboursSingleThread<Toggle.Yes>(options, columns, spans.UnderlyingArray);
                     else
-                        await CalculateNeighboursSingleThread<NavigationGenerationOptions.WithoutYield>(options, columns, spans.UnderlyingArray);
+                        await CalculateNeighboursSingleThread<Toggle.No>(options, columns, spans.UnderlyingArray);
                 }
                 options.PopTask();
                 options.StepTask();

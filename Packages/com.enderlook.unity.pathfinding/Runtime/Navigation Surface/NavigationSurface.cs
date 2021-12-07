@@ -8,7 +8,6 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,8 +18,7 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Surface"), DefaultExecutionOrder(ExecutionOrder.NavigationSurface)]
     public sealed class NavigationSurface : MonoBehaviour, IGraphLocation<int, Vector3>, IGraphHeuristic<int>, IGraphIntrinsic<int, NavigationSurface.NodesEnumerator>, IGraphLineOfSight<Vector3>
     {
-        private static readonly SendOrPostCallback createOptions = e => ((NavigationSurface)e).options = new NavigationGenerationOptions();
-
+        [Header("Baking Basic")]
         [SerializeField, Tooltip("Determine objects that are collected to generate navigation data.")]
         private CollectionType collectObjects;
 
@@ -30,12 +28,18 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("Determines information from collected objects used to build the navigation data.")]
         private GeometryType collectInformation;
 
-        [Header("Advanced")]
+        [Header("Baking Advanced")]
         [SerializeField, Min(0), Tooltip("Aproximate size of voxels. Lower values increases accuracy at cost of perfomance.")]
         private float voxelSize = 1f;
 
+        [SerializeField, Min(0), Tooltip("For executions that happens in the main thread, determines the amount of milliseconds executed per frame.\nUse 0 to disable time slicing.")]
+        private int backingExecutionTimeSlice = 1000 / 60;
+
+        [Header("Pathfinding Advanced")]
+        [SerializeField, Min(0), Tooltip("For executions that happens in the main thread, determines the amount of milliseconds executed per frame.\nUse 0 to disable time slicing.")]
+        private int pathfindingExecutionTimeSlice = 1000 / 60;
+
         internal NavigationGenerationOptions options;
-        private ValueTask buildTask;
 
         private int navigationLock;
         private CompactOpenHeightField compactOpenHeightField;
@@ -47,15 +51,13 @@ namespace Enderlook.Unity.Pathfinding
 
         private void Awake()
         {
+            options = new NavigationGenerationOptions();
             lineCast = e => Physics.Linecast(e.Item1, e.Item2, includeLayers);
 
-            if (options is null)
-            {
-                if (Info.SupportMultithreading)
-                    Task.Run(async () => await BuildNavigation());
-                else
-                    BuildNavigation();
-            }
+            if (Info.SupportMultithreading)
+                Task.Run(async () => await BuildNavigation());
+            else
+                BuildNavigation();
         }
 
         private void Update() => options?.Poll();
@@ -74,22 +76,40 @@ namespace Enderlook.Unity.Pathfinding
         {
             if (options is null) ThrowNoNavigation();
             if (options.Progress != 1) ThrowNavigationInProgress();
-            PathCalculator.CalculatePathSingleThread<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>>(this, path, position, destination);
+
+            SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
+
+            ValueTask task = PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(false));
+
+            Debug.Assert(task.IsCompleted);
+            task.GetAwaiter().GetResult();
         }
 
-        internal void CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination)
+        internal ValueTask CalculatePathAsync(Path<Vector3> path, Vector3 position, Vector3 destination)
         {
             if (options is null) ThrowNoNavigation();
             if (options.Progress != 1) ThrowNavigationInProgress();
-            PathCalculator.CalculatePathJob<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>>(this, path, position, destination);
+
+            SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
+
+            if (Info.SupportMultithreading)
+                return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(true));
+            else
+            {
+                int pathfindingExecutionTimeSlice = this.pathfindingExecutionTimeSlice;
+                if (pathfindingExecutionTimeSlice > 0)
+                    return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSliceWatchdog, TimeSlicer.Yielder, TimeSlicer.Yielder>(this, path, position, searcher, new TimeSliceWatchdog(pathfindingExecutionTimeSlice));
+                else
+                    return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(false));
+            }
         }
 
         public ValueTask BuildNavigation()
         {
-            if (!buildTask.IsCompleted)
+            if (!options.IsCompleted)
                 ThrowNavigationInProgress();
             ValueTask task = BuildNavigation_();
-            buildTask = task;
+            options.SetTask(task);
             return task;
         }
 
@@ -108,26 +128,16 @@ namespace Enderlook.Unity.Pathfinding
             if (collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders))
                 throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
 
-            bool wasNotInMainThread = !UnityThread.IsMainThread;
+            options.ExecutionTimeSlice = backingExecutionTimeSlice;
 
-            if (options is null)
-            {
-                if (wasNotInMainThread)
-                    UnityThread.RunNow(createOptions, this);
-                else
-                    options = new NavigationGenerationOptions();
-            }
-
-            options.UseMultithreading = true;
-            options.ExecutionTimeSlice = 1000 / 60;
-
-            if (options.Progress != 1 || !buildTask.IsCompleted)
+            if (options.Progress != 1 || !options.IsCompleted)
                 ThrowNavigationInProgress();
 
             options.PushTask(4, "Generate Navigation Mesh");
             {
                 Voxelizer voxelizer = new Voxelizer(options, voxelSize, includeLayers);
 
+                bool wasNotInMainThread = !UnityThread.IsMainThread;
                 if (wasNotInMainThread)
                     await Switch.ToUnity;
 
@@ -224,7 +234,7 @@ namespace Enderlook.Unity.Pathfinding
         int IGraphLocation<int, Vector3>.FindClosestNodeTo(Vector3 position)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
-            Vector3 indexes_ = (position - parameters.Min/* + (new Vector3(.5f, .5f, .5f) * parameters.VoxelSize)*/) / parameters.VoxelSize;
+            Vector3 indexes_ = (position - parameters.Min) / parameters.VoxelSize;
             if (indexes_.x < 0 || indexes_.y < 0 || indexes_.z < 0)
                 goto fail;
 
@@ -255,11 +265,6 @@ namespace Enderlook.Unity.Pathfinding
             Vector2 indexes = parameters.From2D(columnIndex);
             int y = compactOpenHeightField.Span(node).Floor;
             Vector3 position = parameters.Min + (new Vector3(indexes.x, y, indexes.y) * parameters.VoxelSize);
-            int v = ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position);
-            if (node != v)
-            {
-
-            }
             Debug.Assert(node == ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position));
             return position;
         }
@@ -270,7 +275,6 @@ namespace Enderlook.Unity.Pathfinding
         NodesEnumerator IGraphIntrinsic<int, NodesEnumerator>.GetNeighbours(int node)
         {
             Debug.Assert(node >= 0 && node < compactOpenHeightField.SpansCount);
-            int columnIndex = spanToColumn[node];
             return new NodesEnumerator(compactOpenHeightField.Span(node));
         }
 
@@ -338,7 +342,8 @@ namespace Enderlook.Unity.Pathfinding
                         index_ = 4;
                         if (value != -1)
                             goto success;
-                        goto case default;
+                        goto case 4;
+                    case 4:
                     default:
                         return false;
                 }

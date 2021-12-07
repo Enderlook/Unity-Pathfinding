@@ -1,11 +1,10 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Mathematics;
 using Enderlook.Unity.Pathfinding.Utils;
-using Enderlook.Unity.Threading;
 
-using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -17,12 +16,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
 {
     internal sealed class NavigationGenerationOptions
     {
-        private static readonly SendOrPostCallback executionTimeSliceSet = e =>
-        {
-            NavigationGenerationOptions self = (NavigationGenerationOptions)e;
-            self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
-        };
-
         private int stepLock;
         private RawPooledList<(int current, int total, string name)> tasks = RawPooledList<(int current, int total, string name)>.Create();
         private int currentStep;
@@ -37,55 +30,25 @@ namespace Enderlook.Unity.Pathfinding.Generation
         public string GetLastLocation() => $"{lastSourceFilePath}:{lastSourceLineNumber} {lastMemberName}\n{lastStackTrace}";
 #endif
 
-        private float nextYield = float.PositiveInfinity;
-        internal RawPooledQueue<Action> continuations = RawPooledQueue<Action>.Create();
-        private int continuationsLock;
-
-        /// <summary>
-        /// Whenever it should use multithreading internally or be single threaded.
-        /// </summary>
-        public bool UseMultithreading = Info.SupportMultithreading;
-
-        /// <summary>
-        /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
-        /// Use 0 to disable this feature.<br/>
-        /// For part of the execution which must be completed on the main thread, this value is always used regardless of <see cref="UseMultithreading"/> value.
-        /// </summary>
-        public float ExecutionTimeSlice {
-            get => executionTimeSlice == float.PositiveInfinity ? 0 : executionTimeSlice;
-            set {
-                if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
-
-                if (value == 0)
-                {
-                    executionTimeSlice = float.PositiveInfinity;
-                    nextYield = float.PositiveInfinity;
-                }
-                else
-                {
-                    float oldExecutionTimeSlice = executionTimeSlice;
-                    executionTimeSlice = value;
-                    if (oldExecutionTimeSlice == float.PositiveInfinity)
-                    {
-                        if (UnityThread.IsMainThread)
-                            nextYield = Time.realtimeSinceStartup + value;
-                        else
-                            UnityThread.RunNow(executionTimeSliceSet, this);
-                    }
-                }
-            }
-        }
-        private float executionTimeSlice = float.PositiveInfinity;
-
-        /// <summary>
-        /// Whenever it should to use time slice.
-        /// </summary>
-        public bool ShouldUseTimeSlice => executionTimeSlice != float.PositiveInfinity && UnityThread.IsMainThread;
-
         /// <summary>
         /// Voxelization parameters information
         /// </summary>
         public VoxelizationParameters VoxelizationParameters { get; private set; }
+
+        private readonly TimeSlicer timeSlicer = new TimeSlicer();
+
+        /// <inheritdoc cref="TimeSlicer.ExecutionTimeSlice"/>
+        public int ExecutionTimeSlice
+        {
+            get => (int)(timeSlicer.ExecutionTimeSlice * 1000);
+            set => timeSlicer.ExecutionTimeSlice = value / 1000f;
+        }
+
+        /// <inheritdoc cref="TimeSlicer.ShouldUseTimeSlice"/>
+        public bool ShouldUseTimeSlice => timeSlicer.ShouldUseTimeSlice;
+
+        /// <inheritdoc cref="TimeSlicer.IsCompleted"/>
+        public bool IsCompleted => timeSlicer.IsCompleted;
 
         /// <summary>
         /// Maximum amount of cells between two floors to be considered neighbours.
@@ -202,6 +165,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
         }
 
+        /// <inheritdoc cref="TimeSlicer.SetTask(ValueTask)"/>
+        public void SetTask(ValueTask task) => timeSlicer.SetTask(task);
+
+        /// <inheritdoc cref="TimeSlicer.AsTask"/>
+        public NavigationTask AsTask() => timeSlicer.AsTask();
+
         public void SetVoxelizationParameters(float voxelSize, Vector3 min, Vector3 max)
         {
             //VoxelizationParameters = VoxelizationParameters.WithVoxelSize(min, max, voxelSize);
@@ -311,7 +280,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder StepTaskAndYield(
+        public TimeSlicer.Yielder StepTaskAndYield(
 #if TRACK_NAVIGATION_GENERATION_LOCATION
             [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
@@ -327,11 +296,11 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #else
             StepTask_<Toggle.Yes>();
 #endif
-            return Yield_();
+            return timeSlicer.Yield();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder StepTaskAndYield(int count
+        public TimeSlicer.Yielder StepTaskAndYield(int count
 #if TRACK_NAVIGATION_GENERATION_LOCATION
             , [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
@@ -347,11 +316,11 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #else
             StepTask_<Toggle.Yes>(count);
 #endif
-            return Yield_();
+            return timeSlicer.Yield();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder StepTaskAndYield<TYield>(
+        public TimeSlicer.Yielder StepTaskAndYield<TYield>(
 #if TRACK_NAVIGATION_GENERATION_LOCATION
             [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
@@ -367,7 +336,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #else
             StepTask_<Toggle.Yes>();
 #endif
-            return Yield_<TYield>();
+            return timeSlicer.Yield<TYield>();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -426,8 +395,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
             Unlock(ref stepLock);
         }
 
+        /// <inheritdoc cref="TimeSlicer.Yield"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder Yield(
+        public TimeSlicer.Yielder Yield(
 #if TRACK_NAVIGATION_GENERATION_LOCATION
             [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
@@ -440,11 +410,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
             TrackTrace(memberName, sourceFilePath, sourceLineNumber);
             Unlock(ref stepLock);
 #endif
-            return Yield_();
+            return timeSlicer.Yield();
         }
 
+        /// <inheritdoc cref="TimeSlicer.Yield{TYield}"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder Yield<TYield>(
+        public TimeSlicer.Yielder Yield<TYield>(
 #if TRACK_NAVIGATION_GENERATION_LOCATION
             [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
@@ -457,24 +428,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
             TrackTrace(memberName, sourceFilePath, sourceLineNumber);
             Unlock(ref stepLock);
 #endif
-            return Yield_<TYield>();
+            return timeSlicer.Yield<TYield>();
         }
 
-        public void Poll()
-        {
-            if (executionTimeSlice == 0)
-                return;
-            nextYield = Time.realtimeSinceStartup + executionTimeSlice;
-            while (Time.realtimeSinceStartup < nextYield)
-            {
-                Lock(ref continuationsLock);
-                bool found = continuations.TryDequeue(out Action action);
-                Unlock(ref continuationsLock);
-                if (!found)
-                    return;
-                action();
-            }
-        }
+        public void Poll() => timeSlicer.Poll();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PushTask_(int steps, int step, string name)
@@ -537,76 +494,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Yielder Yield_()
-        {
-            Debug.Assert(UnityThread.IsMainThread);
-            float nextYield = this.nextYield;
-            if (nextYield != float.PositiveInfinity // Prevent an unnecessary call to a Unity API
-                && Time.realtimeSinceStartup < nextYield)
-                nextYield = default;
-            return new Yielder(this, nextYield);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Yielder Yield_<TYield>() => UseYields<TYield>() ? Yield_() : new Yielder(this, float.NegativeInfinity);
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EnqueueContinuation(Action continuation)
-        {
-            Lock(ref continuationsLock);
-            continuations.Enqueue(continuation);
-            Unlock(ref continuationsLock);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Lock(ref int @lock)
+        private static void Lock(ref int @lock)
         {
             while (Interlocked.Exchange(ref @lock, 1) == 1) ;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Unlock(ref int @lock) => @lock = 0;
-
-        public readonly struct Yielder : INotifyCompletion
-        {
-            private readonly NavigationGenerationOptions options;
-            private readonly float token;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Yielder(NavigationGenerationOptions options, float token)
-            {
-                this.options = options;
-                this.token = token;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Yielder GetAwaiter() => this;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void GetResult() { }
-
-            public bool IsCompleted => options.nextYield > token;
-
-            public void OnCompleted(Action continuation)
-            {
-                if (IsCompleted)
-                    continuation();
-                options.EnqueueContinuation(continuation);
-            }
-        }
-
-        public struct WithYield { }
-
-        public struct WithoutYield { }
-
-        [System.Diagnostics.Conditional("UNITY_ASSERTIONS")]
-        private static void DebugAssertYield<T>() => Debug.Assert(typeof(T) == typeof(WithYield) || typeof(T) == typeof(WithoutYield));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool UseYields<T>()
-        {
-            DebugAssertYield<T>();
-            return typeof(T) == typeof(WithYield);
-        }
+        private static void Unlock(ref int @lock) => @lock = 0;
     }
 }

@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-using Unity.Jobs;
+﻿using Unity.Jobs;
 
 namespace Enderlook.Unity.Pathfinding
 {

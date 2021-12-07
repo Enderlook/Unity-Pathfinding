@@ -319,7 +319,7 @@ MonoBehaviour:
     angularSpeed: 120
   PathFollower:
     stoppingDistance: 0.25
-  NavigationVolume: {fileID: 1248357741}
+  NavigationSurface: {fileID: 1248357741}
   ObstacleAvoidance:
     Layers:
       serializedVersion: 2
@@ -576,7 +576,7 @@ MonoBehaviour:
     angularSpeed: 120
   PathFollower:
     stoppingDistance: 0.25
-  NavigationVolume: {fileID: 1248357741}
+  NavigationSurface: {fileID: 1248357741}
   ObstacleAvoidance:
     Layers:
       serializedVersion: 2
@@ -2185,6 +2185,8 @@ MonoBehaviour:
     m_Bits: 1847
   collectInformation: 0
   voxelSize: 1
+  backingExecutionTimeSlice: 16
+  pathfindingExecutionTimeSlice: 16
 --- !u!4 &1248357742
 Transform:
   m_ObjectHideFlags: 0
@@ -2651,7 +2653,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1497716396}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.2, y: 5, z: -16.5}
+  m_LocalPosition: {x: -3.2, y: 5, z: -15.1}
   m_LocalScale: {x: 7, y: 10, z: 7}
   m_Children: []
   m_Father: {fileID: 1400468730}

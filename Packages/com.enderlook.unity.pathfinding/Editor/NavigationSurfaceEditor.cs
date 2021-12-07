@@ -41,6 +41,9 @@ namespace Enderlook.Unity.Pathfinding
                         progressBar.value = 0;
                         progressBar.style.display = DisplayStyle.Flex;
 
+                        if (navigationSurface.options is null)
+                            navigationSurface.options = new NavigationGenerationOptions();
+
                         Task.Run(async () =>
                         {
                             ValueTask task = navigationSurface.BuildNavigation();

@@ -16,8 +16,8 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("Configuration of the path following behaviour.")]
         public PathFollower PathFollower;
 
-        [SerializeField, Tooltip("Navigation volume used to calculate path when requested. You don't need to assing this if you plan to manually set the path.")]
-        public NavigationSurface NavigationVolume;
+        [SerializeField, Tooltip("Navigation surface used to calculate path when requested. You don't need to assing this if you plan to manually set the path.")]
+        public NavigationSurface NavigationSurface;
 
         [Header("Obstacle Avoidance")]
         [SerializeField, Tooltip("Configuration of the obstacle avoidance.")]
@@ -62,7 +62,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="destination">Destination to follow.</param>
         public void SetDestinationSync(Vector3 destination)
         {
-            NavigationVolume.CalculatePathSync(path, Rigidbody.position, destination);
+            NavigationSurface.CalculatePathSync(path, Rigidbody.position, destination);
             PathFollower.SetPath(path);
         }
 
@@ -72,7 +72,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="destination">Destination to follow.</param>
         public void SetDestination(Vector3 destination)
         {
-            NavigationVolume.CalculatePath(path, Rigidbody.position, destination);
+            NavigationSurface.CalculatePathAsync(path, Rigidbody.position, destination);
             IsPending = true;
         }
 

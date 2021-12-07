@@ -158,8 +158,8 @@ namespace Enderlook.Unity.Pathfinding
 
             if (!isNear)
             {
-                /*NavigationVolume navigationVolume = FlockingLeader.NavigationAgent.NavigationVolume;
-                if (navigationVolume != null)
+                NavigationSurface navigationSurface = FlockingLeader.NavigationAgent.NavigationSurface;
+                if (navigationSurface != null)
                 {
                     Vector3 leaderPosition = FlockingLeader.Rigidbody.position;
 
@@ -175,10 +175,10 @@ namespace Enderlook.Unity.Pathfinding
                         if (path.HasPath)
                         {
                             if (Vector3.Distance(path.Destination, leaderPosition) > PathFollower.StoppingDistance)
-                                CalculatePath(navigationVolume, leaderPosition);
+                                CalculatePath(navigationSurface, leaderPosition);
                         }
                         else
-                            CalculatePath(navigationVolume, leaderPosition);
+                            CalculatePath(navigationSurface, leaderPosition);
                     }
 
                     if (PathFollower.HasPath)
@@ -188,23 +188,23 @@ namespace Enderlook.Unity.Pathfinding
                         {
                             cooldown = maxCooldown;
                             if (!pathPending && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
-                                CalculatePath(navigationVolume, leaderPosition);
+                                CalculatePath(navigationSurface, leaderPosition);
                         }
 
                         Vector3 path = PathFollower.GetDirection(Rigidbody) * pathStrength;
                         return (p = ((separation + alineation + cohesion).normalized * .2f + path + obstacles).normalized);
                     }
-                }*/
+                }
             }
 
             return (p = (separation + alineation + cohesion + leader + obstacles).normalized);
         }
 
-        /*private void CalculatePath(NavigationVolume navigationVolume, Vector3 leaderPosition)
+        private void CalculatePath(NavigationSurface navigationSurface, Vector3 leaderPosition)
         {
-            navigationVolume.CalculatePath(path, Rigidbody.position, leaderPosition);
+            navigationSurface.CalculatePathAsync(path, Rigidbody.position, leaderPosition);
             pathPending = true;
-        }*/
+        }
 
         private Vector3 GetLeader() => (FlockingLeader.Rigidbody.position - Rigidbody.position).normalized;
 

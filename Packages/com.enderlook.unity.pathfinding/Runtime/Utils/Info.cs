@@ -4,7 +4,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
 {
     internal static class Info
     {
-        public static int ProcessorCount = SystemInfo.processorCount;
-        public static bool SupportMultithreading = Application.platform != RuntimePlatform.WebGLPlayer && ProcessorCount > 1;
+        public static readonly int ProcessorCount = SystemInfo.processorCount;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        public const bool SupportMultithreading = false;
+#else
+        public const bool SupportMultithreading = false;
+#endif
     }
 }
