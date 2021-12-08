@@ -1,9 +1,7 @@
-﻿using Enderlook.Unity.Pathfinding.Utils;
-
-using System;
+﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace Enderlook.Unity.Pathfinding
+namespace Enderlook.Unity.Pathfinding.Utils
 {
     /// <summary>
     /// Dummy awaitable that is always completed.
