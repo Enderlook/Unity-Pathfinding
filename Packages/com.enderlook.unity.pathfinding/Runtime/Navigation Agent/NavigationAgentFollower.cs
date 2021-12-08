@@ -87,7 +87,7 @@ namespace Enderlook.Unity.Pathfinding
         public Movement Movement;
 
         [Header("Leader Searcher")]
-        [SerializeField, Tooltip("Configuration of the path used in case the leaders is out of sight.")]
+        [SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight.")]
         public PathFollower PathFollower;
 
         [SerializeField, Tooltip("Determines the strength of path.")]
