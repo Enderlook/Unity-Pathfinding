@@ -1,4 +1,5 @@
-﻿using Enderlook.Unity.Pathfinding.Algorithms;
+﻿using Enderlook.Threading;
+using Enderlook.Unity.Pathfinding.Algorithms;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
@@ -49,13 +50,15 @@ namespace Enderlook.Unity.Pathfinding
 
         internal bool HasNavigation => !(options is null) && options.Progress == 1;
 
+        private static readonly Func<NavigationSurface, Task> buildNavigationFunc = async (e) => await e.BuildNavigation();
+
         private void Awake()
         {
             options = new NavigationGenerationOptions();
             lineCast = e => Physics.Linecast(e.Item1, e.Item2, includeLayers);
 
             if (Info.SupportMultithreading)
-                Task.Run(async () => await BuildNavigation());
+                Task.Factory.StartNew(buildNavigationFunc, this).Unwrap();
             else
                 BuildNavigation();
         }
@@ -75,7 +78,7 @@ namespace Enderlook.Unity.Pathfinding
         internal void CalculatePathSync(Path<Vector3> path, Vector3 position, Vector3 destination)
         {
             if (options is null) ThrowNoNavigation();
-            if (options.Progress != 1) ThrowNavigationInProgress();
+            if (!options.IsCompleted) ThrowNavigationInProgress();
 
             SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
 
@@ -88,7 +91,7 @@ namespace Enderlook.Unity.Pathfinding
         internal ValueTask CalculatePathAsync(Path<Vector3> path, Vector3 position, Vector3 destination)
         {
             if (options is null) ThrowNoNavigation();
-            if (options.Progress != 1) ThrowNavigationInProgress();
+            if (!options.IsCompleted) ThrowNavigationInProgress();
 
             SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
 
