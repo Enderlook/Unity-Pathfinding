@@ -47,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             /// <summary>
             /// Gets the result of the <see cref="NavigationTask"/>.
             /// </summary>
-            public void GetResult() => task.timeSlicer.CompleteNow();
+            public void GetResult() => task.timeSlicer.RunSynchronously();
 
             /// <summary>
             /// Schedules a continuation action for this <see cref="NavigationTask"/>.

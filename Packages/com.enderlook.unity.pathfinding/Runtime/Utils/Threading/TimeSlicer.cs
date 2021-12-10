@@ -17,10 +17,18 @@ namespace Enderlook.Unity.Pathfinding.Utils
     {
         private static readonly Action<TimeSlicer> executionTimeSliceSet = self
             => self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
+
+        private static readonly Action<TimeSlicer> runSynchronously = self =>
         {
-            Debug.Assert(e is TimeSlicer);
-            TimeSlicer self = Unsafe.As<TimeSlicer>(e);
-            self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
+            while (!self.task.IsCompleted)
+            {
+                self.Lock();
+                bool found = self.continuations.TryDequeue(out Action action);
+                self.Unlock();
+                if (!found)
+                    return;
+                action();
+            }
         };
 
         private float nextYield = float.PositiveInfinity;
@@ -106,15 +114,24 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         public void CompleteNow()
         {
-            while (!task.IsCompleted)
+            if (!task.IsCompleted)
             {
-                Lock();
-                bool found = continuations.TryDequeue(out Action action);
-                Unlock();
-                if (!found)
-                    return;
-                action();
+                if (UnityThread.IsMainThread)
+                {
+                    while (!task.IsCompleted)
+                    {
+                        Lock();
+                        bool found = continuations.TryDequeue(out Action action);
+                        Unlock();
+                        if (!found)
+                            return;
+                        action();
+                    }
+                }
+                else
+                    UnityThread.RunNow(runSynchronously, this);
             }
+
             task.GetAwaiter().GetResult();
             task = default;
         }
