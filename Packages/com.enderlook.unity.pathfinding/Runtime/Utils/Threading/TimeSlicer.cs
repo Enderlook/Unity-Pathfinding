@@ -30,6 +30,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     return;
                 action();
             }
+            if (self.executionTimeSlice != float.PositiveInfinity)
+                self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
         };
 
         private float nextYield = float.PositiveInfinity;
@@ -78,7 +80,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <summary>
         /// Whenever it should to use time slice.
         /// </summary>
-        public bool ShouldUseTimeSlice => executionTimeSlice != float.PositiveInfinity && UnityThread.IsMainThread;
+        public bool ShouldUseTimeSlice => nextYield != float.PositiveInfinity && UnityThread.IsMainThread;
 
         /// <summary>
         /// Whenever the underlying task is completed.
@@ -124,10 +126,12 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         /// <summary>
-        /// Forces completition of all continuations.
+        /// Forces <see cref="TimeSlicer"/> to run synchronously.
         /// </summary>
         public void RunSynchronously()
         {
+            nextYield = float.PositiveInfinity;
+
             if (!task.IsCompleted)
             {
                 if (UnityThread.IsMainThread)
@@ -141,6 +145,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
                             return;
                         action();
                     }
+                    if (executionTimeSlice != float.PositiveInfinity)
+                        nextYield = Time.realtimeSinceStartup + executionTimeSlice;
                 }
                 else
                     UnityThread.RunNow(runSynchronously, this);
@@ -155,10 +161,6 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public Yielder Yield()
         {
             Debug.Assert(UnityThread.IsMainThread);
-            float nextYield = this.nextYield;
-            if (nextYield != float.PositiveInfinity // Prevent an unnecessary call to a Unity API
-                && Time.realtimeSinceStartup < nextYield)
-                nextYield = default;
             return new Yielder(this, nextYield);
         }
 
@@ -230,7 +232,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void GetResult() { }
 
-            public bool IsCompleted => timeSlicer.nextYield > token;
+            public bool IsCompleted
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => timeSlicer.nextYield > token;
+            }
 
             public void OnCompleted(Action continuation)
             {
