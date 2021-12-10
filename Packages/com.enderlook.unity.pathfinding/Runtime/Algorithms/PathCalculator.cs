@@ -19,7 +19,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : class, IProcessHandleSourceCompletition, IProcessHandle, IPathFeedable<TCoord>, IEnumerable<TCoord>
+            where TPath : class, IPathFeedable<TCoord>, ISetTask, IEnumerable<TCoord>
             where TSearcher : struct, ISearcherSatisfy<TNode>
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
@@ -30,7 +30,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : class, IProcessHandleSourceCompletition, IProcessHandle, IPathFeedable<TCoord>, IEnumerable<TCoord>
+            where TPath : class, IPathFeedable<TCoord>, ISetTask, IEnumerable<TCoord>
             where TSearcher : struct, ISearcherSatisfy<TNode>
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
@@ -55,16 +55,14 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             public ValueTask Process()
             {
-                path.Start();
-                if (watchdog.UseMultithreading)
-                    return new ValueTask(Task.Factory.StartNew(action, this));
-                else
-                    return InternalProcess();
+                ValueTask task = watchdog.UseMultithreading ? new ValueTask(Task.Factory.StartNew(action, this)) : InternalProcess();
+                path.SetTask(task);
+                return task;
             }
 
             private async ValueTask InternalProcess()
             {
-                TBuilder builder;
+                TBuilder builder = null;
                 try
                 {
                     builder = ObjectPool<TBuilder>.Shared.Rent();
@@ -77,10 +75,9 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 finally
                 {
                     watchdog.Dispose();
+                    if (!(builder is null))
+                        ObjectPool<TBuilder>.Shared.Return(builder);
                 }
-                path.End();
-                path.Complete();
-                ObjectPool<TBuilder>.Shared.Return(builder);
             }
         }
     }

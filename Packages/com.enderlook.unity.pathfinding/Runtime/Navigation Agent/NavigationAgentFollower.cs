@@ -163,7 +163,7 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     Vector3 leaderPosition = FlockingLeader.Rigidbody.position;
 
-                    if (path.IsComplete)
+                    if (path.IsCompleted)
                     {
                         if (pathPending)
                         {
@@ -266,7 +266,7 @@ namespace Enderlook.Unity.Pathfinding
             Gizmos.color = Color.white;
             Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + p * 3);
 
-            if (path.IsComplete && path.HasPath)
+            if (path.IsCompleted && path.HasPath)
             {
                 Gizmos.color = Color.black;
                 using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
