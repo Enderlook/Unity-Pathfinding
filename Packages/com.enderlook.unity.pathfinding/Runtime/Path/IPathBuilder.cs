@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Enderlook.Unity.Pathfinding.Utils;
+
+using System;
+using System.Threading.Tasks;
 
 namespace Enderlook.Unity.Pathfinding
 {
@@ -38,7 +41,10 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="result">Result status.</param>
         /// <exception cref="InvalidOperationException">Thrown when no builder session was enabled.</exception>
         /// <remarks>If the initial node and the target node are the same, no other method is necessary to be executed apart from this one.</remarks>
-        void FinalizeBuilderSession(CalculationResult result);
+        ValueTask FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(CalculationResult result, TWatchdog watchdog)
+            where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
+            where TAwaitable : IAwaitable<TAwaiter>
+            where TAwaiter : IAwaiter;
 
         /// <summary>
         /// Try to dequeue a node (if any) to visit.

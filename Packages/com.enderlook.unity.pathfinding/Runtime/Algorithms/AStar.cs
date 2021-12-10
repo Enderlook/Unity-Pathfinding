@@ -99,7 +99,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             end:
             builder.SetEnd(endPosition, endNode);
-            builder.FinalizeBuilderSession(result);
+            await builder.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(result, watchdog);
         }
     }
 }

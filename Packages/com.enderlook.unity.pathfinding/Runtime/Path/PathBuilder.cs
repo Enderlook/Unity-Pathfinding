@@ -7,6 +7,8 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
+using UnityEngine;
+
 namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
@@ -76,111 +78,120 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>
-        void IPathBuilder<TNode, TCoord>.FinalizeBuilderSession(CalculationResult result)
+        async ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(CalculationResult result, TWatchdog watchdog)
         {
             if ((status & Status.Initialized) == 0)
                 throw new InvalidOperationException(CAN_NOT_FINALIZE_IF_WAS_NOT_INITIALIZED);
 
             if (result == CalculationResult.PathFound)
             {
-                ProducePath();
-                OptimizePath().GetAwaiter().GetResult();
+                // Produce path
+                pathRaw.Clear();
+                if (edges.Count == 0)
+                {
+                    pathRaw.Add(startPosition);
+
+                    TCoord start2 = converter.ToPosition(startNode);
+                    if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
+                        pathRaw.Add(start2);
+
+                    TCoord end2 = converter.ToPosition(endNode);
+                    if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                        pathRaw.Add(end2);
+
+                    pathRaw.Add(endPosition);
+                }
+                else
+                {
+                    pathRaw.Add(endPosition);
+
+                    TNode to = endNode;
+                    TCoord end2 = converter.ToPosition(to);
+                    if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                        pathRaw.Add(end2);
+
+                    while (edges.TryGetValue(to, out TNode from))
+                    {
+                        to = from;
+                        pathRaw.Add(converter.ToPosition(from));
+
+                        if (watchdog.CanContinue(out TAwaitable awaitable))
+                            await awaitable;
+                        else
+                            goto timedout;
+                    }
+
+                    TCoord start2 = converter.ToPosition(startNode);
+                    if (!EqualityComparer<TCoord>.Default.Equals(start2, pathRaw[pathRaw.Count - 1]))
+                        pathRaw.Add(start2);
+
+                    if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
+                        pathRaw.Add(startPosition);
+
+                    pathRaw.Reverse();
+                }
+
+                // Optimize path
+                Debug.Assert(pathRaw.Count >= 2);
+                pathOptimized.Clear();
+
+                if (pathRaw.Count == 2)
+                {
+                    pathOptimized.Add(pathRaw[0]);
+                    pathOptimized.Add(pathRaw[1]);
+                    return;
+                }
+
+                pathOptimized.Add(pathRaw[0]);
+
+                bool isTask = !UnityThread.IsMainThread;
+                if (isTask)
+                    await Switch.ToUnity;
+
+                TCoord previous;
+                TCoord current = pathRaw[0];
+                TCoord lastOptimized = current;
+                for (int i = 1; i < pathRaw.Count; i++)
+                {
+                    previous = current;
+                    current = pathRaw[i];
+                    if (lineOfsight.HasLineOfSight(lastOptimized, current))
+                        goto toContinue;
+                    pathOptimized.Add(previous);
+                    lastOptimized = previous;
+
+                    toContinue:
+                    if (watchdog.CanContinue(out TAwaitable awaitable))
+                        await awaitable;
+                    else
+                        goto timedout;
+                }
+
+                TCoord last = pathRaw[pathRaw.Count - 1];
+                if (pathOptimized.Count > 1)
+                {
+                    if (lineOfsight.HasLineOfSight(pathOptimized[pathOptimized.Count - 2], last))
+                        pathOptimized[pathOptimized.Count - 1] = last;
+                    else
+                        pathOptimized.Add(last);
+                }
+                else
+                    pathOptimized.Add(last);
+
+                if (isTask)
+                    await Switch.ToBackground;
+
+                // Finalize
                 status = Status.Found;
             }
             else if (result == CalculationResult.Timedout)
-                status = Status.Timedout;
+                goto timedout;
             else
                 status = Status.Finalized;
-        }
 
-        private void ProducePath()
-        {
-            pathRaw.Clear();
-            if (edges.Count == 0)
-            {
-                pathRaw.Add(startPosition);
-
-                TCoord start2 = converter.ToPosition(startNode);
-                if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
-                    pathRaw.Add(start2);
-
-                TCoord end2 = converter.ToPosition(endNode);
-                if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
-                    pathRaw.Add(end2);
-
-                pathRaw.Add(endPosition);
-            }
-            else
-            {
-                pathRaw.Add(endPosition);
-
-                TNode to = endNode;
-                TCoord end2 = converter.ToPosition(to);
-                if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
-                    pathRaw.Add(end2);
-
-                while (edges.TryGetValue(to, out TNode from))
-                {
-                    to = from;
-                    pathRaw.Add(converter.ToPosition(from));
-                }
-
-                TCoord start2 = converter.ToPosition(startNode);
-                if (!EqualityComparer<TCoord>.Default.Equals(start2, pathRaw[pathRaw.Count - 1]))
-                    pathRaw.Add(start2);
-
-                if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
-                    pathRaw.Add(startPosition);
-
-                pathRaw.Reverse();
-            }
-        }
-
-        private async ValueTask OptimizePath()
-        {
-            System.Diagnostics.Debug.Assert(pathRaw.Count >= 2);
-
-            pathOptimized.Clear();
-
-            if (pathRaw.Count == 2)
-            {
-                pathOptimized.Add(pathRaw[0]);
-                pathOptimized.Add(pathRaw[1]);
-                return;
-            }
-
-            pathOptimized.Add(pathRaw[0]);
-
-            bool isTask = !UnityThread.IsMainThread;
-            if (isTask)
-                await Switch.ToUnity;
-
-            TCoord previous;
-            TCoord current = pathRaw[0];
-            TCoord lastOptimized = current;
-            for (int i = 1; i < pathRaw.Count; i++)
-            {
-                previous = current;
-                current = pathRaw[i];
-                if (lineOfsight.HasLineOfSight(lastOptimized, current))
-                    continue;
-                pathOptimized.Add(previous);
-                lastOptimized = previous;
-            }
-
-            TCoord last = pathRaw[pathRaw.Count - 1];
-            if (pathOptimized.Count > 1)
-            {
-                if (lineOfsight.HasLineOfSight(pathOptimized[pathOptimized.Count - 2], last))
-                    pathOptimized[pathOptimized.Count - 1] = last;
-                else
-                    pathOptimized.Add(last);
-            }
-            else
-                pathOptimized.Add(last);
-
-            if (isTask)
-                await Switch.ToBackground;
+            return;
+            timedout:
+            status = Status.Timedout;
         }
 
         /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
