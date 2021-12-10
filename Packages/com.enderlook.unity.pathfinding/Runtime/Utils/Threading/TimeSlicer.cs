@@ -150,12 +150,6 @@ namespace Enderlook.Unity.Pathfinding.Utils
             task = default;
         }
 
-        /// <summary>
-        /// Schedules a continuation action for this task.
-        /// </summary>
-        /// <param name="continuation">Continuation to schedule.</param>
-        public void OnCompleted(Action continuation) => task.GetAwaiter().OnCompleted(continuation);
-
         /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Yield"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Yielder Yield()
