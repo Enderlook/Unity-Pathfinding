@@ -15,7 +15,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
     /// </summary>
     internal sealed class TimeSlicer
     {
-        private static readonly SendOrPostCallback executionTimeSliceSet = e =>
+        private static readonly Action<TimeSlicer> executionTimeSliceSet = self
+            => self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
         {
             Debug.Assert(e is TimeSlicer);
             TimeSlicer self = Unsafe.As<TimeSlicer>(e);
@@ -73,7 +74,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <summary>
         /// Set the associated task of this slicer.
         /// </summary>
-        /// <param name="task"></param>
+        /// <param name="task">Task to associate.</param>
         public void SetTask(ValueTask task) => this.task = task;
 
         /// <summary>
@@ -85,7 +86,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Poll"/>
         public void Poll()
         {
-            if (executionTimeSlice == 0)
+            Debug.Assert(UnityThread.IsMainThread);
+            if (executionTimeSlice == 0 || continuations.Count == 0)
                 return;
             nextYield = Time.realtimeSinceStartup + executionTimeSlice;
             while (Time.realtimeSinceStartup < nextYield)
