@@ -18,11 +18,6 @@ namespace Enderlook.Unity.Pathfinding
     /// <typeparam name="TCoord">Coordinate type.</typeparam>
     internal sealed class PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, IDisposable
     {
-        private const string CAN_NOT_INITIALIZE_ALREADY_INITIALIZED = "Can't initialize a builder session because it's already initialized.";
-        private const string CAN_NOT_EXECUTE_IF_IS_NOT_FINALIZED = "Can't execute if the session hasn't finalized";
-        private const string CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY = "It's not initialized. This doesn't happens in export release.";
-        private const string CAN_NOT_FINALIZE_IF_WAS_NOT_INITIALIZED = "Can't finalize session because it was never initialized.";
-
         private readonly HashSet<TNode> visited = new HashSet<TNode>();
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
@@ -69,19 +64,14 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.EnqueueToVisit(TNode node, float priority)
         {
-#if UNITY_EDITOR || DEBUG
-            if (status != Status.Initialized)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert(status == Status.Initialized);
             toVisit.Enqueue(node, priority);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>
         async ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(CalculationResult result, TWatchdog watchdog)
         {
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_FINALIZE_IF_WAS_NOT_INITIALIZED);
+            if ((status & Status.Initialized) == 0) ThrowInvalidOperationException_IsNotInitialized();
 
             if (result == CalculationResult.PathFound)
             {
@@ -198,17 +188,14 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ReadOnlySpan<TCoord> IPathFeeder<TCoord>.GetPathInfo()
         {
-            if ((status & Status.Finalized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IF_IS_NOT_FINALIZED);
-
+            if ((status & Status.Finalized) == 0) ThrowInvalidOperationException_IsNotFinalized();
             return pathOptimized.AsSpan();
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession(TNode)"/>
         void IPathBuilder<TNode, TCoord>.InitializeBuilderSession()
         {
-            if ((status & Status.Initialized) != 0)
-                throw new InvalidOperationException(CAN_NOT_INITIALIZE_ALREADY_INITIALIZED);
+            if ((status & Status.Initialized) != 0) ThrowInvalidOperationException_IsAlreadyInitialized();
 
             status = Status.Initialized;
 
@@ -222,11 +209,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetCost(TNode to, float cost)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             costs[to] = cost;
         }
 
@@ -234,11 +217,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetEdge(TNode from, TNode to)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             edges[to] = from;
         }
 
@@ -246,11 +225,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetEnd(TCoord endPosition, TNode endNode)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             this.endNode = endNode;
             this.endPosition = endPosition;
         }
@@ -259,11 +234,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetGraphLocation(IGraphLocation<TNode, TCoord> converter)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             this.converter = converter;
         }
 
@@ -271,11 +242,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetLineOfSight(IGraphLineOfSight<TCoord> lineOfSight)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             lineOfsight = lineOfSight;
         }
 
@@ -283,11 +250,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetStart(TCoord startPosition, TNode startNode)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             this.startNode = startNode;
             this.startPosition = startPosition;
         }
@@ -296,11 +259,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.TryDequeueToVisit(out TNode node)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             return toVisit.TryDequeue(out node, out _);
         }
 
@@ -308,11 +267,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.TryGetCost(TNode to, out float cost)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             return costs.TryGetValue(to, out cost);
         }
 
@@ -320,11 +275,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.Visit(TNode node)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             visited.Add(node);
         }
 
@@ -332,11 +283,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.WasVisited(TNode node)
         {
-#if UNITY_EDITOR || DEBUG
-            if ((status & Status.Initialized) == 0)
-                throw new InvalidOperationException(CAN_NOT_EXECUTE_IT_IS_NOT_INITIALIZED_DEBUG_ONLY);
-#endif
-
+            Debug.Assert((status & Status.Initialized) != 0);
             return visited.Contains(node);
         }
 
@@ -355,5 +302,14 @@ namespace Enderlook.Unity.Pathfinding
             Found = Finalized | 1 << 2,
             Timedout = Finalized | 1 << 3,
         }
+
+        private static void ThrowInvalidOperationException_IsNotFinalized()
+            => throw new InvalidOperationException("Session has not finalized.");
+
+        private static void ThrowInvalidOperationException_IsAlreadyInitialized()
+            => throw new InvalidOperationException("Session is already initialized.");
+
+        private static void ThrowInvalidOperationException_IsNotInitialized()
+            => throw new InvalidOperationException("Session has not initialized.");
     }
 }
