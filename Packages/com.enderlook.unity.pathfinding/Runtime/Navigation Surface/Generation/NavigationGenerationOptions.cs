@@ -169,7 +169,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         public void SetTask(ValueTask task) => timeSlicer.SetTask(task);
 
         /// <inheritdoc cref="TimeSlicer.AsTask"/>
-        public NavigationTask AsTask() => timeSlicer.AsTask();
+        public ValueTask AsTask() => timeSlicer.AsTask();
 
         public void SetVoxelizationParameters(float voxelSize, Vector3 min, Vector3 max)
         {

@@ -5,6 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Sources;
 
 using UnityEngine;
 
@@ -13,7 +14,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
     /// <summary>
     /// A time slicer system that allow to yield over multiple calls of <see cref="Poll"/>.
     /// </summary>
-    internal sealed class TimeSlicer
+    internal sealed class TimeSlicer : IValueTaskSource
     {
         private static readonly Action<TimeSlicer> executionTimeSliceSet = self
             => self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
@@ -22,9 +23,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             while (!self.task.IsCompleted)
             {
-                self.Lock();
+                Lock(ref self.continuationsLock);
                 bool found = self.continuations.TryDequeue(out Action action);
-                self.Unlock();
+                Unlock(ref self.continuationsLock);
                 if (!found)
                     return;
                 action();
@@ -32,9 +33,14 @@ namespace Enderlook.Unity.Pathfinding.Utils
         };
 
         private float nextYield = float.PositiveInfinity;
+
         private RawPooledQueue<Action> continuations = RawPooledQueue<Action>.Create();
-        private int @lock;
+        private int continuationsLock;
+
         private ValueTask task;
+        private int taskLock;
+
+        private short version;
 
         /// <summary>
         /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
@@ -77,7 +83,15 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <summary>
         /// Whenever the underlying task is completed.
         /// </summary>
-        public bool IsCompleted => task.IsCompleted;
+        public bool IsCompleted
+        {
+            get {
+                Lock(ref taskLock);
+                bool isCompleted = task.IsCompleted;
+                Unlock(ref taskLock);
+                return isCompleted;
+            }
+        }
 
         /// <summary>
         /// Set the associated task of this slicer.
@@ -86,10 +100,10 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public void SetTask(ValueTask task) => this.task = task;
 
         /// <summary>
-        /// Builds a <see cref="NavigationTask"/> from this <see cref="TimeSlicer"/>.
+        /// Builds a <see cref="ValueTask"/> from this <see cref="TimeSlicer"/>.
         /// </summary>
-        /// <returns><see cref="NavigationTask"/> from this <see cref="TimeSlicer"/>.</returns>
-        public NavigationTask AsTask() => new NavigationTask(this);
+        /// <returns><see cref="ValueTask"/> from this <see cref="TimeSlicer"/>.</returns>
+        public ValueTask AsTask() => new ValueTask(this, version);
 
         /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Poll"/>
         public void Poll()
@@ -100,9 +114,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
             nextYield = Time.realtimeSinceStartup + executionTimeSlice;
             while (Time.realtimeSinceStartup < nextYield)
             {
-                Lock();
+                Lock(ref continuationsLock);
                 bool found = continuations.TryDequeue(out Action action);
-                Unlock();
+                Unlock(ref continuationsLock);
                 if (!found)
                     return;
                 action();
@@ -112,7 +126,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <summary>
         /// Forces completition of all continuations.
         /// </summary>
-        public void CompleteNow()
+        public void RunSynchronously()
         {
             if (!task.IsCompleted)
             {
@@ -120,9 +134,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 {
                     while (!task.IsCompleted)
                     {
-                        Lock();
+                        Lock(ref continuationsLock);
                         bool found = continuations.TryDequeue(out Action action);
-                        Unlock();
+                        Unlock(ref continuationsLock);
                         if (!found)
                             return;
                         action();
@@ -158,13 +172,51 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public Yielder Yield<TYield>() => Toggle.IsToggled<TYield>() ? Yield() : new Yielder(this, float.NegativeInfinity);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Lock()
+        private static void Lock(ref int @lock)
         {
             while (Interlocked.Exchange(ref @lock, 1) == 1) ;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Unlock() => @lock = 0;
+        private static void Unlock(ref int @lock) => @lock = 0;
+
+        ValueTaskSourceStatus IValueTaskSource.GetStatus(short token)
+        {
+            if (token != version) ThrowArgumentException_InvalidToken();
+
+            if (task.IsCompletedSuccessfully)
+                return ValueTaskSourceStatus.Succeeded;
+            if (task.IsFaulted)
+                return ValueTaskSourceStatus.Faulted;
+            if (task.IsCanceled)
+                return ValueTaskSourceStatus.Canceled;
+            return ValueTaskSourceStatus.Pending;
+        }
+
+        void IValueTaskSource.OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+        {
+            if (token != version) ThrowArgumentException_InvalidToken();
+            if (continuation is null) ThrowArgumentNullException_Continuation();
+
+            // TODO: Is fine to ignore flags parameter?
+
+            Lock(ref taskLock);
+            task = task.Preserve();
+            Unlock(ref taskLock);
+            task.GetAwaiter().OnCompleted(() => continuation(state));
+        }
+
+        void IValueTaskSource.GetResult(short token)
+        {
+            if (token != version) ThrowArgumentException_InvalidToken();
+            RunSynchronously();
+        }
+
+        private static void ThrowArgumentException_InvalidToken()
+            => throw new ArgumentException("Invalid token.", "token");
+
+        private static void ThrowArgumentNullException_Continuation()
+            => throw new ArgumentNullException("continuation");
 
         public readonly struct Yielder : IAwaitable<Yielder>, IAwaiter, INotifyCompletion
         {
@@ -190,9 +242,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
             {
                 if (IsCompleted)
                     continuation();
-                timeSlicer.Lock();
+                Lock(ref timeSlicer.continuationsLock);
                 timeSlicer.continuations.Enqueue(continuation);
-                timeSlicer.Unlock();
+                Unlock(ref timeSlicer.continuationsLock);
             }
         }
     }
