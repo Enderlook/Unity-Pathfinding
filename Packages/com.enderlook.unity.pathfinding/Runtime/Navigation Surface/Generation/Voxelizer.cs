@@ -58,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return new ValueTask<Voxelizer>(this);
             }
 
-            if (Info.SupportMultithreading && information.Count > 1)
+            if (options.UseMultithreading && information.Count > 1)
                 return ProcessMultiThread();
             else if (options.ShouldUseTimeSlice)
                 return ProcessSingleThread<Toggle.Yes>();

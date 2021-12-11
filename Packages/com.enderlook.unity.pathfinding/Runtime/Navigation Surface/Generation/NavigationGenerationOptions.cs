@@ -47,6 +47,13 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <inheritdoc cref="TimeSlicer.ShouldUseTimeSlice"/>
         public bool ShouldUseTimeSlice => timeSlicer.ShouldUseTimeSlice;
 
+        /// <inheritdoc cref="TimeSlicer.UseMultithreading"/>
+        public bool UseMultithreading
+        {
+            get => timeSlicer.UseMultithreading;
+            set => timeSlicer.UseMultithreading = value;
+        }
+
         /// <inheritdoc cref="TimeSlicer.IsCompleted"/>
         public bool IsCompleted => timeSlicer.IsCompleted;
 

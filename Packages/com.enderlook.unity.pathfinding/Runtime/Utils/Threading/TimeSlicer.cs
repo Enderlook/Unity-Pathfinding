@@ -83,6 +83,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public bool ShouldUseTimeSlice => nextYield != float.PositiveInfinity && UnityThread.IsMainThread;
 
         /// <summary>
+        /// Whenever it shoud use multithreading when possible.
+        /// </summary>
+        public bool UseMultithreading { get; set; } = Info.SupportMultithreading;
+
+        /// <summary>
         /// Whenever the underlying task is completed.
         /// </summary>
         public bool IsCompleted

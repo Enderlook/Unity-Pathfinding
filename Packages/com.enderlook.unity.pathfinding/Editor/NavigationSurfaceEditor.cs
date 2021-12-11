@@ -41,16 +41,13 @@ namespace Enderlook.Unity.Pathfinding
                         progressBar.value = 0;
                         progressBar.style.display = DisplayStyle.Flex;
 
-                        if (navigationSurface.options is null)
-                            navigationSurface.options = new NavigationGenerationOptions();
-
                         Task.Run(async () =>
                         {
-                            ValueTask task = navigationSurface.BuildNavigation();
+                            ValueTask task = navigationSurface.BuildNavigation(true);
                             EditorApplication.CallbackFunction onUpdate = () =>
                             {
                                 UpdateBar();
-                                navigationSurface.options.Poll();
+                                navigationSurface.Poll();
                             };
                             EditorApplication.update += onUpdate;
                             Action onSchedule = null;
@@ -78,12 +75,7 @@ namespace Enderlook.Unity.Pathfinding
                                 throw e.Exception;
                         });
 
-                        void UpdateBar()
-                        {
-                            NavigationGenerationOptions options = navigationSurface.options;
-                            float progress = options is null ? 0 : options.Progress;
-                            progressBar.value = progress * 100;
-                        }
+                        void UpdateBar() => progressBar.value = navigationSurface.Progress() * 100;
                     };
                 }
                 root.Add(build);

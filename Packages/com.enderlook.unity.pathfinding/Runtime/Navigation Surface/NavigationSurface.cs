@@ -40,7 +40,7 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Min(0), Tooltip("For executions that happens in the main thread, determines the amount of milliseconds executed per frame.\nUse 0 to disable time slicing.")]
         private int pathfindingExecutionTimeSlice = 1000 / 60;
 
-        internal NavigationGenerationOptions options;
+        private NavigationGenerationOptions options;
 
         private int navigationLock;
         private CompactOpenHeightField compactOpenHeightField;
@@ -57,13 +57,13 @@ namespace Enderlook.Unity.Pathfinding
             options = new NavigationGenerationOptions();
             lineCast = e => Physics.Linecast(e.Item1, e.Item2, includeLayers);
 
-            if (Info.SupportMultithreading)
+            if (options.UseMultithreading)
                 Task.Factory.StartNew(buildNavigationFunc, this).Unwrap();
             else
                 BuildNavigation();
         }
 
-        private void Update() => options?.Poll();
+        private void Update() => options.Poll();
 
         private void OnDrawGizmosSelected()
         {
@@ -74,6 +74,12 @@ namespace Enderlook.Unity.Pathfinding
                 Unlock();
             }
         }
+
+#if UNITY_EDITOR
+        internal void Poll() => options.Poll();
+
+        internal float Progress() => options.Progress;
+#endif
 
         internal void CalculatePathSync(Path<Vector3> path, Vector3 position, Vector3 destination)
         {
@@ -95,7 +101,7 @@ namespace Enderlook.Unity.Pathfinding
 
             SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
 
-            if (Info.SupportMultithreading)
+            if (options.UseMultithreading)
                 return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(true));
             else
             {
@@ -107,12 +113,34 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        public ValueTask BuildNavigation()
+        internal ValueTask BuildNavigation(
+#if UNITY_EDITOR
+            bool isEditor = false
+#endif
+            )
         {
+#if UNITY_EDITOR
+            if (isEditor && options is null)
+                options = new NavigationGenerationOptions();
+#endif
+
             if (!options.IsCompleted)
                 ThrowNavigationInProgress();
+
+#if UNITY_EDITOR
+            bool useMultithreading = options.UseMultithreading;
+            if (isEditor)
+                options.UseMultithreading = true;
+#endif
+
             ValueTask task = BuildNavigation_();
             options.SetTask(task);
+
+#if UNITY_EDITOR
+            if (isEditor)
+                options.AsTask().GetAwaiter().OnCompleted(() => options.UseMultithreading = useMultithreading);
+#endif
+
             return task;
         }
 
