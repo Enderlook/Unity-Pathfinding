@@ -145,7 +145,7 @@ namespace Enderlook.Unity.Pathfinding
                 options.UseMultithreading = true;
 #endif
 
-            ValueTask task = BuildNavigation_();
+            ValueTask task = BuildNavigation_(isEditor);
             options.SetTask(task);
 
 #if UNITY_EDITOR
@@ -156,7 +156,11 @@ namespace Enderlook.Unity.Pathfinding
             return task;
         }
 
-        private async ValueTask BuildNavigation_()
+        private async ValueTask BuildNavigation_(
+#if UNITY_EDITOR
+            bool isEditor
+#endif
+            )
         {
             float voxelSize = this.voxelSize;
             LayerMask includeLayers = this.includeLayers;
@@ -214,7 +218,14 @@ namespace Enderlook.Unity.Pathfinding
                 }
 
                 if (wasNotInMainThread)
-                    await Switch.ToLongBackground;
+                {
+#if UNITY_EDITOR
+                    if (isEditor)
+                        await Switch.ToLongBackgroundEditor;
+                    else
+#endif
+                        await Switch.ToLongBackground;
+                }
 
                 voxelizer = await voxelizer.Process();
                 options.StepTask();
