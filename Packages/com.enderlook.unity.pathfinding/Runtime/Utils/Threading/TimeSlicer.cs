@@ -119,7 +119,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             if (executionTimeSlice == 0 || continuations.Count == 0)
                 return;
             nextYield = Time.realtimeSinceStartup + executionTimeSlice;
-            while (Time.realtimeSinceStartup < nextYield)
+            do
             {
                 Lock(ref continuationsLock);
                 bool found = continuations.TryDequeue(out Action action);
@@ -127,7 +127,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 if (!found)
                     return;
                 action();
-            }
+            } while (Time.realtimeSinceStartup < nextYield);
         }
 
         /// <summary>
