@@ -202,7 +202,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private void CalculatePath(NavigationSurface navigationSurface, Vector3 leaderPosition)
         {
-            navigationSurface.CalculatePathAsync(path, Rigidbody.position, leaderPosition);
+            navigationSurface.CalculatePath(path, Rigidbody.position, leaderPosition);
             pathPending = true;
         }
 

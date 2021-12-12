@@ -1,4 +1,5 @@
-﻿using Enderlook.Threading;
+﻿using Enderlook.Collections.LowLevel;
+using Enderlook.Threading;
 using Enderlook.Unity.Pathfinding.Algorithms;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
@@ -46,6 +47,8 @@ namespace Enderlook.Unity.Pathfinding
         private CompactOpenHeightField compactOpenHeightField;
         private int[] spanToColumn;
 
+        private RawList<TimeSlicer> timeSlicers = RawList<TimeSlicer>.Create();
+
         internal bool HasNavigation => !(options is null) && options.Progress == 1;
 
         private static readonly Func<NavigationSurface, Task> buildNavigationFunc = async (e) => await e.BuildNavigation();
@@ -60,7 +63,28 @@ namespace Enderlook.Unity.Pathfinding
                 BuildNavigation();
         }
 
-        private void Update() => options.Poll();
+        private void Update()
+        {
+            if (!options.IsCompleted)
+                options.Poll();
+            else
+            {
+                int j = 0;
+                for (int i = 0; i < timeSlicers.Count; i++)
+                {
+                    TimeSlicer timeSlicer = timeSlicers[i];
+                    if (timeSlicer.IsCompleted)
+                        continue;
+
+                    timeSlicer.Poll();
+                    if (timeSlicer.IsCompleted)
+                        continue;
+
+                    timeSlicers[j++] = timeSlicer;
+                }
+                timeSlicers = RawList<TimeSlicer>.From(timeSlicers.UnderlyingArray, j);
+            }
+        }
 
         private void OnDrawGizmosSelected()
         {
@@ -78,36 +102,28 @@ namespace Enderlook.Unity.Pathfinding
         internal float Progress() => options.Progress;
 #endif
 
-        internal void CalculatePathSync(Path<Vector3> path, Vector3 position, Vector3 destination)
+        internal ValueTask CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination, bool synchronous = false)
         {
             if (options is null) ThrowNoNavigation();
             if (!options.IsCompleted) ThrowNavigationInProgress();
 
             SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
 
-            ValueTask task = PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(false));
+            TimeSlicer timeSlicer = TimeSlicer.Rent();
+            timeSlicer.ExecutionTimeSlice = synchronous ? 0 : pathfindingExecutionTimeSlice;
 
-            Debug.Assert(task.IsCompleted);
-            task.GetAwaiter().GetResult();
-        }
+            ValueTask task = PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.Yielder, TimeSlicer.Yielder>(this, path, position, searcher, timeSlicer);
 
-        internal ValueTask CalculatePathAsync(Path<Vector3> path, Vector3 position, Vector3 destination)
-        {
-            if (options is null) ThrowNoNavigation();
-            if (!options.IsCompleted) ThrowNavigationInProgress();
+            timeSlicer.SetTask(task);
 
-            SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
-
-            if (options.UseMultithreading)
-                return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(true));
-            else
+            if (synchronous)
             {
-                int pathfindingExecutionTimeSlice = this.pathfindingExecutionTimeSlice;
-                if (pathfindingExecutionTimeSlice > 0)
-                    return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSliceWatchdog, TimeSlicer.Yielder, TimeSlicer.Yielder>(this, path, position, searcher, new TimeSliceWatchdog(pathfindingExecutionTimeSlice));
-                else
-                    return PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, SimpleWatchdog, DummyAwaitable, DummyAwaitable.Awaiter>(this, path, position, searcher, new SimpleWatchdog(false));
+                timeSlicer.RunSynchronously();
+                return default;
             }
+
+            timeSlicers.Add(timeSlicer);
+            return timeSlicer.AsTask();
         }
 
         internal ValueTask BuildNavigation(

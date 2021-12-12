@@ -1,6 +1,8 @@
 ﻿using Assets.Enderlook.Unity.Pathfinding;
 using Assets.Enderlook.Unity.Pathfinding.Steerings;
 
+using System.Threading.Tasks;
+
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
@@ -60,20 +62,17 @@ namespace Enderlook.Unity.Pathfinding
         /// Set the target destination of this agent.
         /// </summary>
         /// <param name="destination">Destination to follow.</param>
-        public void SetDestinationSync(Vector3 destination)
+        /// <param name="synchronous">If <see langword="true"/>, path calculation will be forced to execute immediately.</param>
+        public void SetDestination(Vector3 destination, bool synchronous = false)
         {
-            NavigationSurface.CalculatePathSync(path, Rigidbody.position, destination);
-            PathFollower.SetPath(path);
-        }
-
-        /// <summary>
-        /// Set the target destination of this agent.
-        /// </summary>
-        /// <param name="destination">Destination to follow.</param>
-        public void SetDestination(Vector3 destination)
-        {
-            NavigationSurface.CalculatePathAsync(path, Rigidbody.position, destination);
-            IsPending = true;
+            ValueTask task = NavigationSurface.CalculatePath(path, Rigidbody.position, destination, synchronous);
+            if (task.IsCompleted)
+            {
+                task.GetAwaiter().GetResult();
+                PathFollower.SetPath(path);
+            }
+            else
+                IsPending = true;
         }
 
         private Vector3 GetDirection() => PathFollower.GetDirection(Rigidbody) + ObstacleAvoidance.GetDirection(Rigidbody);

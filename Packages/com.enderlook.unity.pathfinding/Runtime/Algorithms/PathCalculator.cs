@@ -76,7 +76,6 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 }
                 finally
                 {
-                    watchdog.Dispose();
                     if (!(builder is null))
                         ObjectPool<TBuilder>.Shared.Return(builder);
                 }

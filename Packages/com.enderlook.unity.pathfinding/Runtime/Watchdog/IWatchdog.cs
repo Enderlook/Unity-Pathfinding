@@ -9,7 +9,7 @@ namespace Enderlook.Unity.Pathfinding
     /// </summary>
     /// <typeparam name="TAwaitable">Type of awaitable.</typeparam>
     /// <typeparam name="TAwaiter">Type of awaiter.</typeparam>
-    internal interface IWatchdog<TAwaitable, TAwaiter> : IDisposable
+    internal interface IWatchdog<TAwaitable, TAwaiter>
         where TAwaitable : IAwaitable<TAwaiter>
         where TAwaiter : IAwaiter
     {

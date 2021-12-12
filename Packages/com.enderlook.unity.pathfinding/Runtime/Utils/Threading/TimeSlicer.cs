@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Threading;
 
 using System;
@@ -14,7 +15,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
     /// <summary>
     /// A time slicer system that allow to yield over multiple calls of <see cref="Poll"/>.
     /// </summary>
-    internal sealed class TimeSlicer : IValueTaskSource
+    internal sealed class TimeSlicer : IValueTaskSource, IWatchdog<TimeSlicer.Yielder, TimeSlicer.Yielder>
     {
         private static readonly Action<TimeSlicer> executionTimeSliceSet = self
             => self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
@@ -43,6 +44,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private int taskLock;
 
         private short version;
+
+        private bool returnToPool;
 
         /// <summary>
         /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
@@ -100,6 +103,17 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         /// <summary>
+        /// Rent an instance of a <see cref="TimeSlicer"/>.
+        /// </summary>
+        /// <returns>Rented instance.</returns>
+        public static TimeSlicer Rent()
+        {
+            TimeSlicer timeSlicer = ObjectPool<TimeSlicer>.Shared.Rent();
+            timeSlicer.returnToPool = true;
+            return timeSlicer;
+        }
+
+        /// <summary>
         /// Set the associated task of this slicer.
         /// </summary>
         /// <param name="task">Task to associate.</param>
@@ -130,7 +144,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         /// <summary>
-        /// Forces <see cref="TimeSlicer"/> to run synchronously.
+        /// Forces <see cref="TimeSlicer"/> to run synchronously and returns instance to pool.
         /// </summary>
         public void RunSynchronously()
         {
@@ -158,6 +172,17 @@ namespace Enderlook.Unity.Pathfinding.Utils
 
             task.GetAwaiter().GetResult();
             task = default;
+
+            if (returnToPool)
+                ReturnToPool();
+        }
+
+        private void ReturnToPool()
+        {
+            version++;
+            continuations.Clear();
+            task = default;
+            ObjectPool<TimeSlicer>.Shared.Return(this);
         }
 
         /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Yield"/>
@@ -210,6 +235,13 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             if (token != version) ThrowArgumentException_InvalidToken();
             RunSynchronously();
+        }
+
+        /// <inheritdoc cref="IWatchdog{TAwaitable, TAwaiter}.CanContinue(out TAwaitable)"/>
+        bool IWatchdog<Yielder, Yielder>.CanContinue(out Yielder awaitable)
+        {
+            awaitable = Yield();
+            return true;
         }
 
         private static void ThrowArgumentException_InvalidToken()
