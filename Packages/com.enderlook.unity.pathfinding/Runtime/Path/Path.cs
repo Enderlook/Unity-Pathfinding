@@ -94,9 +94,8 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         public void Complete()
         {
-            ValueTask task_ = task;
+            task.GetAwaiter().GetResult();
             task = default;
-            task_.GetAwaiter().GetResult();
         }
 
         /// <inheritdoc cref="ISetTask.SetTask(ValueTask)"/>
