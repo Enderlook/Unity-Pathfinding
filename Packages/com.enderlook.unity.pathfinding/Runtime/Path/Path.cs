@@ -34,7 +34,12 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         public bool IsCompleted {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => task.IsCompleted;
+            get
+            {
+                bool isCompleted = task.IsCompleted;
+                Debug.Assert(isCompleted == IsTrulyCompleted);
+                return isCompleted;
+            }
         }
 
         private bool IsTrulyCompleted {
