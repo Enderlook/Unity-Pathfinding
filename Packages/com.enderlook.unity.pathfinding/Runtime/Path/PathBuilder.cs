@@ -134,8 +134,8 @@ namespace Enderlook.Unity.Pathfinding
 
                 pathOptimized.Add(pathRaw[0]);
 
-                bool isTask = !UnityThread.IsMainThread;
-                if (isTask)
+                bool requiresSwitch = lineOfsight.RequiresUnityThread && !UnityThread.IsMainThread;
+                if (requiresSwitch)
                     await Switch.ToUnity;
 
                 TCoord previous;
@@ -168,7 +168,7 @@ namespace Enderlook.Unity.Pathfinding
                 else
                     pathOptimized.Add(last);
 
-                if (isTask)
+                if (requiresSwitch)
                     await Switch.ToBackground;
 
                 // Finalize

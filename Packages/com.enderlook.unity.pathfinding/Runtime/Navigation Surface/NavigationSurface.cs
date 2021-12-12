@@ -46,8 +46,6 @@ namespace Enderlook.Unity.Pathfinding
         private CompactOpenHeightField compactOpenHeightField;
         private int[] spanToColumn;
 
-        private Func<(Vector3, Vector3), bool> lineCast;
-
         internal bool HasNavigation => !(options is null) && options.Progress == 1;
 
         private static readonly Func<NavigationSurface, Task> buildNavigationFunc = async (e) => await e.BuildNavigation();
@@ -55,7 +53,6 @@ namespace Enderlook.Unity.Pathfinding
         private void Awake()
         {
             options = new NavigationGenerationOptions();
-            lineCast = e => Physics.Linecast(e.Item1, e.Item2, includeLayers);
 
             if (options.UseMultithreading)
                 Task.Factory.StartNew(buildNavigationFunc, this).Unwrap();
@@ -315,13 +312,9 @@ namespace Enderlook.Unity.Pathfinding
             ((IGraphLocation<int, Vector3>)this).ToPosition(to)
         );
 
-        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to)
-        {
-            if (UnityThread.IsMainThread)
-                return Physics.Linecast(from, to, includeLayers);
-            else
-                return UnityThread.RunNow(lineCast, (from, to));
-        }
+        bool IGraphLineOfSight<Vector3>.RequiresUnityThread => true;
+
+        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to) => Physics.Linecast(from, to, includeLayers);
 
         internal struct NodesEnumerator : IEnumerator<int>
         {
