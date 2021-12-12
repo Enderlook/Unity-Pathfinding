@@ -165,7 +165,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public Yielder Yield()
         {
             Debug.Assert(UnityThread.IsMainThread);
-            return new Yielder(this, nextYield);
+            return new Yielder(this, Time.realtimeSinceStartup);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
