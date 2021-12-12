@@ -36,7 +36,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter
         {
-            private static readonly Action<Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>> action = async e => await e.InternalProcess();
+            private static readonly Func<Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>, Task> action = e => e.InternalProcess().AsTask();
 
             private readonly TGraph graph;
             private readonly TPath path;
@@ -55,7 +55,9 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             public ValueTask Process()
             {
-                ValueTask task = watchdog.UseMultithreading ? new ValueTask(Task.Factory.StartNew(action, this)) : InternalProcess();
+                ValueTask task = watchdog.UseMultithreading ?
+                    new ValueTask(Task.Factory.StartNew(action, this).Unwrap())
+                    : InternalProcess();
                 path.SetTask(task);
                 return task;
             }
