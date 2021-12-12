@@ -401,15 +401,15 @@ namespace Enderlook.Unity.Pathfinding.Generation
             int i = 0;
             for (int x = 0; x < parameters.Width; x++)
             {
-                float x_ = parameters.Min.x + (voxelSize * (x + 1));
+                float x_ = parameters.Min.x + (voxelSize * x);
                 for (int y = 0; y < parameters.Height; y++)
                 {
-                    float y_ = parameters.Min.y + (voxelSize * (y + 1));
+                    float y_ = parameters.Min.y + (voxelSize * y);
                     for (int z = 0; z < parameters.Depth; z++)
                     {
                         if (voxels[i++])
                         {
-                            float z_ = parameters.Min.z + (voxelSize * (z + 1));
+                            float z_ = parameters.Min.z + (voxelSize * z);
                             Gizmos.DrawWireCube(new Vector3(x_, y_, z_), size);
                         }
                     }
