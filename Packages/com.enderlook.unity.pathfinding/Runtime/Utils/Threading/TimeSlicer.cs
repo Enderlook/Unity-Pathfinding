@@ -205,6 +205,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Unlock(ref int @lock) => @lock = 0;
 
+        /// <inheritdoc cref="IValueTaskSource.GetStatus(short)"/>
         ValueTaskSourceStatus IValueTaskSource.GetStatus(short token)
         {
             if (token != version) ThrowArgumentException_InvalidToken();
@@ -218,6 +219,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             return ValueTaskSourceStatus.Pending;
         }
 
+        /// <inheritdoc cref="IValueTaskSource.OnCompleted(Action{object}, object, short, ValueTaskSourceOnCompletedFlags)"/>
         void IValueTaskSource.OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
             if (token != version) ThrowArgumentException_InvalidToken();
@@ -231,6 +233,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             task.GetAwaiter().OnCompleted(() => continuation(state));
         }
 
+        /// <inheritdoc cref="IValueTaskSource.GetResult(short)"/>
         void IValueTaskSource.GetResult(short token)
         {
             if (token != version) ThrowArgumentException_InvalidToken();
@@ -262,18 +265,22 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 this.token = token;
             }
 
+            /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Yielder GetAwaiter() => this;
 
+            /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void GetResult() { }
 
+            /// <inheritdoc cref="IAwaiter.IsCompleted"/>
             public bool IsCompleted
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => timeSlicer.nextYield > token;
             }
 
+            /// <inheritdoc cref="INotifyCompletion.OnCompleted(Action)"/>
             public void OnCompleted(Action continuation)
             {
                 if (IsCompleted)
