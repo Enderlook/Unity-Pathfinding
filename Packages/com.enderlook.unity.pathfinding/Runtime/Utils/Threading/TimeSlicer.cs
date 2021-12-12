@@ -90,8 +90,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <summary>
         /// Whenever the underlying task is completed.
         /// </summary>
-        public bool IsCompleted
-        {
+        public bool IsCompleted {
             get {
                 Lock(ref taskLock);
                 bool isCompleted = task.IsCompleted;

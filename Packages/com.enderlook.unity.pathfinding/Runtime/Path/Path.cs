@@ -146,9 +146,9 @@ namespace Enderlook.Unity.Pathfinding
 
         public struct Enumerator : IEnumerator<TInfo>
         {
-            private Path<TInfo> source;
+            private readonly Path<TInfo> source;
+            private readonly int version;
             private int index;
-            private int version;
 
             internal Enumerator(Path<TInfo> source)
             {

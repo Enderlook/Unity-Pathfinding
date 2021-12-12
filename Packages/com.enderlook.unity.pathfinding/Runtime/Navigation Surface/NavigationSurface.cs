@@ -121,8 +121,7 @@ namespace Enderlook.Unity.Pathfinding
                 options = new NavigationGenerationOptions();
 #endif
 
-            if (!options.IsCompleted)
-                ThrowNavigationInProgress();
+            if (!options.IsCompleted) ThrowNavigationInProgress();
 
 #if UNITY_EDITOR
             bool useMultithreading = options.UseMultithreading;
@@ -148,8 +147,7 @@ namespace Enderlook.Unity.Pathfinding
             CollectionType collectObjects = this.collectObjects;
             GeometryType collectInformation = this.collectInformation;
 
-            if (voxelSize <= 0)
-                ThrowVoxelSizeMustBeGreaterThanZero();
+            if (voxelSize <= 0) ThrowVoxelSizeMustBeGreaterThanZero();
 
             if (collectInformation.HasFlag(GeometryType.PhysicsColliders))
                 throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
