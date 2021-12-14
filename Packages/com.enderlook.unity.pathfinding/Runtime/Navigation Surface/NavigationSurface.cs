@@ -324,11 +324,11 @@ namespace Enderlook.Unity.Pathfinding
         Vector3 IGraphLocation<int, Vector3>.ToPosition(int node)
         {
             Debug.Assert(node >= 0 && node < compactOpenHeightField.SpansCount);
-            VoxelizationParameters parameters = options.VoxelizationParameters;
             int columnIndex = spanToColumn[node];
             ref readonly CompactOpenHeightField.HeightColumn column = ref compactOpenHeightField.Column(columnIndex);
             Debug.Assert(node >= column.First && node < column.Last);
-            Vector2 indexes = parameters.From2D(columnIndex);
+            VoxelizationParameters parameters = options.VoxelizationParameters;
+            Vector2Int indexes = parameters.From2D(columnIndex);
             int y = compactOpenHeightField.Span(node).Floor;
             Vector3 position = parameters.Min + (new Vector3(indexes.x, y, indexes.y) * parameters.VoxelSize);
             Debug.Assert(node == ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position));
