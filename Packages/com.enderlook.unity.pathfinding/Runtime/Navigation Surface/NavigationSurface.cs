@@ -107,7 +107,11 @@ namespace Enderlook.Unity.Pathfinding
             if (options is null) ThrowNoNavigation();
             if (!options.IsCompleted) ThrowNavigationInProgress();
 
-            SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher = SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.From(this, destination);
+            if (!SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.TryFrom(this, destination, out SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher))
+            {
+                path.ManualSetNotFound();
+                goto default_;
+            }
 
             TimeSlicer timeSlicer = TimeSlicer.Rent();
             timeSlicer.ExecutionTimeSlice = synchronous ? 0 : pathfindingExecutionTimeSlice;
@@ -119,11 +123,14 @@ namespace Enderlook.Unity.Pathfinding
             if (synchronous)
             {
                 timeSlicer.RunSynchronously();
-                return default;
+                goto default_;
             }
 
             timeSlicers.Add(timeSlicer);
             return timeSlicer.AsTask();
+
+            default_:
+            return default;
         }
 
         internal ValueTask BuildNavigation(
@@ -284,7 +291,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Unlock() => navigationLock = 0;
 
-        int IGraphLocation<int, Vector3>.FindClosestNodeTo(Vector3 position)
+        bool IGraphLocation<int, Vector3>.TryFindNodeTo(Vector3 position, out int node)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             Vector3 indexes_ = (position - parameters.Min) / parameters.VoxelSize;
@@ -295,17 +302,23 @@ namespace Enderlook.Unity.Pathfinding
             if (indexes.x >= parameters.Width || indexes.y >= parameters.Height || indexes.z >= parameters.Depth)
                 goto fail;
 
-            ref readonly CompactOpenHeightField.HeightColumn column = ref compactOpenHeightField.Column(parameters.GetIndex(indexes.x, indexes.z));
-            // TODO: This loop could be replaced with a binary search to reduce time complexity.
+            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Column(parameters.GetIndex(indexes.x, indexes.z));
+
+            // TODO: This is very error-prone.
+
             for (int i = column.First; i < column.Last; i++)
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Span(i);
                 if (span.Floor >= indexes.y)
-                    return i;
+                {
+                    node = i;
+                    return true;
+                }
             }
 
             fail:
-            return -1;
+            node = default;
+            return false;
         }
 
         Vector3 IGraphLocation<int, Vector3>.ToPosition(int node)

@@ -8,11 +8,12 @@
     internal interface IGraphLocation<TNode, TCoord>
     {
         /// <summary>
-        /// Calculates the closest node to <paramref name="position"/> or the node which has in range <paramref name="position"/>.
+        /// Calculates the closest valid node to <paramref name="position"/>.
         /// </summary>
         /// <param name="position">Position to query.</param>
-        /// <returns>Closest node to <paramref name="position"/> or node which has in range <paramref name="position"/>.<returns>
-        TNode FindClosestNodeTo(TCoord position);
+        /// <param name="node">Closest valid node to <paramref name="position"/> if return <see langword="true"/>.</param>
+        /// <returns>Whenever a node was found for the specified <paramref name="position"/>.<returns>
+        bool TryFindNodeTo(TCoord position, out TNode node);
 
         /// <summary>
         /// Calculates the position of a given node.

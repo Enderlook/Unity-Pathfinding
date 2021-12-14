@@ -119,6 +119,19 @@ namespace Enderlook.Unity.Pathfinding
                 status = Status.Found;
             else if (feeder.HasTimedout)
                 status = Status.Timedout;
+            else
+                status = Status.None;
+        }
+
+        /// <summary>
+        /// Manually set that path was not found.
+        /// </summary>
+        internal void ManualSetNotFound()
+        {
+            version++;
+            list.Clear();
+            status = Status.None;
+            task = default;
         }
 
         /// <summary>
@@ -210,6 +223,7 @@ namespace Enderlook.Unity.Pathfinding
         [Flags]
         private enum Status : byte
         {
+            None = 0,
             Found = 1 << 0,
             Timedout = 1 << 1,
             IsPending = 1 << 2,

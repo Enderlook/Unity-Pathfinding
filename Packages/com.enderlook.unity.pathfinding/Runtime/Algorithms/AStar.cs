@@ -20,12 +20,16 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter
         {
-            TNode from_ = graph.FindClosestNodeTo(from);
-            builder.SetStart(from, from_);
-
             TNode endNode = default;
             TCoord endPosition = default;
             CalculationResult result = CalculationResult.Timedout;
+
+            if (!graph.TryFindNodeTo(from, out TNode from_))
+            {
+                result = CalculationResult.PathNotFound;
+                goto end;
+            }
+            builder.SetStart(from, from_);
 
             if (searcher.DoesSatisfy(from_))
             {

@@ -28,9 +28,18 @@ namespace Enderlook.Unity.Pathfinding
                 comparer = default;
         }
 
-        public static SearcherToLocationWithHeuristic<TGraph, TCoord, TNode> From<T>(T graph, TCoord destination)
+        public static bool TryFrom<T>(T graph, TCoord destination, out SearcherToLocationWithHeuristic<TGraph, TCoord, TNode> searcher)
             where T : class, TGraph, IGraphLocation<TNode, TCoord>
-            => new SearcherToLocationWithHeuristic<TGraph, TCoord, TNode>(graph, graph.FindClosestNodeTo(destination), destination);
+        {
+            if (graph.TryFindNodeTo(destination, out TNode node))
+            {
+                searcher = new SearcherToLocationWithHeuristic<TGraph, TCoord, TNode>(graph, node, destination);
+                return true;
+            }
+
+            searcher = default;
+            return false;
+        }
 
         /// <inheritdoc cref="ISearcherSatisfy{TNode}.DoesSatisfy(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
