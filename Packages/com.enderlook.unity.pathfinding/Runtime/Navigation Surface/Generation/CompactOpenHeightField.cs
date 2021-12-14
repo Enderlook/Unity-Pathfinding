@@ -577,7 +577,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             ArrayPool<HeightSpan>.Shared.Return(spans);
         }
 
-        public void DrawGizmos(in VoxelizationParameters parameters, bool surfaces, bool neightbours)
+        public void DrawGizmos(in VoxelizationParameters parameters, bool surfaces, bool neightbours, bool volumes)
         {
             Gizmos.color = Color.blue;
             Gizmos.DrawWireCube(parameters.VolumeCenter, parameters.VolumeSize);
@@ -599,7 +599,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                         HeightSpan heightSpan = spans[j++];
                         if (heightSpan.Floor != HeightSpan.NULL_SIDE)
+                        {
                             Draw(parameters, heightSpan.Floor - .1f, Color.green);
+                            Draw4(parameters, heightSpan.Floor, heightSpan.Ceil);
+                        }
+                        else
+                            Draw4(parameters, -.1f, heightSpan.Ceil);
                         Draw(parameters, heightSpan.Ceil + .1f, Color.red);
                         Draw2(parameters, spans, heightSpan, i_);
 
@@ -608,6 +613,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             heightSpan = spans[j];
                             Draw(parameters, heightSpan.Floor - .1f, Color.green);
                             Draw(parameters, heightSpan.Ceil + .1f, Color.red);
+                            Draw4(parameters, heightSpan.Floor, heightSpan.Ceil);
                             Draw2(parameters, spans, heightSpan, i_);
                         }
 
@@ -617,7 +623,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             heightSpan = spans[j];
                             Draw(parameters, heightSpan.Floor, Color.green);
                             if (heightSpan.Ceil != HeightSpan.NULL_SIDE)
+                            {
                                 Draw(parameters, heightSpan.Ceil + .1f, Color.red);
+                                Draw4(parameters, heightSpan.Floor, heightSpan.Ceil);
+                            }
+                            else
+                                Draw4(parameters, heightSpan.Floor, parameters.Height + .1f);
                             Draw2(parameters, spans, heightSpan, i_);
                         }
                     }
@@ -631,6 +642,17 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         Vector3 center_ = offset + position;
                         Vector3 size = new Vector3(parameters_.VoxelSize, parameters_.VoxelSize * .1f, parameters_.VoxelSize);
                         Gizmos.DrawCube(center_, size);
+                    }
+
+                    void Draw4(in VoxelizationParameters parameters_, float yMin, float yMax)
+                    {
+                        if (!volumes)
+                            return;
+                        Gizmos.color = Color.cyan;
+                        Vector3 position = new Vector3(position_.x, parameters_.VoxelSize * ((yMin + yMax) / 2), position_.y);
+                        Vector3 center_ = offset + position;
+                        Vector3 size = new Vector3(parameters_.VoxelSize, yMax - yMin, parameters_.VoxelSize);
+                        Gizmos.DrawWireCube(center_, size);
                     }
 
                     void Draw2(in VoxelizationParameters parameters_, HeightSpan[] spans, HeightSpan span, int index)

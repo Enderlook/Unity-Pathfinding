@@ -91,7 +91,7 @@ namespace Enderlook.Unity.Pathfinding
             if (HasNavigation)
             {
                 Lock();
-                compactOpenHeightField.DrawGizmos(options.VoxelizationParameters, false, true);
+                compactOpenHeightField.DrawGizmos(options.VoxelizationParameters, false, true, false);
                 Unlock();
             }
         }
