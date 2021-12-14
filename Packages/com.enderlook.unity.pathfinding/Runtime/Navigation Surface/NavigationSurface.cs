@@ -331,7 +331,7 @@ namespace Enderlook.Unity.Pathfinding
             Vector2Int indexes = parameters.From2D(columnIndex);
             int y = compactOpenHeightField.Span(node).Floor;
             Vector3 position = parameters.Min + (new Vector3(indexes.x, y, indexes.y) * parameters.VoxelSize);
-            Debug.Assert(node == ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position));
+            //Debug.Assert(node == ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position));
             return position;
         }
 
