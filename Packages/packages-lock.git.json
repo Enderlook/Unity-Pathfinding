@@ -21,11 +21,6 @@
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.net_compatibility#com.enderlook.net_compatibility/v0.6.2"
         },
         {
-            "name": "com.enderlook.unity.threading",
-            "hash": "97cf9ee1e672d4b9c6d8082516d14f1406758470",
-            "url": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.threading#com.enderlook.unity.threading/v0.7.3"
-        },
-        {
             "name": "com.enderlook.unity.utils.math",
             "hash": "deb2912770d197ad206aebf417c0d1332605a945",
             "url": "https://github.com/Enderlook/Unity-Extras.git?path=Packages/com.enderlook.unity.utils.math#com.enderlook.unity.utils.math/v0.1.0"

@@ -113,7 +113,7 @@ namespace Enderlook.Unity.Pathfinding
                 goto default_;
             }
 
-            TimeSlicer timeSlicer = TimeSlicer.Rent();
+            TimeSlicer timeSlicer = path.Start();
             timeSlicer.ExecutionTimeSlice = synchronous ? 0 : pathfindingExecutionTimeSlice;
 
             ValueTask task = PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.Yielder, TimeSlicer.Yielder>(this, path, position, searcher, timeSlicer);

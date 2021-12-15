@@ -1,12 +1,15 @@
-﻿using Enderlook.Collections.Pooled.LowLevel;
+﻿using Enderlook.Collections.LowLevel;
+using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
+using Enderlook.Unity.Threading;
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+using System.Threading;
 
 namespace Enderlook.Unity.Pathfinding
 {
@@ -14,12 +17,38 @@ namespace Enderlook.Unity.Pathfinding
     /// Represents a path.
     /// </summary>
     /// <typeparam name="TInfo">Node or coordinate type.</typeparam>
-    public sealed class Path<TInfo> : IPathFeedable<TInfo>, ISetTask, IEnumerable<TInfo>, IDisposable
+    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IEnumerable<TInfo>, IDisposable
     {
         private RawPooledList<TInfo> list = RawPooledList<TInfo>.Create();
         private int version;
         private Status status;
-        private ValueTask task;
+        private readonly TimeSlicer timeSlicer = new TimeSlicer();
+
+        private static RawList<Path<TInfo>> paths = RawList<Path<TInfo>>.Create();
+        private static int pathsLock;
+
+        static Path()
+        {
+            UnityThread.OnUpdate += () =>
+            {
+                Lock(ref pathsLock);
+                {
+                    int j = 0;
+                    for (int i = 0; i < paths.Count; i++)
+                    {
+                        Path<TInfo> path = paths[i];
+                        if (path.IsCompleted)
+                        {
+                            path.ResetAndReturnToPool();
+                            continue;
+                        }
+                        paths[j++] = path;
+                    }
+                    paths = RawList<Path<TInfo>>.From(paths.UnderlyingArray, j);
+                }
+                Unlock(ref pathsLock);
+            };
+        }
 
         /// <summary>
         /// Extract the underlying span of this path.
@@ -34,16 +63,6 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         public bool IsCompleted {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                bool isCompleted = task.IsCompleted;
-                Debug.Assert(isCompleted == IsTrulyCompleted);
-                return isCompleted;
-            }
-        }
-
-        private bool IsTrulyCompleted {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (status & Status.IsPending) == 0;
         }
 
@@ -55,7 +74,7 @@ namespace Enderlook.Unity.Pathfinding
         public bool HasPath {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
-                if (!IsTrulyCompleted) ThrowInvalidOperationException_HasNotCompleted();
+                if (!IsCompleted) ThrowInvalidOperationException_HasNotCompleted();
                 return (status & Status.Found) != 0;
             }
         }
@@ -68,7 +87,7 @@ namespace Enderlook.Unity.Pathfinding
         public int Count {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get {
-                if (!IsTrulyCompleted) ThrowInvalidOperationException_HasNotCompleted();
+                if (!IsCompleted) ThrowInvalidOperationException_HasNotCompleted();
                 return list.Count;
             }
         }
@@ -82,35 +101,26 @@ namespace Enderlook.Unity.Pathfinding
             get {
                 if (!HasPath)
                 {
-                    if (!IsTrulyCompleted) ThrowInvalidOperationException_HasNotCompleted();
+                    if (!IsCompleted) ThrowInvalidOperationException_HasNotCompleted();
                     ThrowInvalidOperationException_PathWasNotFound();
                 }
                 return list[list.Count - 1];
             }
         }
 
-        /// <summary>
-        /// Completes calculation of path.
-        /// </summary>
-        public void Complete()
-        {
-            task.GetAwaiter().GetResult();
-            task = default;
-        }
-
-        /// <inheritdoc cref="ISetTask.SetTask(ValueTask)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void ISetTask.SetTask(ValueTask task)
+        internal TimeSlicer Start()
         {
             status = Status.IsPending;
-            this.task = task;
+            timeSlicer.Reset();
+            return timeSlicer;
         }
 
         /// <inheritdoc cref="IPathFeedable{TInfo}.Feed(IPathFeeder{TInfo})"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathFeedable<TInfo>.Feed(IPathFeeder<TInfo> feeder)
         {
-            Debug.Assert(!task.IsCompleted);
+            Debug.Assert(!timeSlicer.IsCompleted);
             version++;
             list.Clear();
             // We don't check capacity for optimization because that is already done in AddRange.
@@ -131,7 +141,6 @@ namespace Enderlook.Unity.Pathfinding
             version++;
             list.Clear();
             status = Status.None;
-            task = default;
         }
 
         /// <summary>
@@ -141,7 +150,7 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetManualPath(IEnumerable<TInfo> path)
         {
-            Debug.Assert(IsTrulyCompleted);
+            Debug.Assert(IsCompleted);
             list.Clear();
             list.AddRange(path);
         }
@@ -169,7 +178,7 @@ namespace Enderlook.Unity.Pathfinding
 
             internal Enumerator(Path<TInfo> source)
             {
-                if (!source.IsTrulyCompleted) ThrowInvalidOperationException_HasNotCompleted();
+                if (!source.IsCompleted) ThrowInvalidOperationException_HasNotCompleted();
                 this.source = source;
                 index = -1;
                 version = source.version;
@@ -220,6 +229,42 @@ namespace Enderlook.Unity.Pathfinding
                 => throw new InvalidOperationException("Path was modified; enumeration operation may not execute.");
         }
 
+        internal void SendToPool()
+        {
+            if (IsCompleted)
+                ResetAndReturnToPool();
+            else
+            {
+                timeSlicer.RequestCancellation();
+                Lock(ref pathsLock);
+                {
+                    paths.Add(this);
+                }
+                Unlock(ref pathsLock);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ResetAndReturnToPool()
+        {
+            version++;
+            list.Clear();
+            status = Status.None;
+            ObjectPool<Path<TInfo>>.Shared.Return(this);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static Path<TInfo> Rent() => ObjectPool<Path<TInfo>>.Shared.Rent();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Lock(ref int @lock)
+        {
+            while (Interlocked.Exchange(ref @lock, 1) == 1) ;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Unlock(ref int @lock) => @lock = 0;
+
         [Flags]
         private enum Status : byte
         {
@@ -230,7 +275,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         private static void ThrowInvalidOperationException_HasNotCompleted()
-            => throw new InvalidOperationException($"Can't execute if method {nameof(Complete)} was not executed.");
+            => throw new InvalidOperationException($"Can't execute if property {nameof(IsCompleted)} returns false.");
 
         private static void ThrowInvalidOperationException_PathWasNotFound()
             => throw new InvalidOperationException("Can't execute if path was not found.");

@@ -1,8 +1,6 @@
 ﻿using Assets.Enderlook.Unity.Pathfinding;
 using Assets.Enderlook.Unity.Pathfinding.Steerings;
 
-using System.Threading.Tasks;
-
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
@@ -25,12 +23,8 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Tooltip("Configuration of the obstacle avoidance.")]
         public ObstacleAvoidance ObstacleAvoidance;
 
-        /// <summary>
-        /// Whenever it's calculating a new path.
-        /// </summary>
-        public bool IsPending { get; private set; }
-
         private Path<Vector3> path;
+        private bool isPending;
 
         internal Rigidbody Rigidbody { get; private set; }
 
@@ -39,16 +33,15 @@ namespace Enderlook.Unity.Pathfinding
         {
             Rigidbody = GetComponent<Rigidbody>();
             Movement.Initialize(Rigidbody);
-            path = new Path<Vector3>();
+            path = Path<Vector3>.Rent();
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void FixedUpdate()
         {
-            if (path.IsCompleted && IsPending)
+            if (isPending && path.IsCompleted)
             {
-                IsPending = false;
-                path.Complete();
+                isPending = false;
                 PathFollower.SetPath(path);
             }
 
@@ -65,14 +58,17 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="synchronous">If <see langword="true"/>, path calculation will be forced to execute immediately.</param>
         public void SetDestination(Vector3 destination, bool synchronous = false)
         {
-            ValueTask task = NavigationSurface.CalculatePath(path, Rigidbody.position, destination, synchronous);
-            if (task.IsCompleted)
+            if (!path.IsCompleted)
             {
-                task.GetAwaiter().GetResult();
-                PathFollower.SetPath(path);
+                path.SendToPool();
+                path = Path<Vector3>.Rent();
             }
+
+            NavigationSurface.CalculatePath(path, Rigidbody.position, destination, synchronous);
+            if (path.IsCompleted)
+                PathFollower.SetPath(path);
             else
-                IsPending = true;
+                isPending = true;
         }
 
         private Vector3 GetDirection() => PathFollower.GetDirection(Rigidbody) + ObstacleAvoidance.GetDirection(Rigidbody);

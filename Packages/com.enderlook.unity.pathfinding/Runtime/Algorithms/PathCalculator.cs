@@ -19,7 +19,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : class, IPathFeedable<TCoord>, ISetTask, IEnumerable<TCoord>
+            where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : struct, ISearcherSatisfy<TNode>
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
@@ -30,7 +30,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : class, IPathFeedable<TCoord>, ISetTask, IEnumerable<TCoord>
+            where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : struct, ISearcherSatisfy<TNode>
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
@@ -54,13 +54,9 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             }
 
             public ValueTask Process()
-            {
-                ValueTask task = watchdog.UseMultithreading ?
+                => watchdog.UseMultithreading ?
                     new ValueTask(Task.Factory.StartNew(action, this).Unwrap())
                     : InternalProcess();
-                path.SetTask(task);
-                return task;
-            }
 
             private async ValueTask InternalProcess()
             {

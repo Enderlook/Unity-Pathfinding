@@ -1,5 +1,4 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Pools;
 using Enderlook.Unity.Threading;
 
 using System;
@@ -44,8 +43,6 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private int taskLock;
 
         private short version;
-
-        private bool returnToPool;
 
         /// <summary>
         /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
@@ -103,15 +100,10 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         /// <summary>
-        /// Rent an instance of a <see cref="TimeSlicer"/>.
+        /// Whenever cancellation was requested by user.
         /// </summary>
-        /// <returns>Rented instance.</returns>
-        public static TimeSlicer Rent()
-        {
-            TimeSlicer timeSlicer = ObjectPool<TimeSlicer>.Shared.Rent();
-            timeSlicer.returnToPool = true;
-            return timeSlicer;
-        }
+        public bool IsCancellationRequested => !canContinue;
+        private bool canContinue;
 
         /// <summary>
         /// Set the associated task of this slicer.
@@ -120,10 +112,39 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public void SetTask(ValueTask task) => this.task = task;
 
         /// <summary>
+        /// Reset content of this <see cref="TimeSlicer"/>.
+        /// </summary>
+        public void Reset()
+        {
+            version++;
+            Lock(ref continuationsLock);
+            {
+                Lock(ref taskLock);
+                {
+                    continuations.Clear();
+                    task = default;
+                    canContinue = true;
+                }
+                Unlock(ref taskLock);
+            }
+            Unlock(ref continuationsLock);
+        }
+
+        /// <summary>
         /// Builds a <see cref="ValueTask"/> from this <see cref="TimeSlicer"/>.
         /// </summary>
         /// <returns><see cref="ValueTask"/> from this <see cref="TimeSlicer"/>.</returns>
         public ValueTask AsTask() => new ValueTask(this, version);
+
+        /// <summary>
+        /// Request cancellation of this <see cref="TimeSlicer"/>.<br/>
+        /// To cancell immediately, follow the call with <see cref="RunSynchronously"/>.
+        /// </summary>
+        public void RequestCancellation()
+        {
+            Debug.Assert(canContinue);
+            canContinue = false;
+        }
 
         /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Poll"/>
         public void Poll()
@@ -172,17 +193,6 @@ namespace Enderlook.Unity.Pathfinding.Utils
 
             task.GetAwaiter().GetResult();
             task = default;
-
-            if (returnToPool)
-                ReturnToPool();
-        }
-
-        private void ReturnToPool()
-        {
-            version++;
-            continuations.Clear();
-            task = default;
-            ObjectPool<TimeSlicer>.Shared.Return(this);
         }
 
         /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Yield"/>
@@ -244,7 +254,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         bool IWatchdog<Yielder, Yielder>.CanContinue(out Yielder awaitable)
         {
             awaitable = Yield();
-            return true;
+            return canContinue;
         }
 
         private static void ThrowArgumentException_InvalidToken()
