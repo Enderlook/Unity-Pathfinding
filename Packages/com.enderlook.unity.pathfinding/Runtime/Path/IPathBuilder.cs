@@ -16,8 +16,8 @@ namespace Enderlook.Unity.Pathfinding
     ///     <item><term><see cref="SetGraphLocation(IGraphLocation{TNode, TCoord})"/></term></item>
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/></term></item>
     ///     <item><term>Others.</term></item>
-    ///     <item><term><see cref="SetEnd(TCoord)"/> and <see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/></term></item>
-    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/></term></item>
+    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/> and <see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/></term></item>
+    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/></term></item>
     /// </list>
     /// </remarks>
     internal interface IPathBuilder<TNode, TCoord>
