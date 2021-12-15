@@ -50,7 +50,7 @@ namespace Enderlook.Unity.Pathfinding
         /// Try to dequeue a node (if any) to visit.
         /// </summary>
         /// <param name="node">Dequeued node, if any.</param>
-        /// <returns>Whenever a node was deuqued of not.</returns>
+        /// <returns>Whenever a node was dequeued of not.</returns>
         /// <remarks>It doesn't need to check if the node was already visited. For that <see cref="WasVisited(TNode)"/> is used.</remarks>
         bool TryDequeueToVisit(out TNode node);
 

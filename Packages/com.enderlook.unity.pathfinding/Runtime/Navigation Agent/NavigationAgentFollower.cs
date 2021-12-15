@@ -141,7 +141,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private Vector3 GetDirection()
         {
-            Vector3 direction = (Rigidbody.position - FlockingLeader.Rigidbody.position);
+            Vector3 direction = Rigidbody.position - FlockingLeader.Rigidbody.position;
             if (direction.magnitude < leaderStoppingDistance)
                 return direction.normalized;
 

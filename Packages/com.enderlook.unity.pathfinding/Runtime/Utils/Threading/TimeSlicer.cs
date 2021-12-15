@@ -23,8 +23,12 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             while (!self.task.IsCompleted)
             {
+                bool found;
+                Action action;
                 Lock(ref self.continuationsLock);
-                bool found = self.continuations.TryDequeue(out Action action);
+                {
+                    found = self.continuations.TryDequeue(out action);
+                }
                 Unlock(ref self.continuationsLock);
                 if (!found)
                     return;
@@ -92,8 +96,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         public bool IsCompleted {
             get {
+                bool isCompleted;
                 Lock(ref taskLock);
-                bool isCompleted = task.IsCompleted;
+                {
+                    isCompleted = task.IsCompleted;
+                }
                 Unlock(ref taskLock);
                 return isCompleted;
             }
@@ -106,7 +113,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private bool canContinue;
 
         /// <summary>
-        /// Set the associated task of this slicer.
+        /// Set the associated task of this <see cref="TimeSlicer"/>.
         /// </summary>
         /// <param name="task">Task to associate.</param>
         public void SetTask(ValueTask task) => this.task = task;
@@ -155,8 +162,12 @@ namespace Enderlook.Unity.Pathfinding.Utils
             nextYield = Time.realtimeSinceStartup + executionTimeSlice;
             do
             {
+                bool found;
+                Action action;
                 Lock(ref continuationsLock);
-                bool found = continuations.TryDequeue(out Action action);
+                {
+                    found = continuations.TryDequeue(out action);
+                }
                 Unlock(ref continuationsLock);
                 if (!found)
                     return;
@@ -177,8 +188,12 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 {
                     while (!task.IsCompleted)
                     {
+                        bool found;
+                        Action action;
                         Lock(ref continuationsLock);
-                        bool found = continuations.TryDequeue(out Action action);
+                        {
+                            found = continuations.TryDequeue(out action);
+                        }
                         Unlock(ref continuationsLock);
                         if (!found)
                             return;
@@ -200,11 +215,19 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public Yielder Yield()
         {
             Debug.Assert(UnityThread.IsMainThread);
-            return new Yielder(this, Time.realtimeSinceStartup);
+            return new Yielder(this, Time.realtimeSinceStartup
+#if UNITY_ASSERTIONS
+                , version
+#endif
+                );
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder Yield<TYield>() => Toggle.IsToggled<TYield>() ? Yield() : new Yielder(this, float.NegativeInfinity);
+        public Yielder Yield<TYield>() => Toggle.IsToggled<TYield>() ? Yield() : new Yielder(this, float.NegativeInfinity
+#if UNITY_ASSERTIONS
+                , version
+#endif
+                );
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Lock(ref int @lock)
@@ -238,7 +261,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
             // TODO: Is fine to ignore flags parameter?
 
             Lock(ref taskLock);
-            task = task.Preserve();
+            {
+                task = task.Preserve();
+            }
             Unlock(ref taskLock);
             task.GetAwaiter().OnCompleted(() => continuation(state));
         }
