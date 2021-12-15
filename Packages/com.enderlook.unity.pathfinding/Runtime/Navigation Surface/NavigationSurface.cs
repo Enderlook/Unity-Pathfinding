@@ -352,7 +352,7 @@ namespace Enderlook.Unity.Pathfinding
 
         bool IGraphLineOfSight<Vector3>.RequiresUnityThread => true;
 
-        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to) => Physics.Linecast(from, to, includeLayers);
+        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to) => !Physics.Linecast(from, to, includeLayers);
 
         internal struct NodesEnumerator : IEnumerator<int>
         {
