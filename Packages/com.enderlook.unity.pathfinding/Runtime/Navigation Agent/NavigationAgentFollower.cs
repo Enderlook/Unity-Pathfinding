@@ -107,7 +107,7 @@ namespace Enderlook.Unity.Pathfinding
 
         internal Rigidbody Rigidbody { get; private set; }
 
-        private Path<Vector3> path = new Path<Vector3>();
+        private Path<Vector3> path;
         private bool pathPending;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -115,6 +115,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             Rigidbody = GetComponent<Rigidbody>();
             Movement.Initialize(Rigidbody);
+            path = Path<Vector3>.Rent();
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -167,7 +168,6 @@ namespace Enderlook.Unity.Pathfinding
                     {
                         if (pathPending)
                         {
-                            path.Complete();
                             pathPending = false;
                             PathFollower.SetPath(path);
                         }
@@ -266,23 +266,27 @@ namespace Enderlook.Unity.Pathfinding
             Gizmos.color = Color.white;
             Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + p * 3);
 
-            if (path.IsCompleted && path.HasPath)
+            if (path.IsCompleted)
             {
-                Gizmos.color = Color.black;
-                using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
+                //path.Complete();
+                if (path.HasPath)
                 {
-                    if (enumerator.MoveNext())
+                    Gizmos.color = Color.black;
+                    using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
                     {
-                        Vector3 start;
-                        Vector3 end = enumerator.Current;
-                        while (enumerator.MoveNext())
+                        if (enumerator.MoveNext())
                         {
+                            Vector3 start;
+                            Vector3 end = enumerator.Current;
+                            while (enumerator.MoveNext())
+                            {
+                                Gizmos.DrawWireCube(end, Vector3.one * .1f);
+                                start = end;
+                                end = enumerator.Current;
+                                Gizmos.DrawLine(start, end);
+                            }
                             Gizmos.DrawWireCube(end, Vector3.one * .1f);
-                            start = end;
-                            end = enumerator.Current;
-                            Gizmos.DrawLine(start, end);
                         }
-                        Gizmos.DrawWireCube(end, Vector3.one * .1f);
                     }
                 }
             }
