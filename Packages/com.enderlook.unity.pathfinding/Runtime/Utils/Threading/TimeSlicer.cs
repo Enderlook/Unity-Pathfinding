@@ -292,36 +292,68 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             private readonly TimeSlicer timeSlicer;
             private readonly float token;
+#if UNITY_ASSERTIONS
+            private readonly int version;
+#endif
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Yielder(TimeSlicer timeSlicer, float token)
+            public Yielder(TimeSlicer timeSlicer, float token
+#if UNITY_ASSERTIONS
+                , int version
+#endif
+                )
             {
                 this.timeSlicer = timeSlicer;
                 this.token = token;
+#if UNITY_ASSERTIONS
+                this.version = version;
+#endif
             }
 
             /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Yielder GetAwaiter() => this;
+            public Yielder GetAwaiter()
+            {
+#if UNITY_ASSERTIONS
+                Debug.Assert(version == timeSlicer.version);
+#endif
+                return this;
+            }
 
             /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void GetResult() { }
+            public void GetResult()
+            {
+#if UNITY_ASSERTIONS
+                Debug.Assert(version == timeSlicer.version);
+#endif
+            }
 
             /// <inheritdoc cref="IAwaiter.IsCompleted"/>
             public bool IsCompleted
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => timeSlicer.nextYield > token;
+                get
+                {
+#if UNITY_ASSERTIONS
+                    Debug.Assert(version == timeSlicer.version);
+#endif
+                    return timeSlicer.nextYield > token;
+                }
             }
 
             /// <inheritdoc cref="INotifyCompletion.OnCompleted(Action)"/>
             public void OnCompleted(Action continuation)
             {
+#if UNITY_ASSERTIONS
+                Debug.Assert(version == timeSlicer.version);
+#endif
                 if (IsCompleted)
                     continuation();
                 Lock(ref timeSlicer.continuationsLock);
-                timeSlicer.continuations.Enqueue(continuation);
+                {
+                    timeSlicer.continuations.Enqueue(continuation);
+                }
                 Unlock(ref timeSlicer.continuationsLock);
             }
         }
