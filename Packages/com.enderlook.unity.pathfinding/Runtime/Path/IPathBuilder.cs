@@ -64,6 +64,14 @@ namespace Enderlook.Unity.Pathfinding
         bool TryGetCost(TNode to, out float cost);
 
         /// <summary>
+        /// Get the from node which travels to <paramref name="to"/>.
+        /// </summary>
+        /// <param name="to">Destination node.</param>
+        /// <param name="from">Parent node used to reach to <paramref name="to"/>, if any.</param>
+        /// <returns>Whenever this value was previously setted by <seealso cref="SetEdge(TNode, TNode)"/>.</returns>
+        bool TryGetEdge(TNode to, out TNode from);
+
+        /// <summary>
         /// Stores the cost required to travel from the starting node to <paramref name="to"/>.
         /// </summary>
         /// <param name="to">Node to set cost.</param>

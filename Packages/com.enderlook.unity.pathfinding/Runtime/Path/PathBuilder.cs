@@ -145,8 +145,8 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     previous = current;
                     current = pathRaw[i];
-                    if (lineOfsight.HasLineOfSight(lastOptimized, current))
-                        goto toContinue;
+                    //if (lineOfsight.HasLineOfSight(lastOptimized, current))
+                    //    goto toContinue;
                     pathOptimized.Add(previous);
                     lastOptimized = previous;
 
@@ -269,6 +269,14 @@ namespace Enderlook.Unity.Pathfinding
         {
             Debug.Assert((status & Status.Initialized) != 0);
             return costs.TryGetValue(to, out cost);
+        }
+
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.TryGetEdge(TNode, out TNode)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IPathBuilder<TNode, TCoord>.TryGetEdge(TNode to, out TNode from)
+        {
+            Debug.Assert((status & Status.Initialized) != 0);
+            return edges.TryGetValue(to, out from);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.Visit(TNode)"/>

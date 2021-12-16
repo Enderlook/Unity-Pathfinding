@@ -1,4 +1,5 @@
 ﻿using Enderlook.Unity.Pathfinding.Utils;
+using Enderlook.Unity.Threading;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
         public static async ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
             TGraph graph, TBuilder builder, TCoord from, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
-            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
+            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TCoord>*/
             where TBuilder : IPathBuilder<TNode, TCoord>
             where TSearcher : ISearcherSatisfy<TNode>/*, ISearcherHeuristic<TNode>, ISearcherPosition<TCoord> */
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
@@ -23,6 +24,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             TNode endNode = default;
             TCoord endPosition = default;
             CalculationResult result = CalculationResult.Timedout;
+            bool @switch = false;
 
             if (!graph.TryFindNodeTo(from, out TNode from_))
             {
@@ -41,8 +43,14 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             builder.SetCost(from_, 0);
             builder.EnqueueToVisit(from_, 0);
 
+            bool graphImplementsLineOfSight = typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph));
+            IGraphLineOfSight<TCoord> lineOfSight = typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TCoord>)graph;
             bool searcherImplementsHeuristic = typeof(ISearcherHeuristic<TNode>).IsAssignableFrom(typeof(TSearcher));
             ISearcherHeuristic<TNode> searcherHeuristicReferenceType = typeof(TSearcher).IsValueType ? null : (ISearcherHeuristic<TNode>)searcher;
+
+            @switch = graphImplementsLineOfSight && ((IGraphLineOfSight<TCoord>)graph).RequiresUnityThread;
+            if (@switch)
+                await Switch.ToUnity;
 
             while (builder.TryDequeueToVisit(out TNode node))
             {
@@ -72,7 +80,22 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                     {
                         neighbour = neighbours.Current;
 
-                        float cost = graph.GetCost(node, neighbour) + costFromSource;
+                        TNode currentParent;
+                        if (graphImplementsLineOfSight)
+                        {
+                            // builder.TryGetEdge(neighbour, out TNode parent)
+                            if (builder.TryGetEdge(neighbour, out TNode parent) && (typeof(TGraph).IsValueType ? (IGraphLineOfSight<TCoord>)graph : lineOfSight).HasLineOfSight(graph.ToPosition(parent), graph.ToPosition(neighbour)))
+                                currentParent = parent;
+                            else
+                                currentParent = node;
+
+                            if (!builder.TryGetCost(currentParent, out costFromSource))
+                                costFromSource = float.PositiveInfinity;
+                        }
+                        else
+                            currentParent = node;
+
+                        float cost = graph.GetCost(currentParent, neighbour) + costFromSource;
 
                         if (!builder.TryGetCost(neighbour, out float oldCost) || cost < oldCost)
                         {
@@ -106,6 +129,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             result = CalculationResult.PathFound;
 
             end:
+            if (@switch)
+                await Switch.ToBackground;
             builder.SetEnd(endPosition, endNode);
             await builder.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(result, watchdog);
         }
