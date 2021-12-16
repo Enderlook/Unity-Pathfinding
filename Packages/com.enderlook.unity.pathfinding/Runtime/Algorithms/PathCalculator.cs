@@ -20,7 +20,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
-            where TSearcher : struct, ISearcherSatisfy<TNode>
+            where TSearcher : ISearcherSatisfy<TNode>
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter
@@ -30,8 +30,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>, IGraphLineOfSight<TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
-            where TSearcher : struct, ISearcherSatisfy<TNode>
+            where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
+            where TSearcher : ISearcherSatisfy<TNode>
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter

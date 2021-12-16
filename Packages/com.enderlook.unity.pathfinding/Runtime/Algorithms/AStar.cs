@@ -13,9 +13,9 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
         public static async ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
             TGraph graph, TBuilder builder, TCoord from, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
-            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>//, IGraphLineOfSight<TCoord>
+            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
             where TBuilder : IPathBuilder<TNode, TCoord>
-            where TSearcher : struct, ISearcherSatisfy<TNode>
+            where TSearcher : ISearcherSatisfy<TNode>/*, ISearcherHeuristic<TNode>, ISearcherPosition<TCoord> */
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter
@@ -41,13 +41,17 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             builder.SetCost(from_, 0);
             builder.EnqueueToVisit(from_, 0);
 
+            bool searcherImplementsHeuristic = typeof(ISearcherHeuristic<TNode>).IsAssignableFrom(typeof(TSearcher));
+            ISearcherHeuristic<TNode> searcherHeuristicReferenceType = typeof(TSearcher).IsValueType ? null : (ISearcherHeuristic<TNode>)searcher;
+
             while (builder.TryDequeueToVisit(out TNode node))
             {
                 if (builder.WasVisited(node))
                     continue;
                 builder.Visit(node);
 
-                if (!builder.TryGetCost(node, out float costFromSource))
+                float costFromSource = default;
+                if (graphImplementsLineOfSight && !builder.TryGetCost(node, out costFromSource))
                     costFromSource = float.PositiveInfinity;
 
                 TNodes neighbours = graph.GetNeighbours(node);
@@ -67,8 +71,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                         }
 
                         float costWithHeuristic = cost;
-                        if (typeof(ISearcherHeuristic<TNode>).IsAssignableFrom(typeof(TSearcher)))
-                            costWithHeuristic += ((ISearcherHeuristic<TNode>)searcher).GetHeuristicCost(neighbour);
+                        if (searcherImplementsHeuristic)
+                            costWithHeuristic += (typeof(TSearcher).IsValueType ? ((ISearcherHeuristic<TNode>)searcher) : searcherHeuristicReferenceType).GetHeuristicCost(neighbour);
 
                         builder.EnqueueToVisit(neighbour, costWithHeuristic);
 
