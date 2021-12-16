@@ -50,6 +50,16 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                     continue;
                 builder.Visit(node);
 
+                if (searcher.DoesSatisfy(node))
+                {
+                    if (typeof(ISearcherPosition<TCoord>).IsAssignableFrom(typeof(TSearcher)))
+                        endPosition = ((ISearcherPosition<TCoord>)searcher).EndPosition;
+                    else
+                        endPosition = graph.ToPosition(node);
+                    endNode = node;
+                    goto found;
+                }
+
                 float costFromSource = default;
                 if (graphImplementsLineOfSight && !builder.TryGetCost(node, out costFromSource))
                     costFromSource = float.PositiveInfinity;
@@ -75,16 +85,6 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                             costWithHeuristic += (typeof(TSearcher).IsValueType ? ((ISearcherHeuristic<TNode>)searcher) : searcherHeuristicReferenceType).GetHeuristicCost(neighbour);
 
                         builder.EnqueueToVisit(neighbour, costWithHeuristic);
-
-                        if (searcher.DoesSatisfy(neighbour))
-                        {
-                            if (typeof(ISearcherPosition<TCoord>).IsAssignableFrom(typeof(TSearcher)))
-                                endPosition = ((ISearcherPosition<TCoord>)searcher).EndPosition;
-                            else
-                                endPosition = graph.ToPosition(neighbour);
-                            endNode = neighbour;
-                            goto found;
-                        }
 
                         if (!watchdog.CanContinue(out TAwaitable awaitable_))
                             goto end;
