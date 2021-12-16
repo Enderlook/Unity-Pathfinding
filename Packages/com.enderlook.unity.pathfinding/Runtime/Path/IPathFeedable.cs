@@ -13,6 +13,6 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         /// <param name="feeder">Object which has the path information to get.</param>
         /// <exception cref="InvalidOperationException">Thrown if <see cref="Reserve"/> wasn't previously executed before executing this method.</exception>
-        void Feed(IPathFeeder<TInfo> feeder);
+        void Feed<TFeeder>(TFeeder feeder) where TFeeder : IPathFeeder<TInfo>;
     }
 }

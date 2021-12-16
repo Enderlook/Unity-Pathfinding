@@ -8,6 +8,9 @@ namespace Enderlook.Unity.Pathfinding
     internal static class PathHelper
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void FeedPathTo<TInfo>(this IPathFeeder<TInfo> source, IPathFeedable<TInfo> to) => to.Feed(source);
+        public static void FeedPathTo<TFeeder, TFeedable, TInfo>(this TFeeder source, TFeedable to)
+            where TFeeder : IPathFeeder<TInfo>
+            where TFeedable : IPathFeedable<TInfo>
+            => to.Feed(source);
     }
 }

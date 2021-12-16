@@ -68,7 +68,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                     builder.SetGraphLocation(graph);
                     builder.SetLineOfSight(graph);
                     await AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog, TAwaitable, TAwaiter>(graph, builder, from, searcher, watchdog);
-                    builder.FeedPathTo(path);
+                    builder.FeedPathTo<TBuilder, TPath, TCoord>(path);
                 }
                 finally
                 {

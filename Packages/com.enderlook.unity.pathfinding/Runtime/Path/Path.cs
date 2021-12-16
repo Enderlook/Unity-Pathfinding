@@ -118,7 +118,7 @@ namespace Enderlook.Unity.Pathfinding
 
         /// <inheritdoc cref="IPathFeedable{TInfo}.Feed(IPathFeeder{TInfo})"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IPathFeedable<TInfo>.Feed(IPathFeeder<TInfo> feeder)
+        void IPathFeedable<TInfo>.Feed<TFeeder>(TFeeder feeder)
         {
             Debug.Assert(!timeSlicer.IsCompleted);
             version++;
