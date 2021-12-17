@@ -46,9 +46,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             while (builder.TryDequeueToVisit(out TNode node))
             {
-                if (builder.WasVisited(node))
+                if (!builder.VisitIfWasNotVisited(node))
                     continue;
-                builder.Visit(node);
 
                 if (searcher.DoesSatisfy(node))
                 {
@@ -60,8 +59,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                     goto found;
                 }
 
-                float costFromSource = default;
-                if (graphImplementsLineOfSight && !builder.TryGetCost(node, out costFromSource))
+                if (!builder.TryGetCost(node, out float costFromSource))
                     costFromSource = float.PositiveInfinity;
 
                 TNodes neighbours = graph.GetNeighbours(node);

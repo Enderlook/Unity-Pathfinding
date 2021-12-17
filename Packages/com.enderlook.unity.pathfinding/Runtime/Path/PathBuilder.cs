@@ -271,20 +271,12 @@ namespace Enderlook.Unity.Pathfinding
             return costs.TryGetValue(to, out cost);
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.Visit(TNode)"/>
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.VisitIfWasNotVisited(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IPathBuilder<TNode, TCoord>.Visit(TNode node)
+        bool IPathBuilder<TNode, TCoord>.VisitIfWasNotVisited(TNode node)
         {
             Debug.Assert((status & Status.Initialized) != 0);
-            visited.Add(node);
-        }
-
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.WasVisited(TNode)"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        bool IPathBuilder<TNode, TCoord>.WasVisited(TNode node)
-        {
-            Debug.Assert((status & Status.Initialized) != 0);
-            return visited.Contains(node);
+            return visited.Add(node);
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
