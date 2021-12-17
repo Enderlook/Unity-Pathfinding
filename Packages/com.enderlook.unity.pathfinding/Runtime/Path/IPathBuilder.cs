@@ -118,13 +118,7 @@ namespace Enderlook.Unity.Pathfinding
         /// Mark the node as visited.
         /// </summary>
         /// <param name="node">Node to mask as visited.</param>
-        void Visit(TNode node);
-
-        /// <summary>
-        /// Check if the node was already visited.
-        /// </summary>
-        /// <param name="node">Node to check.</param>
-        /// <returns>Whenever <paramref name="node"/> was already visited or not.</returns>
-        bool WasVisited(TNode node);
+        /// <returns><see langword="true"/> if <paramref name="node"/> <see langword="false"/> if <paramref name="node"/> was already visited.</returns>
+        bool VisitIfWasNotVisited(TNode node);
     }
 }

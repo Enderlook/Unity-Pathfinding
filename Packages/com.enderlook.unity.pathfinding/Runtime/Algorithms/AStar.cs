@@ -54,9 +54,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             while (builder.TryDequeueToVisit(out TNode node))
             {
-                if (builder.WasVisited(node))
+                if (!builder.VisitIfWasNotVisited(node))
                     continue;
-                builder.Visit(node);
 
                 if (searcher.DoesSatisfy(node))
                 {
