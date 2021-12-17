@@ -68,7 +68,7 @@ namespace Enderlook.Unity.Pathfinding
             toVisit.Enqueue(node, priority);
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/>
         async ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(CalculationResult result, TWatchdog watchdog)
         {
             if ((status & Status.Initialized) == 0) ThrowInvalidOperationException_IsNotInitialized();
@@ -192,7 +192,7 @@ namespace Enderlook.Unity.Pathfinding
             return pathOptimized.AsSpan();
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession(TNode)"/>
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession()"/>
         void IPathBuilder<TNode, TCoord>.InitializeBuilderSession()
         {
             if ((status & Status.Initialized) != 0) ThrowInvalidOperationException_IsAlreadyInitialized();
@@ -221,7 +221,7 @@ namespace Enderlook.Unity.Pathfinding
             edges[to] = from;
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetEnd(TNode)(TNode)"/>
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetEnd(TCoord endPosition, TNode endNode)
         {
@@ -246,7 +246,7 @@ namespace Enderlook.Unity.Pathfinding
             lineOfsight = lineOfSight;
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetStart(TNode)(TNode)(TNode)"/>
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetStart(TCoord startPosition, TNode startNode)
         {
