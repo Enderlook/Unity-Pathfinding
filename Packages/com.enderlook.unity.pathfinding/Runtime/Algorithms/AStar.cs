@@ -31,6 +31,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             }
             builder.SetStart(from, from_);
 
+            // This check if not required since it's already done inside the loop below.
+            // However, by adding this, we avoid a possible switch to the Unity thread.
             if (searcher.DoesSatisfy(from_))
             {
                 endNode = from_;
