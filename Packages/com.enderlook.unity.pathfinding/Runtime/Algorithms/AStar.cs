@@ -20,15 +20,14 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter
         {
-            TNode endNode = default;
-            TCoord endPosition = default;
-            CalculationResult result = CalculationResult.Timedout;
+            TNode endNode;
+            TCoord endPosition;
+            CalculationResult result;
+            bool @switch = false;
 
             if (!graph.TryFindNodeTo(from, out TNode from_))
-            {
-                result = CalculationResult.PathNotFound;
-                goto end;
-            }
+                goto notfound;
+
             builder.SetStart(from, from_);
 
             // This check if not required since it's already done inside the loop below.
@@ -87,7 +86,7 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                         builder.EnqueueToVisit(neighbour, costWithHeuristic);
 
                         if (!watchdog.CanContinue(out TAwaitable awaitable_))
-                            goto end;
+                            goto timedout;
                         await awaitable_;
                     }
                 }
@@ -97,16 +96,25 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                 }
 
                 if (!watchdog.CanContinue(out TAwaitable awaitable))
-                    goto end;
+                    goto timedout;
                 await awaitable;
             }
-            goto end;
+            goto notfound;
+
+            notfound:
+            result = CalculationResult.PathNotFound;
+            goto finalize;
+
+            timedout:
+            result = CalculationResult.Timedout;
+            goto finalize;
 
             found:
             result = CalculationResult.PathFound;
-
-            end:
             builder.SetEnd(endPosition, endNode);
+            goto finalize;
+
+            finalize:
             await builder.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(result, watchdog);
         }
     }
