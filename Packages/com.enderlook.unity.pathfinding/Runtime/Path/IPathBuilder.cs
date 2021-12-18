@@ -51,7 +51,7 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         /// <param name="node">Dequeued node, if any.</param>
         /// <returns>Whenever a node was dequeued of not.</returns>
-        /// <remarks>It doesn't need to check if the node was already visited. For that <see cref="WasVisited(TNode)"/> is used.</remarks>
+        /// <remarks>It doesn't need to check if the node was already visited. For that <see cref="VisitIfWasNotVisited(TNode)"/> is used.</remarks>
         bool TryDequeueToVisit(out TNode node);
 
         /// <summary>
@@ -97,14 +97,14 @@ namespace Enderlook.Unity.Pathfinding
         /// Set the converter between nodes to positions.
         /// </summary>
         /// <param name="converter">Converter which converts nodes into positions.</param>
-        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>, the <paramref name="converter"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
+        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/>, the <paramref name="converter"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
         void SetGraphLocation(IGraphLocation<TNode, TCoord> converter);
 
         /// <summary>
         /// Set the line of sight checker.
         /// </summary>
         /// <param name="lineOfSight">Line of sight checker.</param>
-        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession(CalculationResult)"/>, the <paramref name="lineOfSight"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
+        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/>, the <paramref name="lineOfSight"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
         void SetLineOfSight(IGraphLineOfSight<TCoord> lineOfSight);
 
         /// <summary>
