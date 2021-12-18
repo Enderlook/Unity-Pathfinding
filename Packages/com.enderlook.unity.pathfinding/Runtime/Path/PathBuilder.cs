@@ -22,11 +22,7 @@ namespace Enderlook.Unity.Pathfinding
         private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
         private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
         private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
-        private RawPooledList<TCoord> pathRaw = RawPooledList<TCoord>.Create();
-        private RawPooledList<TCoord> pathOptimized = RawPooledList<TCoord>.Create();
-
-        private IGraphLocation<TNode, TCoord> converter;
-        private IGraphLineOfSight<TCoord> lineOfsight;
+        private RawPooledList<TCoord> path = RawPooledList<TCoord>.Create();
 
         private TCoord startPosition;
         private TCoord endPosition;
@@ -68,37 +64,40 @@ namespace Enderlook.Unity.Pathfinding
             toVisit.Enqueue(node, priority);
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/>
-        async ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(CalculationResult result, TWatchdog watchdog)
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TAwaitable, TAwaiter}(TGraph, CalculationResult, TWatchdog)"/>
+        async ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
         {
             if ((status & Status.Initialized) == 0) ThrowInvalidOperationException_IsNotInitialized();
 
             if (result == CalculationResult.PathFound)
             {
-                // Produce path
-                pathRaw.Clear();
-                if (edges.Count == 0)
+                path.Clear();
+                if (typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph)))
                 {
-                    pathRaw.Add(startPosition);
+                    // Optimize path using line of sight.
 
-                    TCoord start2 = converter.ToPosition(startNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
-                        pathRaw.Add(start2);
+                    path.Add(endPosition);
 
-                    TCoord end2 = converter.ToPosition(endNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
-                        pathRaw.Add(end2);
+                    bool requiresSwitch = ((IGraphLineOfSight<TCoord>)graph).RequiresUnityThread && !UnityThread.IsMainThread;
+                    if (requiresSwitch)
+                        await Switch.ToUnity;
 
-                    pathRaw.Add(endPosition);
-                }
-                else
-                {
-                    pathRaw.Add(endPosition);
+                    TCoord previous;
+                    TCoord current = endPosition;
+                    TCoord lastOptimized = current;
 
                     TNode to = endNode;
-                    TCoord end2 = converter.ToPosition(to);
+                    TCoord end2 = graph.ToPosition(to);
                     if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
-                        pathRaw.Add(end2);
+                    {
+                        previous = current;
+                        current = end2;
+                        if (!((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                        {
+                            path.Add(previous);
+                            lastOptimized = previous;
+                        }
+                    }
 
 #if UNITY_ASSERTIONS
                     visited.Clear();
@@ -115,76 +114,110 @@ namespace Enderlook.Unity.Pathfinding
                         }
 #endif
                         to = from;
-                        pathRaw.Add(converter.ToPosition(from));
 
+                        previous = current;
+                        current = graph.ToPosition(from);
+                        if (((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                            goto toContinue;
+                        path.Add(previous);
+                        lastOptimized = previous;
+
+                        toContinue:
                         if (watchdog.CanContinue(out TAwaitable awaitable))
                             await awaitable;
                         else
                             goto timedout;
                     }
 
-                    TCoord start2 = converter.ToPosition(startNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(start2, pathRaw[pathRaw.Count - 1]))
-                        pathRaw.Add(start2);
+                    TCoord start2 = graph.ToPosition(startNode);
+                    if (!EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1]))
+                    {
+                        previous = current;
+                        current = start2;
+                        if (!((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                        {
+                            path.Add(previous);
+                            lastOptimized = previous;
+                        }
+                    }
 
                     if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
-                        pathRaw.Add(startPosition);
+                    {
+                        previous = current;
+                        current = startPosition;
+                        if (!((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                        {
+                            path.Add(previous);
+                            lastOptimized = previous;
+                        }
+                    }
 
-                    pathRaw.Reverse();
-                }
+                    if (path.Count == 1)
+                        path.Add(endPosition);
 
-                pathOptimized.Clear();
-                pathOptimized.AddRange(pathRaw.AsSpan());
+                    if (requiresSwitch)
+                        await Switch.ToBackground;
 
-                // Optimize path
-                Debug.Assert(pathRaw.Count >= 2);
-                pathOptimized.Clear();
-
-                if (pathRaw.Count == 2)
-                {
-                    pathOptimized.Add(pathRaw[0]);
-                    pathOptimized.Add(pathRaw[1]);
-                    return;
-                }
-
-                pathOptimized.Add(pathRaw[0]);
-
-                bool requiresSwitch = lineOfsight.RequiresUnityThread && !UnityThread.IsMainThread;
-                if (requiresSwitch)
-                    await Switch.ToUnity;
-
-                TCoord previous;
-                TCoord current = pathRaw[0];
-                TCoord lastOptimized = current;
-                for (int i = 1; i < pathRaw.Count; i++)
-                {
-                    previous = current;
-                    current = pathRaw[i];
-                    if (lineOfsight.HasLineOfSight(lastOptimized, current))
-                        goto toContinue;
-                    pathOptimized.Add(previous);
-                    lastOptimized = previous;
-
-                    toContinue:
-                    if (watchdog.CanContinue(out TAwaitable awaitable))
-                        await awaitable;
-                    else
-                        goto timedout;
-                }
-
-                TCoord last = pathRaw[pathRaw.Count - 1];
-                if (pathOptimized.Count > 1)
-                {
-                    if (lineOfsight.HasLineOfSight(pathOptimized[pathOptimized.Count - 2], last))
-                        pathOptimized[pathOptimized.Count - 1] = last;
-                    else
-                        pathOptimized.Add(last);
+                    path.Reverse();
                 }
                 else
-                    pathOptimized.Add(last);
+                {
+                    if (edges.Count == 0)
+                    {
+                        path.Add(startPosition);
 
-                if (requiresSwitch)
-                    await Switch.ToBackground;
+                        TCoord start2 = graph.ToPosition(startNode);
+                        if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
+                            path.Add(start2);
+
+                        TCoord end2 = graph.ToPosition(endNode);
+                        if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                            path.Add(end2);
+
+                        path.Add(endPosition);
+                    }
+                    else
+                    {
+                        path.Add(endPosition);
+
+                        TNode to = endNode;
+                        TCoord end2 = graph.ToPosition(to);
+                        if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                            path.Add(end2);
+
+#if UNITY_ASSERTIONS
+                        visited.Clear();
+                        visited.Add(to);
+#endif
+
+                        while (edges.TryGetValue(to, out TNode from))
+                        {
+#if UNITY_ASSERTIONS
+                            if (!visited.Add(from))
+                            {
+                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag UNITY_ASSERTIONS is enabled.");
+                                break;
+                            }
+#endif
+                            to = from;
+                            path.Add(graph.ToPosition(from));
+
+                            if (watchdog.CanContinue(out TAwaitable awaitable))
+                                await awaitable;
+                            else
+                                goto timedout;
+                        }
+
+                        TCoord start2 = graph.ToPosition(startNode);
+                        if (!EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1]))
+                            path.Add(start2);
+
+                        if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
+                            path.Add(startPosition);
+
+                        path.Reverse();
+                    }
+                }
 
                 // Finalize
                 status = Status.Found;
@@ -204,7 +237,7 @@ namespace Enderlook.Unity.Pathfinding
         ReadOnlySpan<TCoord> IPathFeeder<TCoord>.GetPathInfo()
         {
             if ((status & Status.Finalized) == 0) ThrowInvalidOperationException_IsNotFinalized();
-            return pathOptimized.AsSpan();
+            return path.AsSpan();
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession()"/>
@@ -244,22 +277,6 @@ namespace Enderlook.Unity.Pathfinding
             Debug.Assert((status & Status.Initialized) != 0);
             this.endNode = endNode;
             this.endPosition = endPosition;
-        }
-
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetGraphLocation(IGraphLocation{TNode, TCoord})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetGraphLocation(IGraphLocation<TNode, TCoord> converter)
-        {
-            Debug.Assert((status & Status.Initialized) != 0);
-            this.converter = converter;
-        }
-
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetLineOfSight(IGraphLineOfSight{TCoord})"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetLineOfSight(IGraphLineOfSight<TCoord> lineOfSight)
-        {
-            Debug.Assert((status & Status.Initialized) != 0);
-            lineOfsight = lineOfSight;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/>
@@ -304,11 +321,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
-        public void Dispose()
-        {
-            pathRaw.Dispose();
-            pathOptimized.Dispose();
-        }
+        public void Dispose() => path.Dispose();
 
         [Flags]
         private enum Status : byte

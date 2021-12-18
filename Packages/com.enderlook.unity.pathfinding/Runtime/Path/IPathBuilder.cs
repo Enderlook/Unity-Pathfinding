@@ -17,7 +17,7 @@ namespace Enderlook.Unity.Pathfinding
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/></term></item>
     ///     <item><term>Others.</term></item>
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/> and <see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/></term></item>
-    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/></term></item>
+    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TAwaitable, TAwaiter}(TGraph, CalculationResult, TWatchdog)"/></term></item>
     /// </list>
     /// </remarks>
     internal interface IPathBuilder<TNode, TCoord>
@@ -38,10 +38,13 @@ namespace Enderlook.Unity.Pathfinding
         /// <summary>
         /// Finalize the building session.
         /// </summary>
+        /// <param name="graph">Graph used during the building session.</param>
         /// <param name="result">Result status.</param>
+        /// <param name="watchdog">Watchdog of the operation.</param>
         /// <exception cref="InvalidOperationException">Thrown when no builder session was enabled.</exception>
         /// <remarks>If the initial node and the target node are the same, no other method is necessary to be executed apart from this one.</remarks>
-        ValueTask FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(CalculationResult result, TWatchdog watchdog)
+        ValueTask FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
+            where TGraph : IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TCoord>*/
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter;
@@ -92,20 +95,6 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="endNode">End node of the path.</param>
         /// <remarks>The argument of this method may be the same as the argument of <see cref="SetStart(TNode)"/> or be <see cref="default"/>.</remarks>
         void SetEnd(TCoord endPosition, TNode endNode);
-
-        /// <summary>
-        /// Set the converter between nodes to positions.
-        /// </summary>
-        /// <param name="converter">Converter which converts nodes into positions.</param>
-        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/>, the <paramref name="converter"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
-        void SetGraphLocation(IGraphLocation<TNode, TCoord> converter);
-
-        /// <summary>
-        /// Set the line of sight checker.
-        /// </summary>
-        /// <param name="lineOfSight">Line of sight checker.</param>
-        /// <remarks>After finalizing the execution of <see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TWatchdog, TAwaitable, TAwaiter}(CalculationResult, TWatchdog)"/>, the <paramref name="lineOfSight"/> is no longer valid and should not rely on it or undefined behaviour.</remarks>
-        void SetLineOfSight(IGraphLineOfSight<TCoord> lineOfSight);
 
         /// <summary>
         /// Set the start node of this path.

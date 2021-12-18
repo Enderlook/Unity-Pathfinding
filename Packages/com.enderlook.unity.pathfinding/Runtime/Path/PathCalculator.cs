@@ -82,8 +82,6 @@ namespace Enderlook.Unity.Pathfinding
 
             TBuilder builder = ObjectPool<TBuilder>.Shared.Rent();
             builder.InitializeBuilderSession();
-            builder.SetGraphLocation(graph);
-            builder.SetLineOfSight(graph as IGraphLineOfSight<TCoord>);
 
             TNode endNode;
             TCoord endPosition;
@@ -224,7 +222,7 @@ namespace Enderlook.Unity.Pathfinding
             finalize:
             if (@switch)
                 await Switch.ToBackground;
-            await builder.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(result, watchdog);
+            await builder.FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(graph, result, watchdog);
             builder.FeedPathTo<TBuilder, TPath, TCoord>(path);
             ObjectPool<TBuilder>.Shared.Return(builder);
         }
