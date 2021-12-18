@@ -60,21 +60,13 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
 
             private async ValueTask InternalProcess()
             {
-                TBuilder builder = null;
-                try
-                {
-                    builder = ObjectPool<TBuilder>.Shared.Rent();
-                    builder.InitializeBuilderSession();
-                    builder.SetGraphLocation(graph);
-                    builder.SetLineOfSight(graph);
-                    await AStar.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog, TAwaitable, TAwaiter>(graph, builder, from, searcher, watchdog);
-                    builder.FeedPathTo<TBuilder, TPath, TCoord>(path);
-                }
-                finally
-                {
-                    if (!(builder is null))
-                        ObjectPool<TBuilder>.Shared.Return(builder);
-                }
+                TBuilder builder = ObjectPool<TBuilder>.Shared.Rent();
+                builder.InitializeBuilderSession();
+                builder.SetGraphLocation(graph);
+                builder.SetLineOfSight(graph);
+                await Algorithm.CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog, TAwaitable, TAwaiter>(graph, builder, from, searcher, watchdog);
+                builder.FeedPathTo<TBuilder, TPath, TCoord>(path);
+                ObjectPool<TBuilder>.Shared.Return(builder);
             }
         }
     }

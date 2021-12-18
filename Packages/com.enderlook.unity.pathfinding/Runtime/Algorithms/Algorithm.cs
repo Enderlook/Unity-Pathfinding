@@ -1,4 +1,5 @@
 ﻿using Enderlook.Unity.Pathfinding.Utils;
+using Enderlook.Unity.Threading;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -8,18 +9,21 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
     /// <summary>
     /// A pathfinder that uses the A* algorithm.
     /// </summary>
-    internal static class AStar
+    internal static class Algorithm
     {
         public static async ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
             TGraph graph, TBuilder builder, TCoord from, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
-            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
+            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TCoord>*/
             where TBuilder : IPathBuilder<TNode, TCoord>
             where TSearcher : ISearcherSatisfy<TNode>/*, ISearcherHeuristic<TNode>, ISearcherPosition<TCoord> */
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter
         {
+            // https://github.com/yellowisher/ThetaStar/blob/master/Assets/1_Scripts/PathfindingManager.cs
+            // http://idm-lab.org/bib/abstracts/papers/aaai10b.pdf
+
             TNode endNode;
             TCoord endPosition;
             CalculationResult result;
@@ -42,8 +46,17 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             builder.SetCost(from_, 0);
             builder.EnqueueToVisit(from_, 0);
 
+            // Check if we use A* or Dijkstra
             bool searcherImplementsHeuristic = typeof(ISearcherHeuristic<TNode>).IsAssignableFrom(typeof(TSearcher));
             ISearcherHeuristic<TNode> searcherHeuristicReferenceType = typeof(TSearcher).IsValueType ? null : (ISearcherHeuristic<TNode>)searcher;
+
+            // Check if we use Theta* (if A* is true) or Dijkstra with any-angle.
+            bool graphImplementsLineOfSight = typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph));
+            IGraphLineOfSight<TCoord> lineOfSight = typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TCoord>)graph;
+
+            @switch = graphImplementsLineOfSight && ((IGraphLineOfSight<TCoord>)graph).RequiresUnityThread;
+            if (@switch)
+                await Switch.ToUnity;
 
             while (builder.TryDequeueToVisit(out TNode node))
             {
@@ -60,9 +73,29 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                     goto found;
                 }
 
-                if (!builder.TryGetCost(node, out float costFromSource))
-                    costFromSource = float.PositiveInfinity;
+                // Calculate cost from source eagerly since nodes usually have more than 1 neighbour, so we cache it.
+                if (builder.TryGetCost(node, out float costFromSourceNode))
+                    costFromSourceNode = float.PositiveInfinity;
 
+                float costFromSourceParent;
+                bool hasNodeParent;
+                TNode nodeParent;
+                if (graphImplementsLineOfSight)
+                {
+                    hasNodeParent = builder.TryGetEdge(node, out nodeParent);
+                    if (hasNodeParent && !builder.TryGetCost(nodeParent, out costFromSourceParent))
+                        goto getNeighbours;
+                }
+                else
+                {
+                    hasNodeParent = false;
+                    nodeParent = default;
+                    goto hasNotParentCost;
+                }
+                hasNotParentCost:
+                costFromSourceParent = float.PositiveInfinity;
+
+                getNeighbours:
                 TNodes neighbours = graph.GetNeighbours(node);
                 try
                 {
@@ -70,16 +103,29 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
                     while (neighbours.MoveNext())
                     {
                         neighbour = neighbours.Current;
-
-                        float cost = graph.GetCost(node, neighbour) + costFromSource;
-
-                        if (!builder.TryGetCost(neighbour, out float oldCost) || cost < oldCost)
+                        TNode fromNode;
+                        float costFromSource;
+                        if (graphImplementsLineOfSight && hasNodeParent
+                            && (typeof(TGraph).IsValueType ? (IGraphLineOfSight<TCoord>)graph : lineOfSight)
+                                .HasLineOfSight(graph.ToPosition(nodeParent), graph.ToPosition(neighbour)))
                         {
-                            builder.SetCost(neighbour, cost);
-                            builder.SetEdge(node, neighbour);
+                            costFromSource = costFromSourceParent;
+                            fromNode = nodeParent;
+                            goto process;
+                        }
+                        fromNode = node;
+                        costFromSource = costFromSourceNode;
+
+                        process:
+                        float newCost = graph.GetCost(fromNode, neighbour) + costFromSource;
+
+                        if (!builder.TryGetCost(neighbour, out float oldCost) || newCost < oldCost)
+                        {
+                            builder.SetCost(neighbour, newCost);
+                            builder.SetEdge(fromNode, neighbour);
                         }
 
-                        float costWithHeuristic = cost;
+                        float costWithHeuristic = newCost;
                         if (searcherImplementsHeuristic)
                             costWithHeuristic += (typeof(TSearcher).IsValueType ? ((ISearcherHeuristic<TNode>)searcher) : searcherHeuristicReferenceType).GetHeuristicCost(neighbour);
 
@@ -115,6 +161,8 @@ namespace Enderlook.Unity.Pathfinding.Algorithms
             goto finalize;
 
             finalize:
+            if (@switch)
+                await Switch.ToBackground;
             await builder.FinalizeBuilderSession<TWatchdog, TAwaitable, TAwaiter>(result, watchdog);
         }
     }

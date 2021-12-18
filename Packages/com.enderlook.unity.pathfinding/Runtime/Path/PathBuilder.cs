@@ -100,8 +100,20 @@ namespace Enderlook.Unity.Pathfinding
                     if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
                         pathRaw.Add(end2);
 
+#if UNITY_ASSERTIONS
+                    visited.Clear();
+                    visited.Add(to);
+#endif
+
                     while (edges.TryGetValue(to, out TNode from))
                     {
+#if UNITY_ASSERTIONS
+                        if (!visited.Add(from))
+                        {
+                            Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag UNITY_ASSERTIONS is enabled.");
+                            break;
+                        }
+#endif
                         to = from;
                         pathRaw.Add(converter.ToPosition(from));
 
@@ -120,6 +132,9 @@ namespace Enderlook.Unity.Pathfinding
 
                     pathRaw.Reverse();
                 }
+
+                pathOptimized.Clear();
+                pathOptimized.AddRange(pathRaw.AsSpan());
 
                 // Optimize path
                 Debug.Assert(pathRaw.Count >= 2);
@@ -218,6 +233,7 @@ namespace Enderlook.Unity.Pathfinding
         void IPathBuilder<TNode, TCoord>.SetEdge(TNode from, TNode to)
         {
             Debug.Assert((status & Status.Initialized) != 0);
+            Debug.Assert(!EqualityComparer<TNode>.Default.Equals(from, to));
             edges[to] = from;
         }
 
@@ -269,6 +285,14 @@ namespace Enderlook.Unity.Pathfinding
         {
             Debug.Assert((status & Status.Initialized) != 0);
             return costs.TryGetValue(to, out cost);
+        }
+
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.TryGetEdge(TNode, out TNode)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IPathBuilder<TNode, TCoord>.TryGetEdge(TNode to, out TNode from)
+        {
+            Debug.Assert((status & Status.Initialized) != 0);
+            return edges.TryGetValue(to, out from);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.VisitIfWasNotVisited(TNode)"/>
