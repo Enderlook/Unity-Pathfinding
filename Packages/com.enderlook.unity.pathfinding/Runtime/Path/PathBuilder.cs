@@ -71,14 +71,17 @@ namespace Enderlook.Unity.Pathfinding
 
             if (result == CalculationResult.PathFound)
             {
+                EqualityComparer<TCoord> coordComparer = typeof(TCoord).IsValueType ? null : EqualityComparer<TCoord>.Default;
+
                 path.Clear();
                 if (typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph)))
                 {
                     // Optimize path using line of sight.
+                    IGraphLineOfSight<TCoord> lineOfSight = typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TCoord>)graph;
 
                     path.Add(endPosition);
 
-                    bool requiresSwitch = ((IGraphLineOfSight<TCoord>)graph).RequiresUnityThread && !UnityThread.IsMainThread;
+                    bool requiresSwitch = (typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph).RequiresUnityThread : lineOfSight.RequiresUnityThread) && !UnityThread.IsMainThread;
                     if (requiresSwitch)
                         await Switch.ToUnity;
 
@@ -88,11 +91,15 @@ namespace Enderlook.Unity.Pathfinding
 
                     TNode to = endNode;
                     TCoord end2 = graph.ToPosition(to);
-                    if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(endPosition, end2)
+                        : coordComparer.Equals(endPosition, end2)))
                     {
                         previous = current;
                         current = end2;
-                        if (!((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                        if (!(typeof(TGraph).IsValueType ? 
+                            ((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current)
+                            : lineOfSight.HasLineOfSight(lastOptimized, current)))
                         {
                             path.Add(previous);
                             lastOptimized = previous;
@@ -117,12 +124,14 @@ namespace Enderlook.Unity.Pathfinding
 
                         previous = current;
                         current = graph.ToPosition(from);
-                        if (((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
-                            goto toContinue;
-                        path.Add(previous);
-                        lastOptimized = previous;
+                        if (!(typeof(TGraph).IsValueType ?
+                             ((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current)
+                             : lineOfSight.HasLineOfSight(lastOptimized, current)))
+                        {
+                            path.Add(previous);
+                            lastOptimized = previous;
+                        }
 
-                        toContinue:
                         if (watchdog.CanContinue(out TAwaitable awaitable))
                             await awaitable;
                         else
@@ -130,22 +139,30 @@ namespace Enderlook.Unity.Pathfinding
                     }
 
                     TCoord start2 = graph.ToPosition(startNode);
-                    if (!EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1]))
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1])
+                        : coordComparer.Equals(start2, path[path.Count - 1])))
                     {
                         previous = current;
                         current = start2;
-                        if (!((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                        if (!(typeof(TGraph).IsValueType ?
+                            ((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current)
+                            : lineOfSight.HasLineOfSight(lastOptimized, current)))
                         {
                             path.Add(previous);
                             lastOptimized = previous;
                         }
                     }
 
-                    if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(startPosition, start2)
+                        : coordComparer.Equals(startPosition, startPosition)))
                     {
                         previous = current;
                         current = startPosition;
-                        if (!((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current))
+                        if (!(typeof(TGraph).IsValueType ?
+                            ((IGraphLineOfSight<TCoord>)graph).HasLineOfSight(lastOptimized, current)
+                            : lineOfSight.HasLineOfSight(lastOptimized, current)))
                         {
                             path.Add(previous);
                             lastOptimized = previous;
@@ -167,11 +184,16 @@ namespace Enderlook.Unity.Pathfinding
                         path.Add(startPosition);
 
                         TCoord start2 = graph.ToPosition(startNode);
-                        if (!EqualityComparer<TCoord>.Default.Equals(startPosition, start2))
+
+                        if (!(typeof(TCoord).IsValueType ?
+                            EqualityComparer<TCoord>.Default.Equals(startPosition, start2)
+                            : coordComparer.Equals(startPosition, start2)))
                             path.Add(start2);
 
                         TCoord end2 = graph.ToPosition(endNode);
-                        if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                        if (!(typeof(TCoord).IsValueType ?
+                            EqualityComparer<TCoord>.Default.Equals(endPosition, end2)
+                            : coordComparer.Equals(endPosition, end2)))
                             path.Add(end2);
 
                         path.Add(endPosition);
@@ -182,7 +204,9 @@ namespace Enderlook.Unity.Pathfinding
 
                         TNode to = endNode;
                         TCoord end2 = graph.ToPosition(to);
-                        if (!EqualityComparer<TCoord>.Default.Equals(endPosition, end2))
+                        if (!(typeof(TCoord).IsValueType ?
+                            EqualityComparer<TCoord>.Default.Equals(endPosition, end2)
+                            : coordComparer.Equals(endPosition, end2)))
                             path.Add(end2);
 
 #if UNITY_ASSERTIONS
@@ -209,10 +233,14 @@ namespace Enderlook.Unity.Pathfinding
                         }
 
                         TCoord start2 = graph.ToPosition(startNode);
-                        if (!EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1]))
+                        if (!(typeof(TCoord).IsValueType ?
+                            EqualityComparer<TCoord>.Default.Equals(path[path.Count - 1], start2)
+                            : coordComparer.Equals(path[path.Count - 1], start2)))
                             path.Add(start2);
 
-                        if (!EqualityComparer<TCoord>.Default.Equals(start2, startPosition))
+                        if (!(typeof(TCoord).IsValueType ?
+                            EqualityComparer<TCoord>.Default.Equals(startPosition, start2)
+                            : coordComparer.Equals(startPosition, start2)))
                             path.Add(startPosition);
 
                         path.Reverse();
