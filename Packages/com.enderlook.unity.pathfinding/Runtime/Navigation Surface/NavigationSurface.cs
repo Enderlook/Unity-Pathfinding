@@ -1,6 +1,5 @@
 ﻿using Enderlook.Collections.LowLevel;
 using Enderlook.Threading;
-using Enderlook.Unity.Pathfinding.Algorithms;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
