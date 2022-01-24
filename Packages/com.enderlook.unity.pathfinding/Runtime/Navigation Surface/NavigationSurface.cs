@@ -275,6 +275,8 @@ namespace Enderlook.Unity.Pathfinding
                     this.spanToColumn = spanToColumn;
                 }
                 Unlock();
+
+                voxelizer.Dispose();
             }
             options.PopTask();
 

@@ -423,7 +423,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()
         {
-            Debug.Assert(vertices is null, "Already disposed.");
+            Debug.Assert(!(vertices is null), "Already disposed.");
             for (int i = 0; i < information.Count; i++)
                 information[i].Dispose();
             information.Dispose();
