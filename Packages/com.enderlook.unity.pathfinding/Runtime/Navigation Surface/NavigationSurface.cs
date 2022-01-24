@@ -17,7 +17,7 @@ using UnityEngine;
 namespace Enderlook.Unity.Pathfinding
 {
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Surface"), DefaultExecutionOrder(ExecutionOrder.NavigationSurface)]
-    public sealed class NavigationSurface : MonoBehaviour, IGraphLocation<int, Vector3>, IGraphHeuristic<int>, IGraphIntrinsic<int, NavigationSurface.NodesEnumerator>, IGraphLineOfSight<Vector3>
+    public sealed class NavigationSurface : MonoBehaviour, IGraphLocation<int, Vector3>, IGraphHeuristic<int>, IGraphIntrinsic<int, NavigationSurface.NodesEnumerator>, IGraphLineOfSight<Vector3>, IGraphLineOfSight<int>
     {
         [Header("Baking Basic")]
         [SerializeField, Tooltip("Determine objects that are collected to generate navigation data.")]
@@ -351,7 +351,15 @@ namespace Enderlook.Unity.Pathfinding
 
         bool IGraphLineOfSight<Vector3>.RequiresUnityThread => true;
 
+        bool IGraphLineOfSight<int>.RequiresUnityThread => true;
+
         bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to) => !Physics.Linecast(from, to, includeLayers);
+
+        bool IGraphLineOfSight<int>.HasLineOfSight(int from, int to)
+        {
+            IGraphLocation<int, Vector3> graphLocation = ((IGraphLocation<int, Vector3>)this);
+            return !Physics.Linecast(graphLocation.ToPosition(from), graphLocation.ToPosition(to), includeLayers);
+        }
 
         internal struct NodesEnumerator : IEnumerator<int>
         {
