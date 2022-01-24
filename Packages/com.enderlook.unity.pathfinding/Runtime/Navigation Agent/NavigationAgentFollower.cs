@@ -1,6 +1,7 @@
 ﻿using Assets.Enderlook.Unity.Pathfinding;
 using Assets.Enderlook.Unity.Pathfinding.Steerings;
 
+using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
@@ -108,7 +109,7 @@ namespace Enderlook.Unity.Pathfinding
         internal Rigidbody Rigidbody { get; private set; }
 
         private Path<Vector3> path;
-        private bool pathPending;
+        private bool isPending;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake()
@@ -166,9 +167,9 @@ namespace Enderlook.Unity.Pathfinding
 
                     if (path.IsCompleted)
                     {
-                        if (pathPending)
+                        if (isPending)
                         {
-                            pathPending = false;
+                            isPending = false;
                             PathFollower.SetPath(path);
                         }
 
@@ -187,23 +188,25 @@ namespace Enderlook.Unity.Pathfinding
                         if (cooldown < 0)
                         {
                             cooldown = maxCooldown;
-                            if (!pathPending && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
+                            if (!isPending && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
                                 CalculatePath(navigationSurface, leaderPosition);
                         }
 
                         Vector3 path = PathFollower.GetDirection(Rigidbody) * pathStrength;
-                        return (p = ((separation + alineation + cohesion).normalized * .2f + path + obstacles).normalized);
+                        return (((separation + alineation + cohesion).normalized * .2f) + path + obstacles).normalized;
                     }
                 }
             }
 
-            return (p = (separation + alineation + cohesion + leader + obstacles).normalized);
+            {
+                return (separation + alineation + cohesion + leader + obstacles).normalized;
+            }
         }
 
         private void CalculatePath(NavigationSurface navigationSurface, Vector3 leaderPosition)
         {
             navigationSurface.CalculatePath(path, Rigidbody.position, leaderPosition);
-            pathPending = true;
+            isPending = true;
         }
 
         private Vector3 GetLeader() => (FlockingLeader.Rigidbody.position - Rigidbody.position).normalized;
@@ -240,8 +243,8 @@ namespace Enderlook.Unity.Pathfinding
             return total.normalized;
         }
 
-        Vector3 p;
-        private void OnDrawGizmos()
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
         {
             if (!Application.isPlaying)
                 return;
@@ -263,34 +266,27 @@ namespace Enderlook.Unity.Pathfinding
             Gizmos.color = Color.white;
             Gizmos.DrawLine(Rigidbody.position, q);*/
 
+            Vector3 direction = GetDirection();
             Gizmos.color = Color.white;
-            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + p * 3);
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + (direction * 3));
 
-            if (path.IsCompleted)
+            RawPooledList<Vector3>.Enumerator enumerator = PathFollower.previousEnumerator;
+            if (enumerator.IsDefault)
+                return;
+
+            Gizmos.color = Color.blue;
+            Vector3 start;
+            Vector3 end = transform.position;
+            while (enumerator.MoveNext())
             {
-                //path.Complete();
-                if (path.HasPath)
-                {
-                    Gizmos.color = Color.black;
-                    using (Path<Vector3>.Enumerator enumerator = path.GetEnumerator())
-                    {
-                        if (enumerator.MoveNext())
-                        {
-                            Vector3 start;
-                            Vector3 end = enumerator.Current;
-                            while (enumerator.MoveNext())
-                            {
-                                Gizmos.DrawWireCube(end, Vector3.one * .1f);
-                                start = end;
-                                end = enumerator.Current;
-                                Gizmos.DrawLine(start, end);
-                            }
-                            Gizmos.DrawWireCube(end, Vector3.one * .1f);
-                        }
-                    }
-                }
+                Gizmos.DrawWireCube(end, Vector3.one * .1f);
+                start = end;
+                end = enumerator.Current;
+                Gizmos.DrawLine(start, end);
             }
+            Gizmos.DrawWireCube(end, Vector3.one * .1f);
         }
+#endif
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDestroy() => path.Dispose();
