@@ -248,19 +248,35 @@ namespace Enderlook.Unity.Pathfinding
                 options.PushTask(compactOpenHeightField.ColumnsCount, "Building Lookup Table");
                 {
                     spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.SpansCount);
-                    int c = 0;
                     VoxelizationParameters parameters = options.VoxelizationParameters;
-                    for (int x = 0; x < parameters.Width; x++)
+                    if (options.UseMultithreading)
                     {
-                        for (int z = 0; z < parameters.Depth; z++)
+                        Parallel.For(0, parameters.ColumnsCount, i =>
                         {
-                            Debug.Assert(c == parameters.GetIndex(x, z));
-                            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[c];
-                            column.Span<int>(spanToColumn).Fill(c++);
-                            if (options.ShouldUseTimeSlice)
+                            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
+                            column.Span<int>(spanToColumn).Fill(i);
+                            options.StepTask();
+                        });
+                    }
+                    else
+                    {
+                        if (options.ShouldUseTimeSlice)
+                        {
+                            for (int i = 0; i < parameters.ColumnsCount; i++)
+                            {
+                                CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
+                                column.Span<int>(spanToColumn).Fill(i);
                                 await options.StepTaskAndYield();
-                            else
+                            }
+                        }
+                        else
+                        {
+                            for (int i = 0; i < parameters.ColumnsCount; i++)
+                            {
+                                CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
+                                column.Span<int>(spanToColumn).Fill(i);
                                 options.StepTask();
+                            }
                         }
                     }
                 }
