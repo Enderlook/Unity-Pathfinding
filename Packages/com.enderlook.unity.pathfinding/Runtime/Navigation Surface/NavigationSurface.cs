@@ -315,9 +315,36 @@ namespace Enderlook.Unity.Pathfinding
                 }
             }
 
-            fail:
+        fail:
+            // Node could not be found, so look for closer one.
+            // TODO: This could be improved with spatial indexing.
             node = default;
-            return false;
+            Vector3 offset = parameters.OffsetAtFloor;
+            float minSquaredDistance = float.PositiveInfinity;
+            int j = 0;
+            for (int x = 0; x < parameters.Width; x++)
+            {
+                for (int z = 0; z < parameters.Depth; z++)
+                {
+                    Vector2 position_ = new Vector2(x, z) * parameters.VoxelSize;
+                    column = compactOpenHeightField.Column(j++);
+                    for (int k = column.First; k < column.Last; k++)
+                    {
+                        ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Span(k);
+                        Vector3 position__ = new Vector3(position_.x, parameters.VoxelSize * span.Floor, position_.y);
+                        Vector3 center = offset + position__;
+                        float squaredDistance = (position - center).sqrMagnitude;
+                        if (squaredDistance < minSquaredDistance)
+                        {
+                            minSquaredDistance = squaredDistance;
+                            node = k;
+                        }
+                    }
+                }
+            }
+
+            // We only take the node as valid if we are somewhat close to it.
+            return minSquaredDistance < parameters.VoxelSize * 2;
         }
 
         Vector3 IGraphLocation<int, Vector3>.ToPosition(int node)
