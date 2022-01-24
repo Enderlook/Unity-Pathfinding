@@ -169,8 +169,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2Int From2D(int index)
         {
-            Debug.Assert(index < Width * Height);
-            int x = Math.DivRem(index, Height, out int y);
+            Debug.Assert(index < Width * Depth);
+            int x = Math.DivRem(index, Depth, out int y);
             Debug.Assert(index == GetIndex(x, y));
             return new Vector2Int(x, y);
         }

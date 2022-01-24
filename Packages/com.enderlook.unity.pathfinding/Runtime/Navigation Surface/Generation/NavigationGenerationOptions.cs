@@ -179,12 +179,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         public ValueTask AsTask() => timeSlicer.AsTask();
 
         public void SetVoxelizationParameters(float voxelSize, Vector3 min, Vector3 max)
-        {
-            //VoxelizationParameters = VoxelizationParameters.WithVoxelSize(min, max, voxelSize);
-            float min_ = Mathematic.Min(min.x, min.y, min.z);
-            float max_ = Mathematic.Max(max.x, max.y, max.z);
-            VoxelizationParameters = VoxelizationParameters.WithVoxelSize(Vector3.one * min_, Vector3.one * max_, voxelSize);
-        }
+            => VoxelizationParameters = VoxelizationParameters.WithVoxelSize(min, max, voxelSize);
 
 #if TRACK_NAVIGATION_GENERATION_LOCATION
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
