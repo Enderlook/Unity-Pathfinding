@@ -355,10 +355,10 @@ namespace Enderlook.Unity.Pathfinding
 
         internal struct NodesEnumerator : IEnumerator<int>
         {
-            private int left;
-            private int forward;
-            private int right;
-            private int backward;
+            private readonly int left;
+            private readonly int forward;
+            private readonly int right;
+            private readonly int backward;
             private int index;
             public int Current { get; private set; }
 
