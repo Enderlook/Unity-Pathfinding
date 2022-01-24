@@ -4,22 +4,19 @@ using System.Runtime.CompilerServices;
 namespace Enderlook.Unity.Pathfinding
 {
     /// <summary>
-    /// Implementation of <see cref="ISearcherSatisfy{TNode}"/> and <see cref="ISearcherHeuristic{TNode}"/> to find an specific location.
+    /// Implementation of <see cref="ISearcherSatisfy{TNode}"/> to find an specific location.
     /// </summary>
     /// <typeparam name="TNode">Type of node.</typeparam>
-    internal readonly struct SearcherToLocationWithHeuristic<TGraph, TCoord, TNode> : ISearcherSatisfy<TNode>, ISearcherPosition<TCoord>, ISearcherHeuristic<TNode>
-        where TGraph : IGraphHeuristic<TNode>
+    internal readonly struct SearcherToLocation<TCoord, TNode> : ISearcherSatisfy<TNode>, ISearcherPosition<TCoord>
     {
-        private readonly TGraph graph;
         private readonly TNode target;
         private readonly IEqualityComparer<TNode> comparer;
 
         /// <inheritdoc cref="ISearcherPosition{TCoord}.EndPosition"/>
         public TCoord EndPosition { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; }
 
-        private SearcherToLocationWithHeuristic(TGraph graph, TNode target, TCoord destination)
+        private SearcherToLocation(TNode target, TCoord destination)
         {
-            this.graph = graph;
             this.target = target;
             EndPosition = destination;
             if (!typeof(TNode).IsValueType)
@@ -28,12 +25,12 @@ namespace Enderlook.Unity.Pathfinding
                 comparer = default;
         }
 
-        public static bool TryFrom<T>(T graph, TCoord destination, out SearcherToLocationWithHeuristic<TGraph, TCoord, TNode> searcher)
-            where T : class, TGraph, IGraphLocation<TNode, TCoord>
+        public static bool TryFrom<T>(T graph, TCoord destination, out SearcherToLocation<TCoord, TNode> searcher)
+            where T : class, IGraphLocation<TNode, TCoord>
         {
             if (graph.TryFindNodeTo(destination, out TNode node))
             {
-                searcher = new SearcherToLocationWithHeuristic<TGraph, TCoord, TNode>(graph, node, destination);
+                searcher = new SearcherToLocation<TCoord, TNode>(node, destination);
                 return true;
             }
 
@@ -50,9 +47,5 @@ namespace Enderlook.Unity.Pathfinding
             else
                 return comparer.Equals(node, target);
         }
-
-        /// <inheritdoc cref="ISearcherHeuristic{TNode}.GetHeuristicCost(TNode)"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float GetHeuristicCost(TNode from) => graph.GetHeuristicCost(from, target);
     }
 }

@@ -44,7 +44,7 @@ namespace Enderlook.Unity.Pathfinding
         /// <exception cref="InvalidOperationException">Thrown when no builder session was enabled.</exception>
         /// <remarks>If the initial node and the target node are the same, no other method is necessary to be executed apart from this one.</remarks>
         ValueTask FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
-            where TGraph : IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TCoord>*/
+            where TGraph : IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
             where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
             where TAwaitable : IAwaitable<TAwaiter>
             where TAwaiter : IAwaiter;
