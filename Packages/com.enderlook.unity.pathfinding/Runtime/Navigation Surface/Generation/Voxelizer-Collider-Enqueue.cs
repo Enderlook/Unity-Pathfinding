@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding.Generation
 {
-    internal partial struct Voxelizer : IDisposable
+    internal partial struct Voxelizer
     {
         /// <summary>
         /// Enqueues colliders to be voxelized.
