@@ -95,7 +95,7 @@ namespace Assets.Enderlook.Unity.Pathfinding.Steerings
                 Vector3 position;
                 Vector3 closestPoint = collider.ClosestPointOnBounds(agent.position);
                 if (collider.TryGetComponent(out Rigidbody _rigidbody))
-                    position = closestPoint + _rigidbody.velocity * predictionTime;
+                    position = closestPoint + (_rigidbody.velocity * predictionTime);
                 else
                     position = closestPoint;
 
