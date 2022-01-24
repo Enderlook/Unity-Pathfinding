@@ -31,7 +31,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 }
                 Unlock(ref self.continuationsLock);
                 if (!found)
-                    return;
+                    break;
                 action();
             }
             if (self.executionTimeSlice != float.PositiveInfinity)
@@ -102,6 +102,16 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     isCompleted = task.IsCompleted;
                 }
                 Unlock(ref taskLock);
+#if UNITY_ASSERTIONS
+                if (isCompleted)
+                {
+                    Lock(ref continuationsLock);
+                    {
+                        Debug.Assert(continuations.IsEmpty);
+                    }
+                    Unlock(ref continuationsLock);
+                }
+#endif
                 return isCompleted;
             }
         }
@@ -196,7 +206,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                         }
                         Unlock(ref continuationsLock);
                         if (!found)
-                            return;
+                            break;
                         action();
                     }
                     if (executionTimeSlice != float.PositiveInfinity)
