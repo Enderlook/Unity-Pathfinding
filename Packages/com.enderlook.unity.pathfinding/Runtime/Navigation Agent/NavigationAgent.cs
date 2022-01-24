@@ -1,6 +1,8 @@
 ﻿using Assets.Enderlook.Unity.Pathfinding;
 using Assets.Enderlook.Unity.Pathfinding.Steerings;
 
+using Enderlook.Collections.Pooled.LowLevel;
+
 using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
@@ -72,6 +74,34 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         private Vector3 GetDirection() => PathFollower.GetDirection(Rigidbody) + ObstacleAvoidance.GetDirection(Rigidbody);
+
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
+        {
+            if (!Application.isPlaying)
+                return;
+
+            Vector3 direction = GetDirection();
+            Gizmos.color = Color.white;
+            Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + (direction * 3));
+
+            RawPooledList<Vector3>.Enumerator enumerator = PathFollower.previousEnumerator;
+            if (enumerator.IsDefault)
+                return;
+
+            Gizmos.color = Color.blue;
+            Vector3 start;
+            Vector3 end = transform.position;
+            while (enumerator.MoveNext())
+            {
+                Gizmos.DrawWireCube(end, Vector3.one * .1f);
+                start = end;
+                end = enumerator.Current;
+                Gizmos.DrawLine(start, end);
+            }
+            Gizmos.DrawWireCube(end, Vector3.one * .1f);
+        }
+#endif
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDestroy() => path.Dispose();
