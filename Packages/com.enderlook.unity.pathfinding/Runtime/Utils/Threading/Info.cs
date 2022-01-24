@@ -8,7 +8,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
 #if UNITY_WEBGL && !UNITY_EDITOR
         public const bool SupportMultithreading = false;
 #else
-        public const bool SupportMultithreading = false;
+        public const bool SupportMultithreading = true;
 #endif
     }
 }
