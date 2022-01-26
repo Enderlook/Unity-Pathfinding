@@ -75,40 +75,61 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 for (int z = 0; z < parameters.Depth; z++)
                 {
                     int start = spans.Count;
-                    SingleThreadWork(parameters, voxels, options, ref spans, x, z);
+                    bool added = false;
+                    if (Toggle.IsToggled<TYield>())
+                    {
+                        int y = 0;
+                        while (true)
+                        {
+                            if (y >= parameters.Height)
+                                break;
+                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
+
+                            if (y >= parameters.Height)
+                                break;
+                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
+
+                            if (y >= parameters.Height)
+                                break;
+                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
+
+                            if (y >= parameters.Height)
+                                break;
+                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
+
+                            await options.Yield();
+                        }
+                    }
+                    else
+                    {
+                        for (int y = 0; y < parameters.Height; y++)
+                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y);
+                    }
                     Debug.Assert(index == parameters.GetIndex(x, z));
                     columns[index++] = new HeightColumn(start, spans.Count - start);
-
-                    await options.Yield<TYield>();
                 }
             }
             return spans.UnderlyingArray;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void SingleThreadWork(in VoxelizationParameters parameters, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options, ref RawPooledList<HeightSpan> spans, int x, int z)
+        private static void SingleThread_ProcesssVoxel(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, VoxelizationParameters parameters, ref RawPooledList<HeightSpan> spans, int x, int z, ref bool added, int y)
         {
-            bool added = false;
-            for (int y = 0; y < parameters.Height; y++)
+            bool isSolid = voxels[parameters.GetIndex(x, y, z)];
+            if (!added)
             {
-                // TODO: Should allow yielding here?
-
-                bool isSolid = voxels[parameters.GetIndex(x, y, z)];
-                if (!added)
-                {
-                    spans.Add(new HeightSpan(isSolid));
-                    added = true;
-                }
-                else
-                {
-                    ref HeightSpan span = ref spans[spans.Count - 1];
-                    if (span.IsSolid == isSolid)
-                        Unsafe.AsRef(span.Height)++;
-                    else
-                        spans.Add(new HeightSpan(isSolid));
-                }
-                options.StepTask();
+                spans.Add(new HeightSpan(isSolid));
+                added = true;
             }
+            else
+            {
+                ref HeightSpan span = ref spans[spans.Count - 1];
+                if (span.IsSolid == isSolid)
+                    Unsafe.AsRef(span.Height)++;
+                else
+                    spans.Add(new HeightSpan(isSolid));
+            }
+            options.StepTask();
         }
 
         private static HeightSpan[] MultiThread(HeightColumn[] columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
