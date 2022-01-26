@@ -67,7 +67,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private static async ValueTask<HeightSpan[]> SingleThread<TYield>(HeightColumn[] columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
-            // TODO: spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
+            // TODO: Spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
             int index = 0;
             for (int x = 0; x < parameters.Width; x++)
@@ -125,6 +125,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             {
                 ref HeightSpan span = ref spans[spans.Count - 1];
                 if (span.IsSolid == isSolid)
+                    // HACK: HeightSpan.Height is readonly, however we are still constructing it so we mutate it.
                     Unsafe.AsRef(span.Height)++;
                 else
                     spans.Add(new HeightSpan(isSolid));
