@@ -79,26 +79,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     if (Toggle.IsToggled<TYield>())
                     {
                         int y = 0;
-                        while (true)
-                        {
-                            if (y >= parameters.Height)
-                                break;
-                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
-
-                            if (y >= parameters.Height)
-                                break;
-                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
-
-                            if (y >= parameters.Height)
-                                break;
-                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
-
-                            if (y >= parameters.Height)
-                                break;
-                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y++);
-
+                        while (Local(ref spans, x, z, ref added, ref y))
                             await options.Yield();
-                        }
                     }
                     else
                     {
@@ -110,6 +92,32 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
             }
             return spans.UnderlyingArray;
+
+            bool Local(ref RawPooledList<HeightSpan> spans_, int x, int z, ref bool added, ref int y)
+            {
+                while (true)
+                {
+                    if (y >= parameters.Height)
+                        break;
+                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+
+                    if (y >= parameters.Height)
+                        break;
+                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+
+                    if (y >= parameters.Height)
+                        break;
+                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+
+                    if (y >= parameters.Height)
+                        break;
+                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+
+                    if (options.MustYield())
+                        return true;
+                }
+                return false;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
