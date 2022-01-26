@@ -13,7 +13,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsToggled<T>()
         {
-            Debug.Assert(typeof(T) == typeof(Yes) || typeof(T) == typeof(No), $"Invalid generic type. Expected {typeof(Yes)} or {typeof(No)}.");
+            Debug.Assert(typeof(T) == typeof(Yes) || typeof(T) == typeof(No));
             return typeof(T) == typeof(Yes);
         }
     }
