@@ -78,8 +78,6 @@ namespace Enderlook.Unity.Pathfinding
                         continue;
 
                     timeSlicer.Poll();
-                    if (timeSlicer.IsCompleted)
-                        continue;
 
                     timeSlicers[j++] = timeSlicer;
                 }
