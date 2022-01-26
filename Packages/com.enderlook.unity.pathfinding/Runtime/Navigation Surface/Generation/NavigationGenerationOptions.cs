@@ -433,6 +433,25 @@ namespace Enderlook.Unity.Pathfinding.Generation
             return timeSlicer.Yield<TYield>();
         }
 
+        /// <inheritdoc cref="TimeSlicer.MustYield"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MustYield(
+#if TRACK_NAVIGATION_GENERATION_LOCATION
+            [CallerMemberName] string memberName = "",
+            [CallerFilePath] string sourceFilePath = "",
+            [CallerLineNumber] int sourceLineNumber = 0
+#endif
+            )
+        {
+#if TRACK_NAVIGATION_GENERATION_LOCATION
+            Lock(ref stepLock);
+            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
+            Unlock(ref stepLock);
+#endif
+            return timeSlicer.MustYield();
+        }
+
+        /// <inheritdoc cref="TimeSlicer.Poll"/>
         public void Poll() => timeSlicer.Poll();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

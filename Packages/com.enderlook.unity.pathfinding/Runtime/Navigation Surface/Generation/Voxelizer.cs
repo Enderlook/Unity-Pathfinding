@@ -136,13 +136,22 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     int voxelsCount = parameters.VoxelsCount;
                     voxels = ArrayPool<bool>.Shared.Rent(voxelsCount);
                     Array.Clear(voxels, 0, voxelsCount);
-                    bool[] voxels_ = ArrayPool<bool>.Shared.Rent(voxelsCount);
-                    Array.Clear(voxels_, 0, voxelsCount);
+                    VoxelInfo[] voxelsInfo = ArrayPool<VoxelInfo>.Shared.Rent(voxelsCount);
+                    Array.Clear(voxelsInfo, 0, voxelsCount);
                     for (int i = 0; i < count; i++)
                     {
-                        CalculateMultiplesVolumeIndexes(information[i], voxels_, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
+                        InformationElement content = information[i];
+                        await Voxelize<TYield>(
+                            options,
+                            content.Vertices,
+                            content.Triangles,
+                            voxelsInfo,
+                            parameters
+                        );
+                        content.Dispose();
 
-                        VoxelInfo[] voxelsInfo = Unsafe.As<VoxelInfo[]>(voxels_);
+                        CalculateMultiplesVolumeIndexes(content.Min, content.Max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
+
                         int index = parameters.Depth * (parameters.Height * xMinMultiple);
                         for (int x = xMinMultiple; x < xMaxMultiple; x++)
                         {
@@ -163,7 +172,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                         await options.StepTaskAndYield<TYield>();
                     }
-                    ArrayPool<bool>.Shared.Return(voxels_);
+                    ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
                     information.Dispose();
                 }
                 options.StepPopTask();
@@ -199,28 +208,18 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         private static void CalculateMultiplesVolumeIndexes(
-            InformationElement content,
-            bool[] tmpVoxels,
+            Vector3 min, Vector3 max,
             in VoxelizationParameters parameters,
             out int xMinMultiple, out int yMinMultiple, out int zMinMultiple,
             out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple)
         {
-            Debug.Assert(sizeof(bool) == Unsafe.SizeOf<VoxelInfo>());
-            Voxelize(
-                MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(content.Vertices),
-                content.Triangles,
-                MemoryMarshal.Cast<bool, VoxelInfo>(tmpVoxels),
-                parameters
-            );
-            content.Dispose();
-
             // Fit bounds to global resolution.
-            xMinMultiple = Mathf.FloorToInt(content.Min.x / parameters.VoxelSize);
-            yMinMultiple = Mathf.FloorToInt(content.Min.y / parameters.VoxelSize);
-            zMinMultiple = Mathf.FloorToInt(content.Min.z / parameters.VoxelSize);
-            xMaxMultiple = Mathf.CeilToInt(content.Max.x / parameters.VoxelSize);
-            yMaxMultiple = Mathf.CeilToInt(content.Max.y / parameters.VoxelSize);
-            zMaxMultiple = Mathf.CeilToInt(content.Max.z / parameters.VoxelSize);
+            xMinMultiple = Mathf.FloorToInt(min.x / parameters.VoxelSize);
+            yMinMultiple = Mathf.FloorToInt(min.y / parameters.VoxelSize);
+            zMinMultiple = Mathf.FloorToInt(min.z / parameters.VoxelSize);
+            xMaxMultiple = Mathf.CeilToInt(max.x / parameters.VoxelSize);
+            yMaxMultiple = Mathf.CeilToInt(max.y / parameters.VoxelSize);
+            zMaxMultiple = Mathf.CeilToInt(max.z / parameters.VoxelSize);
 
             // Fix offset
             xMinMultiple += parameters.Width / 2;
@@ -328,7 +327,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 {
                     Parallel.For(0, information.Count, i =>
                     {
-                        VoxelizeMultithreadSlave(options.VoxelizationParameters, voxels, information, i);
+                        VoxelizeMultithreadSlave(options, voxels, information, i);
                         options.StepTask();
                     });
                     this.information.Dispose();
@@ -339,28 +338,26 @@ namespace Enderlook.Unity.Pathfinding.Generation
             return this;
         }
 
-        private static void VoxelizeMultithreadSlave(in VoxelizationParameters parameters, bool[] source, RawPooledList<InformationElement> information, int i)
+        private static void VoxelizeMultithreadSlave(NavigationGenerationOptions options, bool[] source, RawPooledList<InformationElement> information, int i)
         {
             InformationElement pack = information[i];
 
-            if (unchecked((uint)pack.Vertices.Length > (uint)pack.Vertices.Array.Length))
-            {
-                Debug.Assert(false, "Index out of range.");
-                return;
-            }
+            VoxelizationParameters parameters = options.VoxelizationParameters;
+            VoxelInfo[] voxelsInfo = ArrayPool<VoxelInfo>.Shared.Rent(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)));
+            Array.Clear(voxelsInfo, 0, parameters.VoxelsCount);
 
-            bool[] voxels = ArrayPool<bool>.Shared.Rent(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)));
-            Array.Clear(voxels, 0, parameters.VoxelsCount);
-            Span<VoxelInfo> voxelsInfo = MemoryMarshal.Cast<bool, VoxelInfo>(voxels);
-
-            Voxelize(
-                MemoryMarshal.Cast<Vector3, System.Numerics.Vector3>(pack.Vertices),
-                pack.Triangles,
-                MemoryMarshal.Cast<bool, VoxelInfo>(voxels),
+            InformationElement content = information[i];
+            ValueTask task = Voxelize<Toggle.No>(
+                options,
+                content.Vertices,
+                content.Triangles,
+                voxelsInfo,
                 parameters
             );
+            Debug.Assert(task.IsCompleted);
+            content.Dispose();
 
-            CalculateMultiplesVolumeIndexes(information[i], voxels, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
+            CalculateMultiplesVolumeIndexes(content.Min, content.Max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
 
             Span<bool> bytes = stackalloc bool[sizeof(int) / sizeof(bool)];
             ref int int_ = ref Unsafe.As<bool, int>(ref bytes[0]);
@@ -389,7 +386,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 index += parameters.Depth * (parameters.Height - yMaxMultiple);
             }
 
-            ArrayPool<bool>.Shared.Return(voxels);
+            ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
         }
 
         public void DrawGizmos()

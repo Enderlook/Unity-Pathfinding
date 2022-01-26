@@ -240,6 +240,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 );
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MustYield() => nextYield > Time.realtimeSinceStartup;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Lock(ref int @lock)
         {
             while (Interlocked.Exchange(ref @lock, 1) == 1) ;
