@@ -1,5 +1,7 @@
 ﻿using Enderlook.Collections.LowLevel;
 using Enderlook.Threading;
+using Enderlook.Collections.LowLevel;
+using Enderlook.Threading;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
@@ -151,7 +153,7 @@ namespace Enderlook.Unity.Pathfinding
                 options.UseMultithreading = true;
 #endif
 
-            ValueTask task = BuildNavigation_(isEditor);
+            ValueTask task = Work();
             options.SetTask(task);
 
 #if UNITY_EDITOR
@@ -160,143 +162,139 @@ namespace Enderlook.Unity.Pathfinding
 #endif
 
             return task;
-        }
 
-        private async ValueTask BuildNavigation_(
-#if UNITY_EDITOR
-            bool isEditor
-#endif
-            )
-        {
-            float voxelSize = this.voxelSize;
-            LayerMask includeLayers = this.includeLayers;
-            CollectionType collectObjects = this.collectObjects;
-            GeometryType collectInformation = this.collectInformation;
-
-            if (voxelSize <= 0) ThrowVoxelSizeMustBeGreaterThanZero();
-
-            if (collectInformation.HasFlag(GeometryType.PhysicsColliders))
-                throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
-            if (collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders))
-                throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
-
-            options.ExecutionTimeSlice = backingExecutionTimeSlice;
-
-            if (options.Progress != 1 || !options.IsCompleted)
-                ThrowNavigationInProgress();
-
-            options.PushTask(4, "Generate Navigation Mesh");
+            async ValueTask Work()
             {
-                Voxelizer voxelizer = new Voxelizer(options, voxelSize, includeLayers);
+                float voxelSize = this.voxelSize;
+                LayerMask includeLayers = this.includeLayers;
+                CollectionType collectObjects = this.collectObjects;
+                GeometryType collectInformation = this.collectInformation;
 
-                bool wasNotInMainThread = !UnityThread.IsMainThread;
-                if (wasNotInMainThread)
-                    await Switch.ToUnity;
+                if (voxelSize <= 0) ThrowVoxelSizeMustBeGreaterThanZero();
 
-                // TODO: Add support for GeometryType of physics colliders.
-                switch (collectObjects)
+                if (collectInformation.HasFlag(GeometryType.PhysicsColliders))
+                    throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
+                if (collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders))
+                    throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
+
+                options.ExecutionTimeSlice = backingExecutionTimeSlice;
+
+                if (options.Progress != 1 || !options.IsCompleted)
+                    ThrowNavigationInProgress();
+
+                options.PushTask(4, "Generate Navigation Mesh");
                 {
-                    case CollectionType.Volume:
+                    Voxelizer voxelizer = new Voxelizer(options, voxelSize, includeLayers);
+
+                    bool wasNotInMainThread = !UnityThread.IsMainThread;
+                    if (wasNotInMainThread)
+                        await Switch.ToUnity;
+
+                    // TODO: Add support for GeometryType of physics colliders.
+                    switch (collectObjects)
                     {
-                        if (collectInformation.HasFlag(GeometryType.RenderMeshes))
-                            // This is cheaper than FindObjectOfType<MeshFilter>() since it doesn't allocate twice nor check types of each element twice.
-                            voxelizer = await voxelizer.Enqueue(Unsafe.As<MeshFilter[]>(FindObjectsOfType(typeof(MeshFilter))));
-
-                        bool nonTrigger = collectInformation.HasFlag(GeometryType.PhysicsColliders);
-                        bool trigger = collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders);
-                        if (nonTrigger || trigger)
-                            voxelizer = await voxelizer.Enqueue(Unsafe.As<Collider[]>(FindObjectsOfType(typeof(Collider))), nonTrigger && trigger ? 2 : (trigger ? 1 : 0));
-
-                        break;
-                    }
-                    case CollectionType.Children:
-                    {
-                        if (collectInformation.HasFlag(GeometryType.RenderMeshes))
-                            voxelizer = await voxelizer.Enqueue(GetComponentsInChildren<MeshFilter>());
-
-                        bool nonTrigger = collectInformation.HasFlag(GeometryType.PhysicsColliders);
-                        bool trigger = collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders);
-                        if (nonTrigger || trigger)
-                            voxelizer = await voxelizer.Enqueue(GetComponentsInChildren<Collider>(), nonTrigger && trigger ? 2 : (trigger ? 1 : 0));
-
-                        break;
-                    }
-                }
-
-                if (wasNotInMainThread)
-                {
-#if UNITY_EDITOR
-                    if (isEditor)
-                        await Switch.ToLongBackgroundEditor;
-                    else
-#endif
-                        await Switch.ToLongBackground;
-                }
-
-                voxelizer = await voxelizer.Process();
-                options.StepTask();
-
-                HeightField heightField = await HeightField.Create(voxelizer.Voxels, options);
-                options.StepTask();
-
-                CompactOpenHeightField compactOpenHeightField = await CompactOpenHeightField.Create(heightField, options);
-                options.StepTask();
-
-                heightField.Dispose();
-
-                int[] spanToColumn;
-                options.PushTask(compactOpenHeightField.ColumnsCount, "Building Lookup Table");
-                {
-                    spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.SpansCount);
-                    VoxelizationParameters parameters = options.VoxelizationParameters;
-                    if (options.UseMultithreading)
-                    {
-                        Parallel.For(0, parameters.ColumnsCount, i =>
+                        case CollectionType.Volume:
                         {
-                            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
-                            column.Span<int>(spanToColumn).Fill(i);
-                            options.StepTask();
-                        });
-                    }
-                    else
-                    {
-                        if (options.ShouldUseTimeSlice)
-                        {
-                            for (int i = 0; i < parameters.ColumnsCount; i++)
-                            {
-                                CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
-                                column.Span<int>(spanToColumn).Fill(i);
-                                await options.StepTaskAndYield();
-                            }
+                            if (collectInformation.HasFlag(GeometryType.RenderMeshes))
+                                // This is cheaper than FindObjectOfType<MeshFilter>() since it doesn't allocate twice nor check types of each element twice.
+                                voxelizer = await voxelizer.Enqueue(Unsafe.As<MeshFilter[]>(FindObjectsOfType(typeof(MeshFilter))));
+
+                            bool nonTrigger = collectInformation.HasFlag(GeometryType.PhysicsColliders);
+                            bool trigger = collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders);
+                            if (nonTrigger || trigger)
+                                voxelizer = await voxelizer.Enqueue(Unsafe.As<Collider[]>(FindObjectsOfType(typeof(Collider))), nonTrigger && trigger ? 2 : (trigger ? 1 : 0));
+
+                            break;
                         }
-                        else
+                        case CollectionType.Children:
                         {
-                            for (int i = 0; i < parameters.ColumnsCount; i++)
+                            if (collectInformation.HasFlag(GeometryType.RenderMeshes))
+                                voxelizer = await voxelizer.Enqueue(GetComponentsInChildren<MeshFilter>());
+
+                            bool nonTrigger = collectInformation.HasFlag(GeometryType.PhysicsColliders);
+                            bool trigger = collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders);
+                            if (nonTrigger || trigger)
+                                voxelizer = await voxelizer.Enqueue(GetComponentsInChildren<Collider>(), nonTrigger && trigger ? 2 : (trigger ? 1 : 0));
+
+                            break;
+                        }
+                    }
+
+                    if (wasNotInMainThread)
+                    {
+#if UNITY_EDITOR
+                        if (isEditor)
+                            await Switch.ToLongBackgroundEditor;
+                        else
+#endif
+                            await Switch.ToLongBackground;
+                    }
+
+                    voxelizer = await voxelizer.Process();
+                    options.StepTask();
+
+                    HeightField heightField = await HeightField.Create(voxelizer.Voxels, options);
+                    options.StepTask();
+
+                    CompactOpenHeightField compactOpenHeightField = await CompactOpenHeightField.Create(heightField, options);
+                    options.StepTask();
+
+                    heightField.Dispose();
+
+                    int[] spanToColumn;
+                    options.PushTask(compactOpenHeightField.ColumnsCount, "Building Lookup Table");
+                    {
+                        spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.SpansCount);
+                        VoxelizationParameters parameters = options.VoxelizationParameters;
+                        if (options.UseMultithreading)
+                        {
+                            Parallel.For(0, parameters.ColumnsCount, i =>
                             {
                                 CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
                                 column.Span<int>(spanToColumn).Fill(i);
                                 options.StepTask();
+                            });
+                        }
+                        else
+                        {
+                            if (options.ShouldUseTimeSlice)
+                            {
+                                for (int i = 0; i < parameters.ColumnsCount; i++)
+                                {
+                                    CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
+                                    column.Span<int>(spanToColumn).Fill(i);
+                                    await options.StepTaskAndYield();
+                                }
+                            }
+                            else
+                            {
+                                for (int i = 0; i < parameters.ColumnsCount; i++)
+                                {
+                                    CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
+                                    column.Span<int>(spanToColumn).Fill(i);
+                                    options.StepTask();
+                                }
                             }
                         }
                     }
+                    options.PopTask();
+                    options.StepTask();
+
+                    Lock();
+                    {
+                        this.compactOpenHeightField = compactOpenHeightField;
+                        if (this.spanToColumn != null)
+                            ArrayPool<int>.Shared.Return(this.spanToColumn);
+                        this.spanToColumn = spanToColumn;
+                    }
+                    Unlock();
+
+                    voxelizer.Dispose();
                 }
                 options.PopTask();
-                options.StepTask();
 
-                Lock();
-                {
-                    this.compactOpenHeightField = compactOpenHeightField;
-                    if (this.spanToColumn != null)
-                        ArrayPool<int>.Shared.Return(this.spanToColumn);
-                    this.spanToColumn = spanToColumn;
-                }
-                Unlock();
-
-                voxelizer.Dispose();
+                void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException(nameof(voxelSize), "Must be greater than 0.");
             }
-            options.PopTask();
-
-            void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException(nameof(voxelSize), "Must be greater than 0.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
