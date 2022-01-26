@@ -10,7 +10,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
     /// <typeparam name="T">Type of array elements.</typeparam>
     internal readonly struct ReadOnlyArraySlice<T>
     {
-        public readonly T[] Array;
+        private readonly T[] Array;
         public readonly int Length;
 
         public ref readonly T this[int index] {
@@ -22,15 +22,23 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlyArraySlice(T[] array, int count)
+        public ReadOnlyArraySlice(T[] array, int length)
         {
             Array = array;
-            Length = count;
-            Debug.Assert(array.Length >= count);
+            Length = length;
+            Debug.Assert(array.Length >= length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator ReadOnlySpan<T>(ReadOnlyArraySlice<T> source)
             => source.Array.AsSpan(0, source.Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator ReadOnlyArraySlice<T>(ArraySlice<T> source)
+            => new ReadOnlyArraySlice<T>(source.Array, source.Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator ReadOnlyArraySlice<T>(T[] source)
+            => new ReadOnlyArraySlice<T>(source, source.Length);
     }
 }

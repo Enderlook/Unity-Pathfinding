@@ -22,15 +22,19 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ArraySlice(T[] array, int count)
+        public ArraySlice(T[] array, int length)
         {
             Array = array;
-            Length = count;
-            Debug.Assert(array.Length >= count);
+            Length = length;
+            Debug.Assert(array.Length >= length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Span<T>(ArraySlice<T> source)
             => source.Array.AsSpan(0, source.Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator ArraySlice<T>(T[] source)
+            => new ArraySlice<T>(source, source.Length);
     }
 }
