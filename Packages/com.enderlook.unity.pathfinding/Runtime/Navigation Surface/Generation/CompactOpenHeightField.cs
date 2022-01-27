@@ -292,49 +292,49 @@ namespace Enderlook.Unity.Pathfinding.Generation
             int x = 0;
             {
                 int z = 0;
-                CalculateNeighboursBody<RightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                await options.StepTaskAndYield<TYield>();
+                index = await CalculateNeighboursBody<RightForward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                options.StepTask();
                 for (z++; z < zM; z++)
                 {
-                    CalculateNeighboursBody<RightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    await options.StepTaskAndYield<TYield>();
+                    index = await CalculateNeighboursBody<RightForwardBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                    options.StepTask();
                 }
                 Debug.Assert(z == zM);
-                CalculateNeighboursBody<RightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                await options.StepTaskAndYield<TYield>();
+                index = await CalculateNeighboursBody<RightBackwardIncrement, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                options.StepTask();
             }
 
             for (x++; x < xM; x++)
             {
                 int z = 0;
-                CalculateNeighboursBody<LeftRightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                await options.StepTaskAndYield<TYield>();
+                index = await CalculateNeighboursBody<LeftRightForward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                options.StepTask();
                 for (z = 1; z < zM; z++)
                 {
                     /* This is the true body of this function.
                      * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
                      * TODO: Does this actually improves perfomance? */
-                    CalculateNeighboursBody<LeftRightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    await options.StepTaskAndYield<TYield>();
+                    index = await CalculateNeighboursBody<LeftRightForwardBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                    options.StepTask();
                 }
                 Debug.Assert(z == zM);
-                CalculateNeighboursBody<LeftRightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                await options.StepTaskAndYield<TYield>();
+                index = await CalculateNeighboursBody<LeftRightBackwardIncrement, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                options.StepTask();
             }
 
             Debug.Assert(x == xM);
             {
                 int z = 0;
-                CalculateNeighboursBody<LeftForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                await options.StepTaskAndYield<TYield>();
+                index = await CalculateNeighboursBody<LeftForward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                options.StepTask();
                 for (z++; z < zM; z++)
                 {
-                    CalculateNeighboursBody<LeftForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                    await options.StepTaskAndYield<TYield>();
+                    index = await CalculateNeighboursBody<LeftForwardBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                    options.StepTask();
                 }
                 Debug.Assert(z == zM);
-                CalculateNeighboursBody<LeftBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                await options.StepTaskAndYield<TYield>();
+                await CalculateNeighboursBody<LeftBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                options.StepTask();
             }
         }
 
@@ -353,34 +353,36 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 int x = v.x;
                 int z = v.y;
 
+                ValueTask<int> task;
                 if (x == 0)
                 {
                     if (z == 0)
-                        CalculateNeighboursBody<RightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<RightForward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else if (z != zM)
-                        CalculateNeighboursBody<RightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<RightForwardBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else
-                        CalculateNeighboursBody<RightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<RightBackwardIncrement, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 }
                 else if (x != xM)
                 {
                     if (z == 0)
-                        CalculateNeighboursBody<LeftRightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<LeftRightForward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else if (z != zM)
-                        CalculateNeighboursBody<LeftRightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<LeftRightForwardBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else
-                        CalculateNeighboursBody<LeftRightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<LeftRightBackwardIncrement, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 }
                 else
                 {
                     if (z == 0)
-                        CalculateNeighboursBody<LeftForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<LeftForward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else if (z != zM)
-                        CalculateNeighboursBody<LeftForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<LeftForwardBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else
-                        CalculateNeighboursBody<LeftBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                        task = CalculateNeighboursBody<LeftBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 }
 
+                Debug.Assert(task.IsCompleted);
                 options.StepTask();
             });
         }
@@ -395,7 +397,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private struct RightForwardBackward { }
         private struct RightBackwardIncrement { }
 
-        private static void CalculateNeighboursBody<T>(in VoxelizationParameters parameters, HeightColumn[] columns, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, ref int index, int x, int z)
+        private static async ValueTask<int> CalculateNeighboursBody<T, TYield>(NavigationGenerationOptions options, VoxelizationParameters parameters, HeightColumn[] columns, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
         {
             Debug.Assert(
                 typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -476,16 +478,16 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 // TODO: This can be optimized so neighbour spans must not be iterated all the time.
                 // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
 
-                // Hack: HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
-                ref HeightSpanBuilder span = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref spans[i]);
-
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightForward) ||
                     typeof(T) == typeof(LeftRightBackwardIncrement) ||
                     typeof(T) == typeof(LeftForwardBackward) ||
                     typeof(T) == typeof(LeftForward) ||
                     typeof(T) == typeof(LeftBackward))
-                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, left, ref span, ref span.Left);
+                {
+                    while (CalculateNeighboursLoop<Side.Left, TYield>(options, spans, maxTraversableStep, minTraversableHeight, left, ref spans[i]))
+                        await options.Yield();
+                }
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightForward) ||
@@ -493,7 +495,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightForwardBackward) ||
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(RightBackwardIncrement))
-                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, right, ref span, ref span.Right);
+                {
+                    while (CalculateNeighboursLoop<Side.Right, TYield>(options, spans, maxTraversableStep, minTraversableHeight, right, ref spans[i]))
+                        await options.Yield();
+                }
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightForward) ||
@@ -501,7 +506,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(LeftForwardBackward) ||
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(LeftForward))
-                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, forward, ref span, ref span.Forward);
+                {
+                    while (CalculateNeighboursLoop<Side.Forward, TYield>(options, spans, maxTraversableStep, minTraversableHeight, forward, ref spans[i]))
+                        await options.Yield();
+                }
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
                     typeof(T) == typeof(LeftRightBackwardIncrement) ||
@@ -509,17 +517,29 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(LeftForwardBackward) ||
                     typeof(T) == typeof(RightBackwardIncrement) ||
                     typeof(T) == typeof(LeftBackward))
-                    CalculateNeighboursLoop(spans, maxTraversableStep, minTraversableHeight, backward, ref span, ref span.Backward);
+                {
+                    while (CalculateNeighboursLoop<Side.Backward, TYield>(options, spans, maxTraversableStep, minTraversableHeight, backward, ref spans[i]))
+                        await options.Yield();
+                }
             }
+
+            return index;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void CalculateNeighboursLoop(HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpanBuilder span, ref int side)
+        private static bool CalculateNeighboursLoop<TSide, TYield>(NavigationGenerationOptions options, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span)
         {
+            // Hack: HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
+            ref HeightSpanBuilder span_ = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref span);
             for (int j = column.First, end = column.Last; j < end; j++)
-                // TODO: Should allow yielding here?
-                if (span.PresentNeighbour(ref side, j, spans[j], maxTraversableStep, minTraversableHeight))
+            {
+                if (span_.PresentNeighbour<TSide>(j, spans[j], maxTraversableStep, minTraversableHeight))
                     break;
+
+                if (options.MustYield<TYield>())
+                    return true;
+            }
+            return false;
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
@@ -842,8 +862,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
             public int Backward;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public bool PresentNeighbour(ref int side, int neighbourIndex, HeightSpan neighbourSpan, int maxTraversableStep, int minTraversableHeight)
+            public bool PresentNeighbour<TSide>(int neighbourIndex, HeightSpan neighbourSpan, int maxTraversableStep, int minTraversableHeight)
             {
+                Side.DebugAssert<TSide>();
                 if (Floor == HeightSpan.NULL_SIDE || neighbourSpan.Floor == HeightSpan.NULL_SIDE)
                     return false;
 
@@ -851,8 +872,30 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 {
                     if (Ceil == HeightSpan.NULL_SIDE || neighbourSpan.Ceil == HeightSpan.NULL_SIDE || Math.Min(Ceil, neighbourSpan.Ceil) - Math.Max(Floor, neighbourSpan.Floor) >= minTraversableHeight)
                     {
+                        int side;
+                        if (typeof(TSide) == typeof(Side.Left))
+                        {
+                            side = Left;
+                            Left = neighbourIndex;
+                        }
+                        else if (typeof(TSide) == typeof(Side.Right))
+                        {
+                            side = Right;
+                            Right = neighbourIndex;
+                        }
+                        else if (typeof(TSide) == typeof(Side.Forward))
+                        {
+                            side = Forward;
+                            Forward = neighbourIndex;
+                        }
+                        else if (typeof(TSide) == typeof(Side.Backward))
+                        {
+                            side = Backward;
+                            Backward = neighbourIndex;
+                        }
+                        else
+                            side = 0;
                         Debug.Assert(side == HeightSpan.NULL_SIDE);
-                        side = neighbourIndex;
                         return true;
                     }
                 }
