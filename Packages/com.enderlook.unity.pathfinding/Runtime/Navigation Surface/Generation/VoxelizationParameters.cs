@@ -162,7 +162,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         /// <summary>
-        /// Get the indexes coordinates of the index in 2D space.
+        /// Get the indexes coordinates of the index in 2D space using as axies width and depth.
         /// </summary>
         /// <param name="index">Index whose coordinates will be calculated.</param>
         /// <returns>Coordinates of the specified index.</returns>
@@ -170,9 +170,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
         public Vector2Int From2D(int index)
         {
             Debug.Assert(index < Width * Depth);
-            int x = Math.DivRem(index, Depth, out int y);
-            Debug.Assert(index == GetIndex(x, y));
-            return new Vector2Int(x, y);
+            int x = Math.DivRem(index, Depth, out int z);
+            return new Vector2Int(x, z);
         }
 
         /// <summary>

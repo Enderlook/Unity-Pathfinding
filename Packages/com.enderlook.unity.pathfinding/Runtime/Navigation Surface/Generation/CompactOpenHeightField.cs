@@ -347,105 +347,41 @@ namespace Enderlook.Unity.Pathfinding.Generation
             int xM = parameters.Width - 1;
             int zM = parameters.Depth - 1;
 
-            Parallel.For(0, 9, t =>
+            Parallel.For(0, parameters.ColumnsCount, index =>
             {
-                switch (t)
+                Vector2Int v = parameters.From2D(index);
+                int x = v.x;
+                int z = v.y;
+
+                if (x == 0)
                 {
-                    case 0:
-                    {
-                        int x = 0;
-                        int z = 0;
-                        int index = 0;
+                    if (z == 0)
                         CalculateNeighboursBody<RightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                        options.StepTask();
-                        break;
-                    }
-                    case 1:
-                    {
-                        int x = 0;
-                        Parallel.For(1, zM, z =>
-                        {
-                            int index = parameters.GetIndex(x, z);
-                            CalculateNeighboursBody<RightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            options.StepTask();
-                        });
-                        break;
-                    }
-                    case 2:
-                    {
-                        int x = 0;
-                        int z = zM;
-                        int index = parameters.GetIndex(x, z);
+                    else if (z != zM)
+                        CalculateNeighboursBody<RightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    else
                         CalculateNeighboursBody<RightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                        options.StepTask();
-                        break;
-                    }
-                    case 3:
-                    {
-                        Parallel.For(1, xM, x =>
-                        {
-                            int z = 0;
-                            int index = parameters.GetIndex(x, z);
-                            CalculateNeighboursBody<LeftRightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            options.StepTask();
-                        });
-                        break;
-                    }
-                    case 4:
-                    {
-                        int xW = xM - 1;
-                        int zW = zM - 1;
-                        Parallel.For(0, xW * zW, i =>
-                        {
-                            int x = (i / zW) + 1;
-                            int z = (i % zW) + 1;
-                            int index = parameters.GetIndex(x, z);
-                            CalculateNeighboursBody<LeftRightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            options.StepTask();
-                        });
-                        break;
-                    }
-                    case 5:
-                    {
-                        Parallel.For(1, xM, x =>
-                        {
-                            int z = zM;
-                            int index = parameters.GetIndex(x, z);
-                            CalculateNeighboursBody<LeftRightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            options.StepTask();
-                        });
-                        break;
-                    }
-                    case 6:
-                    {
-                        int x = xM;
-                        int z = 0;
-                        int index = parameters.GetIndex(x, z);
-                        CalculateNeighboursBody<LeftForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                        options.StepTask();
-                        break;
-                    }
-                    case 7:
-                    {
-                        Parallel.For(1, zM, z =>
-                        {
-                            int x = xM;
-                            int index = parameters.GetIndex(x, z);
-                            CalculateNeighboursBody<LeftForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                            options.StepTask();
-                        });
-                        break;
-                    }
-                    case 8:
-                    {
-                        int x = xM;
-                        int z = zM;
-                        int index = parameters.GetIndex(x, z);
-                        CalculateNeighboursBody<LeftBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
-                        options.StepTask();
-                        break;
-                    }
                 }
+                else if (x != xM)
+                {
+                    if (z == 0)
+                        CalculateNeighboursBody<LeftRightForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    else if (z != zM)
+                        CalculateNeighboursBody<LeftRightForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    else
+                        CalculateNeighboursBody<LeftRightBackwardIncrement>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                }
+                else
+                {
+                    if (z == 0)
+                        CalculateNeighboursBody<LeftForward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    else if (z != zM)
+                        CalculateNeighboursBody<LeftForwardBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                    else
+                        CalculateNeighboursBody<LeftBackward>(parameters, columns, spans, maxTraversableStep, minTraversableHeight, ref index, x, z);
+                }
+
+                options.StepTask();
             });
         }
 
