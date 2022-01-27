@@ -179,7 +179,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             await timeSlicer.Yield();
                     }
                     ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
-                    information.Dispose();
                 }
                 options.StepPopTask();
             }
@@ -336,7 +335,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         VoxelizeMultithreadSlave(options, voxels, information, i);
                         options.StepTask();
                     });
-                    this.information.Dispose();
                 }
                 options.StepPopTask();
             }
