@@ -8,10 +8,6 @@ using System.Threading.Tasks;
 
 using UnityEngine;
 
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-using StackTrace = System.Diagnostics.StackTrace;
-#endif
-
 namespace Enderlook.Unity.Pathfinding.Generation
 {
     internal sealed class NavigationGenerationOptions
@@ -21,41 +17,35 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private int currentStep;
         private int currentSteps;
 
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-        private int lastSourceLineNumber;
-        private string lastMemberName;
-        private string lastSourceFilePath;
-        private StackTrace lastStackTrace;
-
-        public string GetLastLocation() => $"{lastSourceFilePath}:{lastSourceLineNumber} {lastMemberName}\n{lastStackTrace}";
-#endif
-
         /// <summary>
         /// Voxelization parameters information
         /// </summary>
         public VoxelizationParameters VoxelizationParameters { get; private set; }
 
-        private readonly TimeSlicer timeSlicer = new TimeSlicer();
+        /// <summary>
+        /// Time slicer used.
+        /// </summary>
+        public readonly TimeSlicer TimeSlicer = new TimeSlicer();
 
         /// <inheritdoc cref="TimeSlicer.ExecutionTimeSlice"/>
         public int ExecutionTimeSlice
         {
-            get => (int)(timeSlicer.ExecutionTimeSlice * 1000);
-            set => timeSlicer.ExecutionTimeSlice = value / 1000f;
+            get => (int)(TimeSlicer.ExecutionTimeSlice * 1000);
+            set => TimeSlicer.ExecutionTimeSlice = value / 1000f;
         }
 
         /// <inheritdoc cref="TimeSlicer.ShouldUseTimeSlice"/>
-        public bool ShouldUseTimeSlice => timeSlicer.ShouldUseTimeSlice;
+        public bool ShouldUseTimeSlice => TimeSlicer.ShouldUseTimeSlice;
 
         /// <inheritdoc cref="TimeSlicer.UseMultithreading"/>
         public bool UseMultithreading
         {
-            get => timeSlicer.UseMultithreading;
-            set => timeSlicer.UseMultithreading = value;
+            get => TimeSlicer.UseMultithreading;
+            set => TimeSlicer.UseMultithreading = value;
         }
 
         /// <inheritdoc cref="TimeSlicer.IsCompleted"/>
-        public bool IsCompleted => timeSlicer.IsCompleted;
+        public bool IsCompleted => TimeSlicer.IsCompleted;
 
         /// <summary>
         /// Maximum amount of cells between two floors to be considered neighbours.
@@ -173,304 +163,75 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         /// <inheritdoc cref="TimeSlicer.SetTask(ValueTask)"/>
-        public void SetTask(ValueTask task) => timeSlicer.SetTask(task);
+        public void SetTask(ValueTask task) => TimeSlicer.SetTask(task);
 
         /// <inheritdoc cref="TimeSlicer.AsTask"/>
-        public ValueTask AsTask() => timeSlicer.AsTask();
+        public ValueTask AsTask() => TimeSlicer.AsTask();
 
         public void SetVoxelizationParameters(float voxelSize, Vector3 min, Vector3 max)
             => VoxelizationParameters = VoxelizationParameters.WithVoxelSize(min, max, voxelSize);
 
-#if TRACK_NAVIGATION_GENERATION_LOCATION
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void TrackTrace(string memberName, string sourceFilePath, int sourceLineNumber)
-        {
-            lastMemberName = memberName;
-            lastSourceFilePath = sourceFilePath;
-            lastSourceLineNumber = sourceLineNumber;
-            lastStackTrace = new StackTrace();
-        }
-#endif
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PushTask(int steps, string name
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            , [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
+        public void PushTask(int steps, string name)
         {
             Lock(ref stepLock);
             PushTask_(steps, 0, name);
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-#endif
             Unlock(ref stepLock);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PushTask(int steps, int step, string name
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            , [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
+        public void PushTask(int steps, int step, string name)
         {
             Lock(ref stepLock);
             PushTask_(steps, step, name);
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-#endif
             Unlock(ref stepLock);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StepTask(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            StepTask_<Toggle.No>();
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#else
-            StepTask_<Toggle.Yes>();
-#endif
-        }
+        public void StepTask() => StepTask_<Toggle.Yes>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StepTask(int count
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            , [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            StepTask_<Toggle.No>(count);
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#else
-            StepTask_<Toggle.Yes>(count);
-#endif
-        }
+        public void StepTask(int count) => StepTask_<Toggle.Yes>(count);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PopTask(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
+        public void PopTask()
         {
             Lock(ref stepLock);
             PopTask_();
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-#endif
             Unlock(ref stepLock);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TimeSlicer.Yielder StepTaskAndYield(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            StepTask_<Toggle.No>();
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#else
-            StepTask_<Toggle.Yes>();
-#endif
-            return timeSlicer.Yield();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TimeSlicer.Yielder StepTaskAndYield(int count
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            , [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            StepTask_<Toggle.No>(count);
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#else
-            StepTask_<Toggle.Yes>(count);
-#endif
-            return timeSlicer.Yield();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TimeSlicer.Yielder StepTaskAndYield<TYield>(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            StepTask_<Toggle.No>();
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#else
-            StepTask_<Toggle.Yes>();
-#endif
-            return timeSlicer.Yield<TYield>();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StepPopTask(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
+        public void StepPopTask()
         {
             Lock(ref stepLock);
             PopTask_();
             StepTask_<Toggle.No>();
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-#endif
             Unlock(ref stepLock);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StepPopPushTask(int steps, string name
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            , [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
+        public void StepPopPushTask(int steps, string name)
         {
             Lock(ref stepLock);
             PopTask_();
             StepTask_<Toggle.No>();
             PushTask_(steps, 0, name);
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-#endif
             Unlock(ref stepLock);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StepPopPushTask(int steps, int step, string name
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            , [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
+        public void StepPopPushTask(int steps, int step, string name)
         {
             Lock(ref stepLock);
             PopTask_();
             StepTask_<Toggle.No>();
             PushTask_(steps, step, name);
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-#endif
             Unlock(ref stepLock);
-        }
-
-        /// <inheritdoc cref="TimeSlicer.Yield"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TimeSlicer.Yielder Yield(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#endif
-            return timeSlicer.Yield();
-        }
-
-        /// <inheritdoc cref="TimeSlicer.Yield{TYield}"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TimeSlicer.Yielder Yield<TYield>(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#endif
-            return timeSlicer.Yield<TYield>();
-        }
-
-        /// <inheritdoc cref="TimeSlicer.MustYield"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MustYield(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#endif
-            return timeSlicer.MustYield();
-        }
-
-        /// <inheritdoc cref="TimeSlicer.MustYield{TYield}"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MustYield<TYield>(
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            [CallerMemberName] string memberName = "",
-            [CallerFilePath] string sourceFilePath = "",
-            [CallerLineNumber] int sourceLineNumber = 0
-#endif
-            )
-        {
-#if TRACK_NAVIGATION_GENERATION_LOCATION
-            Lock(ref stepLock);
-            TrackTrace(memberName, sourceFilePath, sourceLineNumber);
-            Unlock(ref stepLock);
-#endif
-            return timeSlicer.MustYield<TYield>();
         }
 
         /// <inheritdoc cref="TimeSlicer.Poll"/>
-        public void Poll() => timeSlicer.Poll();
+        public void Poll() => TimeSlicer.Poll();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PushTask_(int steps, int step, string name)

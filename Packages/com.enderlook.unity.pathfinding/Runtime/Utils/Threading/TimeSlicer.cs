@@ -233,17 +233,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder Yield<TYield>() => Toggle.IsToggled<TYield>() ? Yield() : new Yielder(this, float.NegativeInfinity
-#if UNITY_ASSERTIONS
-                , version
-#endif
-                );
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MustYield() => nextYield > Time.realtimeSinceStartup;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MustYield<TYield>() => Toggle.IsToggled<TYield>() && nextYield > Time.realtimeSinceStartup;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Lock(ref int @lock)

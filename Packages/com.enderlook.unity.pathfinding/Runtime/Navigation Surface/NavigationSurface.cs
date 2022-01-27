@@ -180,6 +180,8 @@ namespace Enderlook.Unity.Pathfinding
                 if (options.Progress != 1 || !options.IsCompleted)
                     ThrowNavigationInProgress();
 
+                TimeSlicer timeSlicer = options.TimeSlicer;
+
                 options.PushTask(4, "Generate Navigation Mesh");
                 {
                     Voxelizer voxelizer = new Voxelizer(options, voxelSize, includeLayers);
@@ -261,7 +263,8 @@ namespace Enderlook.Unity.Pathfinding
                                 {
                                     CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
                                     column.Span<int>(spanToColumn).Fill(i);
-                                    await options.StepTaskAndYield();
+                                    options.StepTask();
+                                    await timeSlicer.Yield();
                                 }
                             }
                             else

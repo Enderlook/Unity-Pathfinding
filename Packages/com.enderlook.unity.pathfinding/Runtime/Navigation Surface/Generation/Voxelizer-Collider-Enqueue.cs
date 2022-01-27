@@ -35,13 +35,15 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         foreach (Collider collider in colliders)
                         {
                             Enqueue(collider);
-                            await options.StepTaskAndYield();
+                            options.StepTask();
+                            await options.TimeSlicer.Yield();
                         }
                         break;
                     case 1:
                         foreach (Collider collider in colliders)
                         {
-                            await options.StepTaskAndYield();
+                            options.StepTask();
+                            await options.TimeSlicer.Yield();
                             if (!collider.isTrigger)
                                 continue;
                             Enqueue(collider);
@@ -50,7 +52,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     case 0:
                         foreach (Collider collider in colliders)
                         {
-                            await options.StepTaskAndYield();
+                            options.StepTask();
+                            await options.TimeSlicer.Yield();
                             if (collider.isTrigger)
                                 continue;
                             Enqueue(collider);

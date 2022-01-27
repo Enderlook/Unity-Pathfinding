@@ -66,6 +66,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         private static async ValueTask<HeightSpan[]> SingleThread<TYield>(HeightColumn[] columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
         {
+            TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
             // TODO: Spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
@@ -80,7 +81,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     {
                         int y = 0;
                         while (Local(ref spans, x, z, ref added, ref y))
-                            await options.Yield();
+                            await timeSlicer.Yield();
                     }
                     else
                     {
@@ -113,7 +114,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         break;
                     SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
 
-                    if (options.MustYield())
+                    if (timeSlicer.MustYield())
                         return true;
                 }
                 return false;

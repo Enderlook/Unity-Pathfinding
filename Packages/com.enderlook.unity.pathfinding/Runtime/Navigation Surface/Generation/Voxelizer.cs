@@ -7,7 +7,6 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -70,6 +69,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
         {
             int count = information.Count;
 
+            TimeSlicer timeSlicer = options.TimeSlicer;
+
             options.PushTask(2, "Calculate Voxelization");
             {
                 options.PushTask(count, "Calculate Bounding Box");
@@ -115,7 +116,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                 pack.Max = Vector3.Max(pack.Max, point);
 
                                 j += unroll;
-                                await options.Yield();
+                                await timeSlicer.Yield();
                             }
                         }
 
@@ -124,7 +125,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         information[i] = pack;
                         min = Vector3.Min(min, pack.Min);
                         max = Vector3.Max(max, pack.Max);
-                        await options.StepTaskAndYield<TYield>();
+
+                        options.StepTask();
+                        if (Toggle.IsToggled<TYield>())
+                            await timeSlicer.Yield();
                     }
                     options.SetVoxelizationParameters(voxelSize, min, max);
                 }
@@ -142,7 +146,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     {
                         InformationElement content = information[i];
                         await Voxelize<TYield>(
-                            options,
+                            timeSlicer,
                             content.Vertices,
                             content.Triangles,
                             voxelsInfo,
@@ -170,7 +174,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             index += parameters.Depth * (parameters.Height - yMaxMultiple);
                         }
 
-                        await options.StepTaskAndYield<TYield>();
+                        options.StepTask();
+                        if (Toggle.IsToggled<TYield>())
+                            await timeSlicer.Yield();
                     }
                     ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
                     information.Dispose();
@@ -348,7 +354,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
             InformationElement content = information[i];
             ValueTask task = Voxelize<Toggle.No>(
-                options,
+                options.TimeSlicer,
                 content.Vertices,
                 content.Triangles,
                 voxelsInfo,

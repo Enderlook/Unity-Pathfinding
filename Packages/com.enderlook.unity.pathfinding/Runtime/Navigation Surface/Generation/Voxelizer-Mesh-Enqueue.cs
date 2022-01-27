@@ -31,10 +31,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
             information.EnsureCapacity(meshFilters.Length);
             options.PushTask(meshFilters.Length, "Enqueuing Meshes");
             {
+                TimeSlicer timeSlicer = options.TimeSlicer;
                 foreach (MeshFilter meshFilter in meshFilters)
                 {
                     Enqueue(meshFilter);
-                    await options.StepTaskAndYield();
+                    options.StepTask();
+                    await timeSlicer.Yield();
                 }
             }
             options.PopTask();

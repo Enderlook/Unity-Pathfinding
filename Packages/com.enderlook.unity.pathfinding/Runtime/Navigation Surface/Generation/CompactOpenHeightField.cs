@@ -144,6 +144,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             VoxelizationParameters parameters = options.VoxelizationParameters;
             options.PushTask(parameters.ColumnsCount, "Initialize");
             {
+                TimeSlicer timeSlicer = options.TimeSlicer;
                 int index = 0;
                 for (int x = 0; x < parameters.Width; x++)
                 {
@@ -160,12 +161,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #endif
                         int i = 0;
                         int y = 0;
-                        while (InitializeWork<TYield>(options, heightField, columns, ref spanBuilder, column, startIndex, ref index, ref i, ref y
+                        while (InitializeWork<TYield>(timeSlicer, heightField, columns, ref spanBuilder, column, startIndex, ref index, ref i, ref y
 #if UNITY_ASSERTIONS
                             , ref wasSolid
 #endif
                         ))
-                            await options.Yield();
+                            await timeSlicer.Yield();
                         options.StepTask();
                     }
                 }
@@ -175,7 +176,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool InitializeWork<TYield>(NavigationGenerationOptions options, in HeightField heightField, HeightColumn[] columns, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, int startIndex, ref int index, ref int i, ref int y
+        private static bool InitializeWork<TYield>(TimeSlicer timeSlicer, in HeightField heightField, HeightColumn[] columns, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, int startIndex, ref int index, ref int i, ref int y
 #if UNITY_ASSERTIONS
             , ref bool wasSolid
 #endif
@@ -254,7 +255,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 else
                     y += span.Height;
 
-                if (options.MustYield<TYield>())
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                     return true;
             }
 
@@ -280,6 +281,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         private static async ValueTask CalculateNeighboursSingleThread<TYield>(NavigationGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
+            TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
             int maxTraversableStep = options.MaximumTraversableStep;
             int minTraversableHeight = options.MaximumTraversableStep;
@@ -292,54 +294,55 @@ namespace Enderlook.Unity.Pathfinding.Generation
             int x = 0;
             {
                 int z = 0;
-                index = await CalculateNeighboursBody<RightForward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                index = await CalculateNeighboursBody<RightForward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 options.StepTask();
                 for (z++; z < zM; z++)
                 {
-                    index = await CalculateNeighboursBody<RightForwardBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                    index = await CalculateNeighboursBody<RightForwardBackward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     options.StepTask();
                 }
                 Debug.Assert(z == zM);
-                index = await CalculateNeighboursBody<RightBackwardIncrement, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                index = await CalculateNeighboursBody<RightBackwardIncrement, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 options.StepTask();
             }
 
             for (x++; x < xM; x++)
             {
                 int z = 0;
-                index = await CalculateNeighboursBody<LeftRightForward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                index = await CalculateNeighboursBody<LeftRightForward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 options.StepTask();
                 for (z = 1; z < zM; z++)
                 {
                     /* This is the true body of this function.
                      * All methods that starts with CalculateNeighboursBody() are actually specializations of this body to avoid branching inside the loop.
                      * TODO: Does this actually improves perfomance? */
-                    index = await CalculateNeighboursBody<LeftRightForwardBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                    index = await CalculateNeighboursBody<LeftRightForwardBackward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     options.StepTask();
                 }
                 Debug.Assert(z == zM);
-                index = await CalculateNeighboursBody<LeftRightBackwardIncrement, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                index = await CalculateNeighboursBody<LeftRightBackwardIncrement, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 options.StepTask();
             }
 
             Debug.Assert(x == xM);
             {
                 int z = 0;
-                index = await CalculateNeighboursBody<LeftForward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                index = await CalculateNeighboursBody<LeftForward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 options.StepTask();
                 for (z++; z < zM; z++)
                 {
-                    index = await CalculateNeighboursBody<LeftForwardBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                    index = await CalculateNeighboursBody<LeftForwardBackward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     options.StepTask();
                 }
                 Debug.Assert(z == zM);
-                await CalculateNeighboursBody<LeftBackward, TYield>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                await CalculateNeighboursBody<LeftBackward, TYield>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 options.StepTask();
             }
         }
 
         private static void CalculateNeighboursMultiThread(NavigationGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
         {
+            TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
             int maxTraversableStep = options.MaximumTraversableStep;
             int minTraversableHeight = options.MaximumTraversableStep;
@@ -357,29 +360,29 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 if (x == 0)
                 {
                     if (z == 0)
-                        task = CalculateNeighboursBody<RightForward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<RightForward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else if (z != zM)
-                        task = CalculateNeighboursBody<RightForwardBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<RightForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else
-                        task = CalculateNeighboursBody<RightBackwardIncrement, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<RightBackwardIncrement, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 }
                 else if (x != xM)
                 {
                     if (z == 0)
-                        task = CalculateNeighboursBody<LeftRightForward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftRightForward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else if (z != zM)
-                        task = CalculateNeighboursBody<LeftRightForwardBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftRightForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else
-                        task = CalculateNeighboursBody<LeftRightBackwardIncrement, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftRightBackwardIncrement, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 }
                 else
                 {
                     if (z == 0)
-                        task = CalculateNeighboursBody<LeftForward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftForward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else if (z != zM)
-                        task = CalculateNeighboursBody<LeftForwardBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                     else
-                        task = CalculateNeighboursBody<LeftBackward, Toggle.No>(options, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
                 }
 
                 Debug.Assert(task.IsCompleted);
@@ -397,7 +400,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private struct RightForwardBackward { }
         private struct RightBackwardIncrement { }
 
-        private static async ValueTask<int> CalculateNeighboursBody<T, TYield>(NavigationGenerationOptions options, VoxelizationParameters parameters, HeightColumn[] columns, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
+        private static async ValueTask<int> CalculateNeighboursBody<T, TYield>(TimeSlicer timeSlicer, VoxelizationParameters parameters, HeightColumn[] columns, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
         {
             Debug.Assert(
                 typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -485,8 +488,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(LeftForward) ||
                     typeof(T) == typeof(LeftBackward))
                 {
-                    while (CalculateNeighboursLoop<Side.Left, TYield>(options, spans, maxTraversableStep, minTraversableHeight, left, ref spans[i]))
-                        await options.Yield();
+                    while (CalculateNeighboursLoop<Side.Left, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, left, ref spans[i]))
+                        await timeSlicer.Yield();
                 }
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -496,8 +499,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(RightBackwardIncrement))
                 {
-                    while (CalculateNeighboursLoop<Side.Right, TYield>(options, spans, maxTraversableStep, minTraversableHeight, right, ref spans[i]))
-                        await options.Yield();
+                    while (CalculateNeighboursLoop<Side.Right, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, right, ref spans[i]))
+                        await timeSlicer.Yield();
                 }
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -507,8 +510,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(LeftForward))
                 {
-                    while (CalculateNeighboursLoop<Side.Forward, TYield>(options, spans, maxTraversableStep, minTraversableHeight, forward, ref spans[i]))
-                        await options.Yield();
+                    while (CalculateNeighboursLoop<Side.Forward, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, forward, ref spans[i]))
+                        await timeSlicer.Yield();
                 }
 
                 if (typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -518,8 +521,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightBackwardIncrement) ||
                     typeof(T) == typeof(LeftBackward))
                 {
-                    while (CalculateNeighboursLoop<Side.Backward, TYield>(options, spans, maxTraversableStep, minTraversableHeight, backward, ref spans[i]))
-                        await options.Yield();
+                    while (CalculateNeighboursLoop<Side.Backward, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, backward, ref spans[i]))
+                        await timeSlicer.Yield();
                 }
             }
 
@@ -527,7 +530,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool CalculateNeighboursLoop<TSide, TYield>(NavigationGenerationOptions options, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span)
+        private static bool CalculateNeighboursLoop<TSide, TYield>(TimeSlicer timeSlicer, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span)
         {
             // Hack: HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
             ref HeightSpanBuilder span_ = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref span);
@@ -536,7 +539,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 if (span_.PresentNeighbour<TSide>(j, spans[j], maxTraversableStep, minTraversableHeight))
                     break;
 
-                if (options.MustYield<TYield>())
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                     return true;
             }
             return false;

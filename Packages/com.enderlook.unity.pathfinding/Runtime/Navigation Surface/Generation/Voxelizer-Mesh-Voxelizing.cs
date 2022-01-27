@@ -21,7 +21,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <param name="voxels">Produced voxels.</param>
         /// <param name="parameters">Parameters of voxelization.</param>
         private static async ValueTask Voxelize<TYield>(
-            NavigationGenerationOptions options,
+            TimeSlicer timeSlicer,
             ReadOnlyArraySlice<UnityEngine.Vector3> vertices,
             ReadOnlyArraySlice<int> triangles,
             ArraySlice<VoxelInfo> voxels,
@@ -69,7 +69,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         {
                             int z = iminZ;
                             while (FillVoxels(triangle, isTriangleFrontFacing, imaxZ, ref index_, x, y, ref z))
-                                await options.Yield();
+                                await timeSlicer.Yield();
                         }
                         else
                         {
@@ -101,7 +101,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         if (Toggle.IsToggled<TYield>())
                         {
                             while (CalculateFront(x, y, ref ifront, ref index_))
-                                await options.Yield();
+                                await timeSlicer.Yield();
                         }
                         else
                         {
@@ -122,7 +122,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         if (Toggle.IsToggled<TYield>())
                         {
                             while (StepForwardToCavity(ref index_, ref iback))
-                                await options.Yield();
+                                await timeSlicer.Yield();
                         }
                         else
                         {
@@ -140,7 +140,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             if (Toggle.IsToggled<TYield>())
                             {
                                 if (StepForwardToBackFace(x, y, ref index_, ref iback))
-                                    await options.Yield();
+                                    await timeSlicer.Yield();
                             }
                             else
                             {
@@ -154,7 +154,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         {
                             int z2 = ifront;
                             while (FillFromIFrontToIBack(x, y, ref index_, iback, ref z2))
-                                await options.Yield();
+                                await timeSlicer.Yield();
                         }
                         else
                         {
@@ -286,7 +286,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     z2++;
                     index_++;
 
-                    if (options.MustYield())
+                    if (timeSlicer.MustYield())
                         return true;
                 }
                 return false;
@@ -392,7 +392,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     index_++;
                     Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
 
-                    if (options.MustYield())
+                    if (timeSlicer.MustYield())
                         return true;
                 }
                 return false;
@@ -434,7 +434,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     z++;
                     index_++;
 
-                    if (options.MustYield())
+                    if (timeSlicer.MustYield())
                         return true;
                 }
                 return false;
@@ -524,7 +524,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     iback++;
                     index_++;
 
-                    if (options.MustYield())
+                    if (timeSlicer.MustYield())
                         return true;
                 }
                 return false;
@@ -654,7 +654,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     ifront++;
                     index_++;
 
-                    if (options.MustYield())
+                    if (timeSlicer.MustYield())
                         return true;
                 }
 
