@@ -109,7 +109,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         int iback = ifront;
 
                         // Step forward to cavity.
-                        for (; iback < parameters.Depth && !voxels[index].Fill; iback++, index_++) { }
+                        for (; iback < parameters.Depth && !voxels[index_].Fill; iback++, index_++) { }
 
                         if (iback >= parameters.Depth)
                             break;
