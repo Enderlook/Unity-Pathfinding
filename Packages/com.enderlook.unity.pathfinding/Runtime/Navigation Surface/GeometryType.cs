@@ -11,16 +11,16 @@ namespace Enderlook.Unity.Pathfinding
         /// <summary>
         /// Collect meshes form the rendered geometry.
         /// </summary>
-        RenderMeshes,
+        RenderMeshes = 1 << 1,
 
         /// <summary>
         /// Collect geometry from the 3D physics non-trigger collision representation.
         /// </summary>
-        PhysicsColliders,
+        PhysicsColliders = 1 << 2,
 
         /// <summary>
-        /// Collect geometry from the 3D physicst trigger collision representation.
+        /// Collect geometry from the 3D physics trigger collision representation.
         /// </summary>
-        PhysicsTriggerColliders,
+        PhysicsTriggerColliders = 1 << 3,
     }
 }

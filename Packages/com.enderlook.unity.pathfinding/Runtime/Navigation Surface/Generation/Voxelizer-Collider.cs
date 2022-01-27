@@ -16,7 +16,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <param name="mode">If <c>0</c>, only enqueue non-trigger colliders. If <c>1</c>, only enqueue trigger colliders. If <c>2</c>, enqueue both colliders.</param>
         public ValueTask<Voxelizer> Enqueue(Collider[] colliders, int mode)
         {
-            information.EnsureCapacity(colliders.Length);
+            meshInformations.EnsureCapacity(colliders.Length);
 
             if (options.ShouldUseTimeSlice)
                 return EnqueueAsync(colliders, mode);
@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         private async ValueTask<Voxelizer> EnqueueAsync(Collider[] colliders, int mode)
         {
-            information.EnsureCapacity(colliders.Length);
+            meshInformations.EnsureCapacity(colliders.Length);
             options.PushTask(colliders.Length, "Enqueuing Colliders");
             {
                 switch (mode)
@@ -45,7 +45,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             options.StepTask();
                             await options.TimeSlicer.Yield();
                             if (!collider.isTrigger)
+                            {
                                 continue;
+                            }
+
                             Enqueue(collider);
                         }
                         break;
@@ -55,7 +58,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             options.StepTask();
                             await options.TimeSlicer.Yield();
                             if (collider.isTrigger)
+                            {
                                 continue;
+                            }
+
                             Enqueue(collider);
                         }
                         break;
@@ -70,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         private ValueTask<Voxelizer> EnqueueSync(Collider[] colliders, int mode)
         {
-            information.EnsureCapacity(colliders.Length);
+            meshInformations.EnsureCapacity(colliders.Length);
             options.PushTask(colliders.Length, "Enqueuing Meshes");
             {
                 switch (mode)
@@ -87,7 +93,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         {
                             options.StepTask();
                             if (!collider.isTrigger)
+                            {
                                 continue;
+                            }
+
                             Enqueue(collider);
                         }
                         break;
@@ -96,7 +105,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         {
                             options.StepTask();
                             if (collider.isTrigger)
+                            {
                                 continue;
+                            }
+
                             Enqueue(collider);
                         }
                         break;
@@ -115,15 +127,15 @@ namespace Enderlook.Unity.Pathfinding.Generation
             if (!gameObject.activeInHierarchy || (includeLayers & 1 << gameObject.layer) == 0)
                 return;
 
+            Transform transform = collider.transform;
+            switch (collider)
+            {
+                case BoxCollider boxCollider:
+                    boxInformations.Add(new BoxInformation(boxCollider.center, boxCollider.size, transform.rotation, transform.lossyScale, transform.position));
+                    break;
+            }
+
             throw new NotImplementedException(); // TODO
-        }
-
-        private void VoxelizeBox(BoxCollider boxCollider)
-        {
-            if (!options.VoxelizationParameters.Bounds.Intersects(boxCollider.bounds))
-                return;
-
-             throw new NotImplementedException(); // TODO
         }
     }
 }

@@ -1,6 +1,9 @@
 ﻿using Enderlook.Mathematics;
+using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
+using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -13,19 +16,16 @@ namespace Enderlook.Unity.Pathfinding.Generation
 {
     internal partial struct Voxelizer
     {
-        /// <summary>
-        /// Voxelices the content of a mesh.
-        /// </summary>
-        /// <param name="vertices">Vertice of the mesh.</param>
-        /// <param name="triangles">Indexes from <paramref name="vertices"/> that forms the triangles of the mesh.</param>
-        /// <param name="voxels">Produced voxels.</param>
-        /// <param name="parameters">Parameters of voxelization.</param>
-        private static async ValueTask Voxelize<TYield>(
+        private static async ValueTask VoxelizeMesh<TYield, TInterlock>(
             TimeSlicer timeSlicer,
             ReadOnlyArraySlice<UnityEngine.Vector3> vertices,
             ReadOnlyArraySlice<int> triangles,
             ArraySlice<VoxelInfo> voxels,
-            VoxelizationParameters parameters)
+            VoxelizationParameters parameters,
+            UnityEngine.Vector3 min,
+            UnityEngine.Vector3 max,
+            ArraySlice<bool> destination)
+
         {
             Debug.Assert(voxels.Length >= parameters.VoxelsCount);
 
@@ -46,17 +46,17 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 bool isTriangleFrontFacing = Vector3.Dot(cross, Vector3.UnitZ) <= 0f;
                 BoundingBox<Vector3> triangleBounds = triangle.BoundingBox();
 
-                Vector3 min = triangleBounds.Min - minAnchor;
-                Vector3 max = triangleBounds.Max - minAnchor;
+                Vector3 triangleMin = triangleBounds.Min - minAnchor;
+                Vector3 triangleMax = triangleBounds.Max - minAnchor;
 
                 // Find triangle AABB, select a sub grid.
                 // Note: Maybe Mathf.FloorToInt and Mathf.CeilToInt should be replaced with Mathf.RoundToInt(...).
-                int iminX = Mathf.Clamp(Mathf.FloorToInt(min.X / parameters.VoxelSize), 0, parameters.Width - 1);
-                int iminY = Mathf.Clamp(Mathf.FloorToInt(min.Y / parameters.VoxelSize), 0, parameters.Height - 1);
-                int iminZ = Mathf.Clamp(Mathf.FloorToInt(min.Z / parameters.VoxelSize), 0, parameters.Depth - 1);
-                int imaxX = Mathf.Clamp(Mathf.CeilToInt(max.X / parameters.VoxelSize), 0, parameters.Width - 1);
-                int imaxY = Mathf.Clamp(Mathf.CeilToInt(max.Y / parameters.VoxelSize), 0, parameters.Height - 1);
-                int imaxZ = Mathf.Clamp(Mathf.CeilToInt(max.Z / parameters.VoxelSize), 0, parameters.Depth - 1);
+                int iminX = Mathf.Clamp(Mathf.FloorToInt(triangleMin.X / parameters.VoxelSize), 0, parameters.Width - 1);
+                int iminY = Mathf.Clamp(Mathf.FloorToInt(triangleMin.Y / parameters.VoxelSize), 0, parameters.Height - 1);
+                int iminZ = Mathf.Clamp(Mathf.FloorToInt(triangleMin.Z / parameters.VoxelSize), 0, parameters.Depth - 1);
+                int imaxX = Mathf.Clamp(Mathf.CeilToInt(triangleMax.X / parameters.VoxelSize), 0, parameters.Width - 1);
+                int imaxY = Mathf.Clamp(Mathf.CeilToInt(triangleMax.Y / parameters.VoxelSize), 0, parameters.Height - 1);
+                int imaxZ = Mathf.Clamp(Mathf.CeilToInt(triangleMax.Z / parameters.VoxelSize), 0, parameters.Depth - 1);
 
                 int index_ = parameters.GetIndex(iminX, iminY, iminZ);
                 int yIndexIncrease = parameters.Depth - imaxZ + iminZ - 1;
@@ -143,7 +143,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             // Step forward to back face.
                             if (Toggle.IsToggled<TYield>())
                             {
-                                if (StepForwardToBackFace(x, y, ref indexBack, ref iback))
+                                while (StepForwardToBackFace(x, y, ref indexBack, ref iback))
                                     await timeSlicer.Yield();
                             }
                             else
@@ -173,6 +173,39 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         z = iback;
                     }
                     baseIndex += parameters.Depth;
+                }
+            }
+
+            {
+                CalculateMultiplesVolumeIndexes(min, max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
+
+                int index = parameters.Depth * (parameters.Height * xMinMultiple);
+                for (int x = xMinMultiple; x < xMaxMultiple; x++)
+                {
+                    index += parameters.Depth * yMinMultiple;
+                    for (int y = yMinMultiple; y < yMaxMultiple; y++)
+                    {
+                        index += zMinMultiple;
+                        for (int z = zMinMultiple; z < zMaxMultiple; z++, index++)
+                        {
+                            Debug.Assert(index == parameters.GetIndex(x, y, z));
+                            if (voxels[index].Fill)
+                            {
+                                if (Toggle.IsToggled<TInterlock>())
+                                    // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                                    // During the construction of this array we already reserved an additional space at the end to prevent
+                                    // modifying undefined memory in case of setting the last used element of the voxel.
+                                    // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+                                    InterlockedOr(ref Unsafe.As<bool, int>(ref destination[index]), 1);
+                                else
+                                    destination[index] = true;
+                            }
+                            if (Toggle.IsToggled<TYield>())
+                                await timeSlicer.Yield();
+                        }
+                        index += parameters.Depth - zMaxMultiple;
+                    }
+                    index += parameters.Depth * (parameters.Height - yMaxMultiple);
                 }
             }
 
@@ -678,6 +711,58 @@ namespace Enderlook.Unity.Pathfinding.Generation
             else
                 voxel.Front &= isTriangleFrontFacing;
             voxel.Fill = true;
+        }
+
+        private sealed class VoxelizeMeshes_MultiThread
+        {
+            private readonly Action<int> action;
+            private NavigationGenerationOptions options;
+            private ArraySlice<MeshInformation> list;
+            private ArraySlice<bool> voxels;
+
+            public VoxelizeMeshes_MultiThread() => action = Process;
+
+            public static void Calculate(NavigationGenerationOptions options, ArraySlice<bool> voxels, ArraySlice<MeshInformation> list)
+            {
+                ObjectPool<VoxelizeMeshes_MultiThread> pool = ObjectPool<VoxelizeMeshes_MultiThread>.Shared;
+                VoxelizeMeshes_MultiThread instance = pool.Rent();
+                {
+                    instance.options = options;
+                    instance.voxels = voxels;
+                    instance.list = list;
+
+                    Parallel.For(0, list.Length, instance.action);
+
+                    instance.options = default;
+                    instance.voxels = default;
+                    instance.list = default;
+                }
+                pool.Return(instance);
+            }
+
+            private void Process(int index)
+            {
+                VoxelizationParameters parameters = options.VoxelizationParameters;
+                ArrayPool<VoxelInfo> shared = ArrayPool<VoxelInfo>.Shared;
+                VoxelInfo[] voxelsInfo = shared.Rent(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)));
+                Array.Clear(voxelsInfo, 0, parameters.VoxelsCount);
+
+                MeshInformation content = list[index];
+                ValueTask task = VoxelizeMesh<Toggle.No, Toggle.Yes>(
+                    options.TimeSlicer,
+                    content.Vertices,
+                    content.Triangles,
+                    voxelsInfo,
+                    parameters,
+                    content.Min,
+                    content.Max,
+                    voxels);
+                Debug.Assert(task.IsCompleted);
+                content.Dispose();
+
+                shared.Return(voxelsInfo);
+                options.StepTask();
+            }
         }
 
         /// <summary>

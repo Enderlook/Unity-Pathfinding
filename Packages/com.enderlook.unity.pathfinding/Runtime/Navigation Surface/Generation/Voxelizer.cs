@@ -1,6 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Pools;
-using Enderlook.Unity.Jobs;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
@@ -21,7 +20,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
     {
         private readonly NavigationGenerationOptions options;
         private List<Vector3> vertices;
-        private RawPooledList<InformationElement> information;
+        private RawPooledList<MeshInformation> meshInformations;
+        private RawPooledList<BoxInformation> boxInformations;
         private float voxelSize;
         private LayerMask includeLayers;
         private bool[] voxels;
@@ -40,7 +40,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
             this.options = options;
             this.voxelSize = voxelSize;
             this.includeLayers = includeLayers;
-            information = RawPooledList<InformationElement>.Create();
+            meshInformations = RawPooledList<MeshInformation>.Create();
+            boxInformations = RawPooledList<BoxInformation>.Create();
             vertices = ObjectPool<List<Vector3>>.Shared.Rent();
             voxels = null;
         }
@@ -48,347 +49,201 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <summary>
         /// Voxelizes all enqueued meshes.
         /// </summary>
-        public ValueTask<Voxelizer> Process()
+        public async ValueTask<Voxelizer> Process()
         {
-            if (information.Count == 0)
+            vertices.Clear();
+            ObjectPool<List<Vector3>>.Shared.Return(vertices);
+            vertices = default;
+
+            int meshesCount = meshInformations.Count;
+            int boxesCount = boxInformations.Count;
+            int informationsTypesCount = (meshesCount > 0 ? 1 : 0) + (boxesCount > 0 ? 1 : 0);
+
+            NavigationGenerationOptions options = this.options;
+            if (informationsTypesCount == 0)
             {
                 options.SetVoxelizationParameters(0, default, default);
                 voxels = ArrayPool<bool>.Shared.Rent(0);
-                return new ValueTask<Voxelizer>(this);
+                return this;
             }
 
-            if (options.UseMultithreading && information.Count > 1)
-                return ProcessMultiThread();
-            else if (options.ShouldUseTimeSlice)
-                return ProcessSingleThread<Toggle.Yes>();
-            else
-                return ProcessSingleThread<Toggle.No>();
-        }
-
-        private async ValueTask<Voxelizer> ProcessSingleThread<TYield>()
-        {
-            int count = information.Count;
-
             TimeSlicer timeSlicer = options.TimeSlicer;
-
             options.PushTask(2, "Calculate Voxelization");
             {
-                options.PushTask(count, "Calculate Bounding Box");
+                options.PushTask(informationsTypesCount, "Generating Bounding Box");
                 {
                     Vector3 min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
                     Vector3 max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
-                    for (int i = 0; i < count; i++)
+
+                    if (meshesCount > 0)
                     {
-                        InformationElement pack = information[i];
-                        int j = 0;
-                        if (Toggle.IsToggled<TYield>())
+                        if (options.UseMultithreading)
+                            CalculateMeshesBounds_MultiThread.Calculate(options, meshInformations, ref min, ref max);
+                        else
                         {
-                            const int unroll = 4;
-                            int total = (pack.Vertices.Length / unroll) * unroll;
-                            for (; j < total;)
+                            options.PushTask(meshesCount, "Calculate Bounding Box of Box Colliders");
                             {
-                                int k = j + 0;
-                                Vector3 point = pack.Vertices[k];
-                                point = (pack.Rotation * Vector3.Scale(point, pack.LocalScale)) + pack.WorldPosition; // Equivalent of transform.TransformPoint(Vector3).
-                                pack.Vertices[k] = point;
-                                pack.Min = Vector3.Min(pack.Min, point);
-                                pack.Max = Vector3.Max(pack.Max, point);
-
-                                k = j + 1;
-                                point = pack.Vertices[k];
-                                point = (pack.Rotation * Vector3.Scale(point, pack.LocalScale)) + pack.WorldPosition;
-                                pack.Vertices[k] = point;
-                                pack.Min = Vector3.Min(pack.Min, point);
-                                pack.Max = Vector3.Max(pack.Max, point);
-
-                                k = j + 2;
-                                point = pack.Vertices[k];
-                                point = (pack.Rotation * Vector3.Scale(point, pack.LocalScale)) + pack.WorldPosition;
-                                pack.Vertices[k] = point;
-                                pack.Min = Vector3.Min(pack.Min, point);
-                                pack.Max = Vector3.Max(pack.Max, point);
-
-                                k = j + 3;
-                                point = pack.Vertices[k];
-                                point = (pack.Rotation * Vector3.Scale(point, pack.LocalScale)) + pack.WorldPosition;
-                                pack.Vertices[k] = point;
-                                pack.Min = Vector3.Min(pack.Min, point);
-                                pack.Max = Vector3.Max(pack.Max, point);
-
-                                j += unroll;
-                                await timeSlicer.Yield();
+                                int i = 0;
+                                int j = 0;
+                                if (options.ShouldUseTimeSlice)
+                                {
+                                    while (CalculateMeshesBounds_SingleThread<Toggle.Yes>(ref i, ref j, ref min, ref max))
+                                        await timeSlicer.Yield();
+                                }
+                                else
+                                {
+                                    bool value = CalculateMeshesBounds_SingleThread<Toggle.No>(ref i, ref j, ref min, ref max);
+                                    Debug.Assert(!value);
+                                }
                             }
+                            options.StepPopTask();
                         }
-
-                        CalculateBounds(ref pack, j);
-
-                        information[i] = pack;
-                        min = Vector3.Min(min, pack.Min);
-                        max = Vector3.Max(max, pack.Max);
-
-                        options.StepTask();
-                        if (Toggle.IsToggled<TYield>())
-                            await timeSlicer.Yield();
                     }
+
+                    if (boxesCount > 0)
+                    {
+                        if (options.UseMultithreading)
+                            CalculateBoxesBounds_MultiThread.Calculate(options, boxInformations, ref min, ref max);
+                        else
+                        {
+                            options.PushTask(boxesCount, "Calculate Bounding Box of Mesh Renderers");
+                            {
+                                int i = 0;
+                                if (options.ShouldUseTimeSlice)
+                                {
+                                    while (CalculateBoxesBounds_SingleThread<Toggle.Yes>(ref i, ref min, ref max))
+                                        await timeSlicer.Yield();
+                                }
+                                else
+                                {
+                                    bool value = CalculateBoxesBounds_SingleThread<Toggle.No>(ref i, ref min, ref max);
+                                    Debug.Assert(!value);
+                                }
+                            }
+                            options.StepPopTask();
+                        }
+                    }
+
                     options.SetVoxelizationParameters(voxelSize, min, max);
                 }
                 options.StepPopTask();
 
-                options.PushTask(count, "Voxelizing Meshes");
+                options.PushTask(informationsTypesCount, "Voxelizing");
                 {
-                    VoxelizationParameters parameters = options.VoxelizationParameters;
-                    int voxelsCount = parameters.VoxelsCount;
-                    voxels = ArrayPool<bool>.Shared.Rent(voxelsCount);
-                    Array.Clear(voxels, 0, voxelsCount);
-                    VoxelInfo[] voxelsInfo = ArrayPool<VoxelInfo>.Shared.Rent(voxelsCount);
-                    Array.Clear(voxelsInfo, 0, voxelsCount);
-                    for (int i = 0; i < count; i++)
+                    int voxelsCount = options.VoxelizationParameters.VoxelsCount;
+                    this.voxels = ArrayPool<bool>.Shared.Rent(voxelsCount);
+                    Array.Clear(this.voxels, 0, voxelsCount);
+                    ArraySlice<bool> voxels = new ArraySlice<bool>(this.voxels, voxelsCount);
+
+                    if (meshesCount > 0)
                     {
-                        InformationElement content = information[i];
-                        await Voxelize<TYield>(
-                            timeSlicer,
-                            content.Vertices,
-                            content.Triangles,
-                            voxelsInfo,
-                            parameters
-                        );
-                        content.Dispose();
-
-                        CalculateMultiplesVolumeIndexes(content.Min, content.Max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
-
-                        int index = parameters.Depth * (parameters.Height * xMinMultiple);
-                        for (int x = xMinMultiple; x < xMaxMultiple; x++)
+                        options.PushTask(meshesCount, "Voxelizing Mesh Renderers");
                         {
-                            index += parameters.Depth * yMinMultiple;
-                            for (int y = yMinMultiple; y < yMaxMultiple; y++)
+                            if (options.UseMultithreading)
+                                VoxelizeMeshes_MultiThread.Calculate(options, voxels, meshInformations);
+                            else
                             {
-                                index += zMinMultiple;
-                                for (int z = zMinMultiple; z < zMaxMultiple; z++, index++)
+                                int count = meshInformations.Count;
+                                VoxelizationParameters parameters = options.VoxelizationParameters;
+                                VoxelInfo[] voxelsInfo = ArrayPool<VoxelInfo>.Shared.Rent(voxelsCount);
+                                Array.Clear(voxelsInfo, 0, voxelsCount);
+                                if (options.ShouldUseTimeSlice)
                                 {
-                                    Debug.Assert(index == parameters.GetIndex(x, y, z));
-                                    voxels[index] |= voxelsInfo[index].Fill;
-                                    voxelsInfo[index] = default;
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        MeshInformation content = meshInformations[i];
+                                        await VoxelizeMesh<Toggle.Yes, Toggle.No>(
+                                            timeSlicer,
+                                            content.Vertices,
+                                            content.Triangles,
+                                            voxelsInfo,
+                                            parameters,
+                                            content.Min,
+                                            content.Max,
+                                            voxels
+                                        );
+                                        content.Dispose();
+                                        options.StepTask();
+                                        await timeSlicer.Yield();
+                                    }
                                 }
-                                index += parameters.Depth - zMaxMultiple;
-                            }
-                            index += parameters.Depth * (parameters.Height - yMaxMultiple);
-                        }
-
-                        options.StepTask();
-                        if (Toggle.IsToggled<TYield>())
-                            await timeSlicer.Yield();
-                    }
-                    ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
-                }
-                options.StepPopTask();
-            }
-            options.PopTask();
-            return this;
-        }
-
-        private static void CalculateBounds(ref InformationElement pack, int j)
-        {
-            // Stores values in the stack to reduce memory reading access
-            Quaternion rotation = pack.Rotation;
-            Vector3 localScale = pack.LocalScale;
-            Vector3 worldPosition = pack.WorldPosition;
-            Vector3 min = pack.Min;
-            Vector3 max = pack.Max;
-
-            ref Vector3 current = ref pack.Vertices[j];
-            ref Vector3 end = ref Unsafe.Add(ref pack.Vertices[pack.Vertices.Length - 1], 1);
-            while (Unsafe.IsAddressLessThan(ref current, ref end))
-            {
-                Debug.Assert(current == pack.Vertices[j]);
-                current = (rotation * Vector3.Scale(current, localScale)) + worldPosition; // Equivalent of transform.TransformPoint(Vector3).
-                min = Vector3.Min(min, current);
-                max = Vector3.Max(max, current);
-                current = ref Unsafe.Add(ref current, 1);
-#if UNITY_ASSERTIONS
-                j++;
-                #endif
-            }
-            pack.Min = min;
-            pack.Max = max;
-        }
-
-        private static void CalculateMultiplesVolumeIndexes(
-            Vector3 min, Vector3 max,
-            in VoxelizationParameters parameters,
-            out int xMinMultiple, out int yMinMultiple, out int zMinMultiple,
-            out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple)
-        {
-            // Fit bounds to global resolution.
-            xMinMultiple = Mathf.FloorToInt(min.x / parameters.VoxelSize);
-            yMinMultiple = Mathf.FloorToInt(min.y / parameters.VoxelSize);
-            zMinMultiple = Mathf.FloorToInt(min.z / parameters.VoxelSize);
-            xMaxMultiple = Mathf.CeilToInt(max.x / parameters.VoxelSize);
-            yMaxMultiple = Mathf.CeilToInt(max.y / parameters.VoxelSize);
-            zMaxMultiple = Mathf.CeilToInt(max.z / parameters.VoxelSize);
-
-            // Fix offset
-            xMinMultiple += parameters.Width / 2;
-            yMinMultiple += parameters.Height / 2;
-            zMinMultiple += parameters.Depth / 2;
-            xMaxMultiple += parameters.Width / 2;
-            yMaxMultiple += parameters.Height / 2;
-            zMaxMultiple += parameters.Depth / 2;
-
-            // Clamp values because a part of the mesh may be outside the voxelization area.
-            xMinMultiple = Mathf.Max(xMinMultiple, 0);
-            yMinMultiple = Mathf.Max(yMinMultiple, 0);
-            zMinMultiple = Mathf.Max(zMinMultiple, 0);
-            xMaxMultiple = Mathf.Min(xMaxMultiple, parameters.Width);
-            yMaxMultiple = Mathf.Min(yMaxMultiple, parameters.Height);
-            zMaxMultiple = Mathf.Min(zMaxMultiple, parameters.Depth);
-        }
-
-        private async ValueTask<Voxelizer> ProcessMultiThread()
-        {
-            NavigationGenerationOptions options = this.options;
-            RawPooledList<InformationElement> information = this.information;
-            int count = information.Count;
-            options.PushTask(2, "Calculate Voxelization");
-            {
-                options.PushTask(2, "Calculate Bounding Box");
-                {
-                    options.PushTask(count, "Calculate Individual Bounding Boxes");
-                    {
-                        Parallel.For(0, count, i =>
-                        {
-                            CalculateBounds(ref information[i], 0);
-                            options.StepTask();
-                        });
-                    }
-                    options.StepPopTask();
-
-                    // The overhead of multithreading here may not be worthly, so we check the amount of work before using it.
-                    if (count > 5000) // TODO: Research a better threshold.
-                    {
-                        IndexPartitioner partitioner = new IndexPartitioner(0, count);
-                        int doublePartsCount = partitioner.PartsCount * 2;
-
-                        options.PushTask(count, "Merging Individual Bounding Boxes");
-                        {
-                            // TODO: Should we pool this allocation?
-                            StrongBox<(Vector3 min, Vector3 max)> box = new StrongBox<(Vector3 min, Vector3 max)>((
-                                new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity),
-                                new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity)
-                                ));
-
-                            Parallel.For(0, partitioner.PartsCount, i =>
-                            {
-                                (int fromInclusive, int toExclusive) tuple = partitioner[i];
-                                Vector3 min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
-                                Vector3 max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
-                                for (int j = tuple.fromInclusive; j < tuple.toExclusive; j++)
+                                else
                                 {
-                                    InformationElement pack = information[j];
-                                    min = Vector3.Min(min, pack.Min);
-                                    max = Vector3.Max(max, pack.Max);
+                                    Local(meshInformations);
+
+                                    void Local(ArraySlice<MeshInformation> list)
+                                    {
+                                        for (int i = 0; i < count; i++)
+                                        {
+                                            MeshInformation content = list[i];
+                                            ValueTask task = VoxelizeMesh<Toggle.No, Toggle.No>(
+                                                timeSlicer,
+                                                content.Vertices,
+                                                content.Triangles,
+                                                voxelsInfo,
+                                                parameters,
+                                            content.Min,
+                                            content.Max,
+                                                voxels
+                                            );
+                                            Debug.Assert(task.IsCompleted);
+                                            content.Dispose();
+                                            options.StepTask();
+                                        }
+                                    }
+                                }
+                                ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
+                            }
+                            meshInformations.Dispose();
+                        }
+                        options.StepPopTask();
+                    }
+
+                    if (boxesCount > 0)
+                    {
+                        options.PushTask(boxesCount, "Voxelizing Box Colliders");
+                        {
+                            if (options.UseMultithreading)
+                                VoxelizeBoxes_MultiThread.Calculate(options, voxels, boxInformations);
+                            else if (options.ShouldUseTimeSlice)
+                            {
+                                for (int i = 0; i < boxesCount; i++)
+                                {
+                                    if (VoxelizeBoxClosure.ShouldVoxelize(options, boxInformations[i], out VoxelizeBoxClosure closure))
+                                    {
+                                        while (closure.VoxelizeBox<Toggle.No, Toggle.Yes>(options, voxels))
+                                            await timeSlicer.Yield();
+                                    }
                                     options.StepTask();
                                 }
-
-                                lock (box)
-                                {
-                                    (Vector3 min, Vector3 max) value_ = box.Value;
-                                    value_.min = Vector3.Max(value_.min, min);
-                                    value_.max = Vector3.Max(value_.max, max);
-                                    box.Value = value_;
-                                }
-                            });
-
-                            (Vector3 min, Vector3 max) value = box.Value;
-                            options.SetVoxelizationParameters(voxelSize, value.min, value.max);
-                        }
-                        options.StepPopTask();
-                    }
-                    else
-                    {
-                        options.PushTask(count, "Merging Individual Bounding Boxes");
-                        {
-                            Vector3 min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
-                            Vector3 max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
-                            for (int i = 0; i < count; i++)
-                            {
-                                InformationElement pack = information[i];
-                                min = Vector3.Min(min, pack.Min);
-                                max = Vector3.Max(max, pack.Max);
-                                options.StepTask();
                             }
-                            options.SetVoxelizationParameters(voxelSize, min, max);
+                            else
+                            {
+                                Local(options, boxInformations);
+
+                                void Local(NavigationGenerationOptions options_, ArraySlice<BoxInformation> list)
+                                {
+                                    for (int i = 0; i < list.Length; i++)
+                                    {
+                                        if (VoxelizeBoxClosure.ShouldVoxelize(options_, list[i], out VoxelizeBoxClosure closure))
+                                        {
+                                            bool value = closure.VoxelizeBox<Toggle.No, Toggle.Yes>(options_, voxels);
+                                            Debug.Assert(!value);
+                                        }
+                                        options_.StepTask();
+                                    }
+                                }
+                            }
+                            boxInformations.Dispose();
                         }
                         options.StepPopTask();
                     }
-                }
-                options.StepPopTask();
-
-                VoxelizationParameters parameters = options.VoxelizationParameters;
-                int voxelsCount = parameters.VoxelsCount;
-                this.voxels = ArrayPool<bool>.Shared.Rent(voxelsCount + (sizeof(int) / sizeof(bool)));
-                Array.Clear(this.voxels, 0, voxelsCount);
-                bool[] voxels = this.voxels;
-                options.PushTask(information.Count, "Voxelizing Meshes");
-                {
-                    Parallel.For(0, information.Count, i =>
-                    {
-                        VoxelizeMultithreadSlave(options, voxels, information, i);
-                        options.StepTask();
-                    });
                 }
                 options.StepPopTask();
             }
             options.PopTask();
+
             return this;
-        }
-
-        private static void VoxelizeMultithreadSlave(NavigationGenerationOptions options, bool[] source, RawPooledList<InformationElement> information, int i)
-        {
-            InformationElement pack = information[i];
-
-            VoxelizationParameters parameters = options.VoxelizationParameters;
-            VoxelInfo[] voxelsInfo = ArrayPool<VoxelInfo>.Shared.Rent(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)));
-            Array.Clear(voxelsInfo, 0, parameters.VoxelsCount);
-
-            InformationElement content = information[i];
-            ValueTask task = Voxelize<Toggle.No>(
-                options.TimeSlicer,
-                content.Vertices,
-                content.Triangles,
-                voxelsInfo,
-                parameters
-            );
-            Debug.Assert(task.IsCompleted);
-            content.Dispose();
-
-            CalculateMultiplesVolumeIndexes(content.Min, content.Max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
-
-            Span<bool> bytes = stackalloc bool[sizeof(int) / sizeof(bool)];
-            ref int int_ = ref Unsafe.As<bool, int>(ref bytes[0]);
-            int index = parameters.Depth * (parameters.Height * xMinMultiple);
-            for (int x = xMinMultiple; x < xMaxMultiple; x++)
-            {
-                index += parameters.Depth * yMinMultiple;
-                for (int y = yMinMultiple; y < yMaxMultiple; y++)
-                {
-                    index += zMinMultiple;
-
-                    for (int z = zMinMultiple; z < zMaxMultiple;)
-                    {
-                        bytes.Clear();
-
-                        Debug.Assert(index == parameters.GetIndex(x, y, z));
-                        bytes[0] = voxelsInfo[index].Fill;
-                        InterlockedOr(ref Unsafe.As<bool, int>(ref source[index]), int_);
-                        index++;
-                        z++;
-                    }
-                    index += parameters.Depth - zMaxMultiple;
-                }
-                index += parameters.Depth * (parameters.Height - yMaxMultiple);
-            }
-
-            ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
         }
 
         public void DrawGizmos()
@@ -422,18 +277,22 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()
         {
-            Debug.Assert(!(vertices is null), "Already disposed.");
-            for (int i = 0; i < information.Count; i++)
-                information[i].Dispose();
-            information.Dispose();
-            vertices.Clear();
-            ObjectPool<List<Vector3>>.Shared.Return(vertices);
-            vertices = null;
+            ArrayPool<bool>.Shared.Return(voxels);
+            voxels = default;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector3 TranslatePoint(Vector3 point, Quaternion rotation, Vector3 lossyScale, Vector3 worldPosition)
+            => (rotation * Vector3.Scale(point, lossyScale)) + worldPosition;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector3 TranslatePoint(Vector3 point, Vector3 offset, Quaternion rotation, Vector3 lossyScale, Vector3 worldPosition)
+            => (rotation * (point + Vector3.Scale(offset, lossyScale))) + worldPosition;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int InterlockedOr(ref int location1, int value)
         {
+            // TODO: On .NET 5 replace this with Interlocked.Or.
             int current = location1;
             while (true)
             {
@@ -443,6 +302,43 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     return oldValue;
                 current = oldValue;
             }
+        }
+
+        private static void CalculateMultiplesVolumeIndexes(
+            Vector3 min, Vector3 max,
+            in VoxelizationParameters parameters,
+            out int xMinMultiple, out int yMinMultiple, out int zMinMultiple,
+            out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple)
+        {
+            // Fit bounds to global resolution.
+            xMinMultiple = Mathf.FloorToInt(min.x / parameters.VoxelSize);
+            yMinMultiple = Mathf.FloorToInt(min.y / parameters.VoxelSize);
+            zMinMultiple = Mathf.FloorToInt(min.z / parameters.VoxelSize);
+            xMaxMultiple = Mathf.CeilToInt(max.x / parameters.VoxelSize);
+            yMaxMultiple = Mathf.CeilToInt(max.y / parameters.VoxelSize);
+            zMaxMultiple = Mathf.CeilToInt(max.z / parameters.VoxelSize);
+
+            // Fix offset
+            xMinMultiple += parameters.Width / 2;
+            yMinMultiple += parameters.Height / 2;
+            zMinMultiple += parameters.Depth / 2;
+            xMaxMultiple += parameters.Width / 2;
+            yMaxMultiple += parameters.Height / 2;
+            zMaxMultiple += parameters.Depth / 2;
+
+            // Clamp values because a part of the mesh may be outside the voxelization area.
+            xMinMultiple = Mathf.Max(xMinMultiple, 0);
+            yMinMultiple = Mathf.Max(yMinMultiple, 0);
+            zMinMultiple = Mathf.Max(zMinMultiple, 0);
+            xMaxMultiple = Mathf.Min(xMaxMultiple, parameters.Width);
+            yMaxMultiple = Mathf.Min(yMaxMultiple, parameters.Height);
+            zMaxMultiple = Mathf.Min(zMaxMultiple, parameters.Depth);
+        }
+
+        private interface IMinMax
+        {
+            Vector3 Min { get; }
+            Vector3 Max { get; }
         }
     }
 }

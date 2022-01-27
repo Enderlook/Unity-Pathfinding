@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Enderlook.Collections.Pooled.LowLevel;
+
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -36,5 +38,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator ArraySlice<T>(T[] source)
             => new ArraySlice<T>(source, source.Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator ArraySlice<T>(RawPooledList<T> source)
+            => new ArraySlice<T>(source.UnderlyingArray, source.Count);
     }
 }
