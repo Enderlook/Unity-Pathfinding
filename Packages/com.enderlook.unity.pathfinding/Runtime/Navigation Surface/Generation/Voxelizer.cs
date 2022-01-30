@@ -379,11 +379,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                         Debug.Assert(index == parameters.GetIndex(x, y, z));
                         bytes[0] = voxelsInfo[index].Fill;
+                        InterlockedOr(ref Unsafe.As<bool, int>(ref source[index]), int_);
                         index++;
                         z++;
-
-                        // TODO: On .NET 5 replace this with Interlocked.Or.
-                        InterlockedOr(ref Unsafe.As<bool, int>(ref source[index]), int_);
                     }
                     index += parameters.Depth - zMaxMultiple;
                 }
