@@ -59,7 +59,7 @@ namespace Enderlook.Unity.Pathfinding
                                 UpdateBar();
                                 root.schedule.Execute(onSchedule);
                             };
-                            onSchedule();
+                            UnityThread.RunNow(onSchedule);
                             await task;
                             EditorApplication.update -= onUpdate;
                         }).ContinueWith(e =>
@@ -72,7 +72,7 @@ namespace Enderlook.Unity.Pathfinding
                                 progressBar.style.display = DisplayStyle.None;
                             });
                             if (e.IsFaulted)
-                                throw e.Exception;
+                                Debug.LogException(e.Exception);
                         });
 
                         void UpdateBar() => progressBar.value = navigationSurface.Progress() * 100;
