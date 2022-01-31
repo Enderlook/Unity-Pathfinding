@@ -308,7 +308,7 @@ namespace Enderlook.Unity.Pathfinding
                     throw;
                 }
 
-                void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException(nameof(voxelSize), "Must be greater than 0.");
+                void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException("Must be greater than 0.", nameof(voxelSize));
                 void ThrowCollectInformationNotChosen() => throw new ArgumentException("Can't be default", nameof(collectInformation));
             }
         }
