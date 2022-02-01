@@ -740,9 +740,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             private void Process(int index)
             {
                 VoxelizationParameters parameters = options.VoxelizationParameters;
-                ArrayPool<VoxelInfo> shared = ArrayPool<VoxelInfo>.Shared;
-                VoxelInfo[] voxelsInfo = shared.Rent(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)));
-                Array.Clear(voxelsInfo, 0, parameters.VoxelsCount);
+                ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)), true);
 
                 MeshInformation content = list[index];
                 ValueTask task = VoxelizeMesh<Toggle.No, Toggle.Yes>(
@@ -754,7 +752,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 Debug.Assert(task.IsCompleted);
                 content.Dispose();
 
-                shared.Return(voxelsInfo);
+                voxelsInfo.Dispose();
                 options.StepTask();
             }
         }

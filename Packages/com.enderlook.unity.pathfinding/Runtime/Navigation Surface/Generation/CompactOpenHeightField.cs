@@ -2,7 +2,6 @@
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -15,61 +14,23 @@ namespace Enderlook.Unity.Pathfinding.Generation
     /// </summary>
     internal readonly struct CompactOpenHeightField : IDisposable
     {
-        private readonly HeightColumn[] columns;
-        private readonly int columnsCount;
-        private readonly HeightSpan[] spans;
-        private readonly int spansCount;
+        private readonly ArraySlice<HeightColumn> columns;
+        private readonly ArraySlice<HeightSpan> spans;
 
         /// <summary>
         /// Columns of the compacted open height field.
         /// </summary>
-        public ReadOnlyArraySlice<HeightColumn> Columns => new ReadOnlyArraySlice<HeightColumn>(columns, columnsCount);
+        public ReadOnlyArraySlice<HeightColumn> Columns => columns;
 
         /// <summary>
         /// Spans of the compacted open height field.
         /// </summary>
-        public ReadOnlyArraySlice<HeightSpan> Spans => new ReadOnlyArraySlice<HeightSpan>(spans, spansCount);
+        public ReadOnlyArraySlice<HeightSpan> Spans => spans;
 
-        /// <summary>
-        /// Amount of spans.
-        /// </summary>
-        public int SpansCount => spansCount;
-
-        /// <summary>
-        /// Amount of columns.
-        /// </summary>
-        public int ColumnsCount => columnsCount;
-
-        private CompactOpenHeightField(HeightColumn[] columns, int columnsCount, HeightSpan[] spans, int spansCount)
+        public CompactOpenHeightField(ArraySlice<HeightColumn> columns, ArraySlice<HeightSpan> spans)
         {
             this.columns = columns;
-            this.columnsCount = columnsCount;
             this.spans = spans;
-            this.spansCount = spansCount;
-        }
-
-        /// <summary>
-        /// Get the column at the specified index.
-        /// </summary>
-        /// <param name="index">Index of the column.</param>
-        /// <returns>Column at the specified index.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref readonly HeightColumn Column(int index)
-        {
-            Debug.Assert(index < columnsCount);
-            return ref columns[index];
-        }
-
-        /// <summary>
-        /// Get the span at the specified index.
-        /// </summary>
-        /// <param name="index">Index of the span.</param>
-        /// <returns>Span at the specified index.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref readonly HeightSpan Span(int index)
-        {
-            Debug.Assert(index < spansCount);
-            return ref spans[index];
         }
 
         /// <summary>
@@ -83,7 +44,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             VoxelizationParameters parameters = options.VoxelizationParameters;
             heightField.DebugAssert(nameof(heightField), parameters, $"{nameof(options)}.{nameof(options.VoxelizationParameters)}");
 
-            HeightColumn[] columns = ArrayPool<HeightColumn>.Shared.Rent(parameters.Width * parameters.Depth);
+            ArraySlice<HeightColumn> columns = new ArraySlice<HeightColumn>(parameters.Width * parameters.Depth, false);
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
             options.PushTask(2, "Compact Open Height Field");
             {
@@ -96,17 +57,17 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 options.PushTask(parameters.ColumnsCount, "Calculate Neighbours");
                 {
                     if (options.UseMultithreading)
-                        CalculateNeighboursMultiThread(options, columns, spans.UnderlyingArray);
+                        CalculateNeighboursMultiThread(options, columns, spans);
                     else if (options.ShouldUseTimeSlice)
-                        await CalculateNeighboursSingleThread<Toggle.Yes>(options, columns, spans.UnderlyingArray);
+                        await CalculateNeighboursSingleThread<Toggle.Yes>(options, columns, spans);
                     else
-                        await CalculateNeighboursSingleThread<Toggle.No>(options, columns, spans.UnderlyingArray);
+                        await CalculateNeighboursSingleThread<Toggle.No>(options, columns, spans);
                 }
                 options.PopTask();
                 options.StepTask();
             }
             options.PopTask();
-            return new CompactOpenHeightField(columns, parameters.Width * parameters.Depth, spans.UnderlyingArray, spans.Count);
+            return new CompactOpenHeightField(columns, spans);
         }
 
         /// <summary>
@@ -116,19 +77,13 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [System.Diagnostics.Conditional("Debug")]
         public void DebugAssert(string parameterName, in VoxelizationParameters parameters, string resolutionParameterName)
         {
-            Debug.Assert(!(columns is null), $"{parameterName} is default");
+            Debug.Assert(!(columns.Array is null), $"{parameterName} is default");
 
-            if (!(columns is null))
+            if (!(columns.Array is null))
             {
-                Debug.Assert(columnsCount == parameters.ColumnsCount, $"{parameterName} is not valid for the passed resolution {resolutionParameterName}.");
+                Debug.Assert(columns.Length == parameters.ColumnsCount, $"{parameterName} is not valid for the passed resolution {resolutionParameterName}.");
 
-                if (unchecked((uint)columnsCount >= (uint)columns.Length))
-                {
-                    Debug.Assert(false, "Index out of range.");
-                    return;
-                }
-
-                for (int i = 0; i < columnsCount; i++)
+                for (int i = 0; i < columns.Length; i++)
                 {
                     if (columns[i].Last > parameters.Height)
                     {
@@ -139,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
         }
 
-        private static async ValueTask<RawPooledList<HeightSpan>> Initialize<TYield>(HeightField heightField, HeightColumn[] columns, RawPooledList<HeightSpan> spanBuilder, NavigationGenerationOptions options)
+        private static async ValueTask<RawPooledList<HeightSpan>> Initialize<TYield>(HeightField heightField, ArraySlice<HeightColumn> columns, RawPooledList<HeightSpan> spanBuilder, NavigationGenerationOptions options)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             options.PushTask(parameters.ColumnsCount, "Initialize");
@@ -176,7 +131,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool InitializeWork<TYield>(TimeSlicer timeSlicer, in HeightField heightField, HeightColumn[] columns, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, int startIndex, ref int index, ref int i, ref int y
+        private static bool InitializeWork<TYield>(TimeSlicer timeSlicer, in HeightField heightField, ArraySlice<HeightColumn> columns, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, int startIndex, ref int index, ref int i, ref int y
 #if UNITY_ASSERTIONS
             , ref bool wasSolid
 #endif
@@ -279,7 +234,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             return false;
         }
 
-        private static async ValueTask CalculateNeighboursSingleThread<TYield>(NavigationGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
+        private static async ValueTask CalculateNeighboursSingleThread<TYield>(NavigationGenerationOptions options, ArraySlice<HeightColumn> columns, ArraySlice<HeightSpan>  spans)
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
@@ -340,7 +295,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
         }
 
-        private static void CalculateNeighboursMultiThread(NavigationGenerationOptions options, HeightColumn[] columns, HeightSpan[] spans)
+        private static void CalculateNeighboursMultiThread(NavigationGenerationOptions options, ArraySlice<HeightColumn> columns, ArraySlice<HeightSpan> spans)
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
@@ -400,7 +355,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private struct RightForwardBackward { }
         private struct RightBackwardIncrement { }
 
-        private static async ValueTask<int> CalculateNeighboursBody<T, TYield>(TimeSlicer timeSlicer, VoxelizationParameters parameters, HeightColumn[] columns, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
+        private static async ValueTask<int> CalculateNeighboursBody<T, TYield>(TimeSlicer timeSlicer, VoxelizationParameters parameters, ArraySlice<HeightColumn> columns, ArraySlice<HeightSpan> spans, int maxTraversableStep, int minTraversableHeight, int index, int x, int z)
         {
             Debug.Assert(
                 typeof(T) == typeof(LeftRightForwardBackward) ||
@@ -530,7 +485,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool CalculateNeighboursLoop<TSide, TYield>(TimeSlicer timeSlicer, HeightSpan[] spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span)
+        private static bool CalculateNeighboursLoop<TSide, TYield>(TimeSlicer timeSlicer, ArraySlice<HeightSpan> spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span)
         {
             // Hack: HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
             ref HeightSpanBuilder span_ = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref span);
@@ -548,8 +503,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()
         {
-            ArrayPool<HeightColumn>.Shared.Return(columns);
-            ArrayPool<HeightSpan>.Shared.Return(spans);
+            columns.Dispose();
+            spans.Dispose();
         }
 
         public void DrawGizmos(in VoxelizationParameters parameters, bool surfaces, bool neightbours, bool volumes)
@@ -630,7 +585,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         Gizmos.DrawWireCube(center_, size);
                     }
 
-                    void Draw2(in VoxelizationParameters parameters_, HeightSpan[] spans, HeightSpan span, int index)
+                    void Draw2(in VoxelizationParameters parameters_, ArraySlice<HeightSpan> spans, HeightSpan span, int index)
                     {
                         if (!neightbours)
                             return;

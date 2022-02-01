@@ -1,6 +1,5 @@
 ﻿using Enderlook.Unity.Pathfinding.Utils;
 
-using System.Buffers;
 using System.Collections.Generic;
 
 using UnityEngine;
@@ -28,16 +27,13 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 LocalScale = localScale;
                 WorldPosition = position;
                 UV = uv;
-                int count = vertices.Count;
-                Vector3[] array = ArrayPool<Vector3>.Shared.Rent(count);
-                vertices.CopyTo(array);
-                Vertices = new ArraySlice<Vector3>(array, count);
+                Vertices = new ArraySlice<Vector3>(vertices.Count, false);
+                vertices.CopyTo(Vertices.Array);
                 Min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
                 Max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
             }
 
-            public void Dispose()
-                => ArrayPool<Vector3>.Shared.Return(Vertices.Array);
+            public void Dispose() => Vertices.Dispose();
         }
     }
 }

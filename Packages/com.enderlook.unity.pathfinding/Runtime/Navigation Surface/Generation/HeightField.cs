@@ -18,8 +18,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
     /// </summary>
     internal readonly struct HeightField : IDisposable
     {
-        private readonly HeightColumn[] columns;
-        private readonly int columnsCount;
+        private readonly ArraySlice<HeightColumn> columns;
         private readonly HeightSpan[] spans;
 
         /// <summary>
@@ -27,13 +26,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// </summary>
         public ReadOnlySpan<HeightColumn> Columns {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => columns.AsSpan(0, columnsCount);
+            get => columns;
         }
 
-        private HeightField(HeightColumn[] columns, int columnsCount, HeightSpan[] spans)
+        public HeightField(ArraySlice<HeightColumn> columns, HeightSpan[] spans)
         {
             this.columns = columns;
-            this.columnsCount = columnsCount;
             this.spans = spans;
         }
 
@@ -49,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             Debug.Assert(voxels.Length >= parameters.VoxelsCount, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(parameters)}.{nameof(parameters.VoxelsCount)}.");
 
             int xzLength = parameters.ColumnsCount;
-            HeightColumn[] columns = ArrayPool<HeightColumn>.Shared.Rent(xzLength);
+            ArraySlice<HeightColumn> columns = new ArraySlice<HeightColumn>(xzLength, false);
             HeightSpan[] spans;
             options.PushTask(parameters.VoxelsCount, "Generating Height Field");
             {
@@ -61,10 +59,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     spans = await SingleThread<Toggle.No>(columns, voxels, options);
             }
             options.PopTask();
-            return new HeightField(columns, xzLength, spans);
+            return new HeightField(columns, spans);
         }
 
-        private static async ValueTask<HeightSpan[]> SingleThread<TYield>(HeightColumn[] columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
+        private static async ValueTask<HeightSpan[]> SingleThread<TYield>(ArraySlice<HeightColumn> columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
@@ -142,7 +140,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.StepTask();
         }
 
-        private static HeightSpan[] MultiThread(HeightColumn[] columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
+        private static HeightSpan[] MultiThread(ArraySlice<HeightColumn> columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             HeightSpan[] spans = ArrayPool<HeightSpan>.Shared.Rent(parameters.VoxelsCount);
@@ -182,7 +180,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <inheritdoc cref="IDisposable.Dispose"/>
         public void Dispose()
         {
-            ArrayPool<HeightColumn>.Shared.Return(columns);
+            columns.Dispose();
             ArrayPool<HeightSpan>.Shared.Return(spans);
         }
 
@@ -193,9 +191,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [System.Diagnostics.Conditional("Debug")]
         public void DebugAssert(string parameterName, in VoxelizationParameters parameters, string resolutionParameterName)
         {
-            Debug.Assert(!(columns is null), $"{parameterName} is default");
-            if (!(columns is null))
-                Debug.Assert(columnsCount == parameters.VoxelsCount, $"{parameterName} is not valid for passed resolution {resolutionParameterName}.");
+            Debug.Assert(!(columns.Array is null), $"{parameterName} is default");
+            if (!(columns.Array is null))
+                Debug.Assert(columns.Length == parameters.VoxelsCount, $"{parameterName} is not valid for passed resolution {resolutionParameterName}.");
         }
 
         public void DrawGizmos(in VoxelizationParameters parameters, bool drawOpen)
@@ -204,7 +202,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             Gizmos.DrawWireCube(parameters.VolumeCenter, parameters.VolumeSize);
             Vector3 offset = parameters.OffsetAtFloor;
 
-            HeightColumn[] columns = this.columns;
+            ArraySlice<HeightColumn> columns = this.columns;
 
             int i = 0;
             for (int x = 0; x < parameters.Width; x++)

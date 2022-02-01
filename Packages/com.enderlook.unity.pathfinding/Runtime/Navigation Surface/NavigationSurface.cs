@@ -249,9 +249,9 @@ namespace Enderlook.Unity.Pathfinding
                         heightField.Dispose();
 
                         int[] spanToColumn;
-                        options.PushTask(compactOpenHeightField.ColumnsCount, "Building Lookup Table");
+                        options.PushTask(compactOpenHeightField.Columns.Length, "Building Lookup Table");
                         {
-                            spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.SpansCount);
+                            spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.Spans.Length);
                             VoxelizationParameters parameters = options.VoxelizationParameters;
                             if (options.UseMultithreading)
                             {
@@ -333,13 +333,13 @@ namespace Enderlook.Unity.Pathfinding
             if (indexes.x >= parameters.Width || indexes.y >= parameters.Height || indexes.z >= parameters.Depth)
                 goto fail;
 
-            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Column(parameters.GetIndex(indexes.x, indexes.z));
+            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[parameters.GetIndex(indexes.x, indexes.z)];
 
             // TODO: This is very error-prone.
 
             for (int i = column.First; i < column.Last; i++)
             {
-                ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Span(i);
+                ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Spans[i];
                 if (span.Floor >= indexes.y)
                 {
                     node = i;
@@ -359,10 +359,10 @@ namespace Enderlook.Unity.Pathfinding
                 for (int z = 0; z < parameters.Depth; z++)
                 {
                     Vector2 position_ = new Vector2(x, z) * parameters.VoxelSize;
-                    column = compactOpenHeightField.Column(j++);
+                    column = compactOpenHeightField.Columns[j++];
                     for (int k = column.First; k < column.Last; k++)
                     {
-                        ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Span(k);
+                        ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Spans[k];
                         Vector3 position__ = new Vector3(position_.x, parameters.VoxelSize * span.Floor, position_.y);
                         Vector3 center = offset + position__;
                         float squaredDistance = (position - center).sqrMagnitude;
@@ -381,13 +381,13 @@ namespace Enderlook.Unity.Pathfinding
 
         Vector3 IGraphLocation<int, Vector3>.ToPosition(int node)
         {
-            Debug.Assert(node >= 0 && node < compactOpenHeightField.SpansCount);
+            Debug.Assert(node >= 0 && node < compactOpenHeightField.Spans.Length);
             int columnIndex = spanToColumn[node];
-            ref readonly CompactOpenHeightField.HeightColumn column = ref compactOpenHeightField.Column(columnIndex);
+            ref readonly CompactOpenHeightField.HeightColumn column = ref compactOpenHeightField.Columns[columnIndex];
             Debug.Assert(node >= column.First && node < column.Last);
             VoxelizationParameters parameters = options.VoxelizationParameters;
             Vector2Int indexes = parameters.From2D(columnIndex);
-            int y = compactOpenHeightField.Span(node).Floor;
+            int y = compactOpenHeightField.Spans[node].Floor;
             Vector3 position = parameters.Min + (new Vector3(indexes.x, y, indexes.y) * parameters.VoxelSize);
             //Debug.Assert(node == ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position));
             return position;
@@ -398,8 +398,8 @@ namespace Enderlook.Unity.Pathfinding
 
         NodesEnumerator IGraphIntrinsic<int, NodesEnumerator>.GetNeighbours(int node)
         {
-            Debug.Assert(node >= 0 && node < compactOpenHeightField.SpansCount);
-            return new NodesEnumerator(compactOpenHeightField.Span(node));
+            Debug.Assert(node >= 0 && node < compactOpenHeightField.Spans.Length);
+            return new NodesEnumerator(compactOpenHeightField.Spans[node]);
         }
 
         float IGraphIntrinsic<int, NodesEnumerator>.GetCost(int from, int to)

@@ -3,7 +3,6 @@ using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -24,12 +23,16 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private RawPooledList<BoxInformation> boxInformations;
         private float voxelSize;
         private LayerMask includeLayers;
-        private bool[] voxels;
+        private ArraySlice<bool> voxels;
 
         /// <summary>
         /// Voxelization result.
         /// </summary>
-        public ReadOnlyArraySlice<bool> Voxels => new ReadOnlyArraySlice<bool>(voxels, options.VoxelizationParameters.VoxelsCount);
+        public ReadOnlyArraySlice<bool> Voxels
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => voxels;
+        }
 
         /// <summary>
         /// Creates a new voxelizer of meshes.
@@ -43,7 +46,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             meshInformations = RawPooledList<MeshInformation>.Create();
             boxInformations = RawPooledList<BoxInformation>.Create();
             vertices = ObjectPool<List<Vector3>>.Shared.Rent();
-            voxels = null;
+            voxels = default;
         }
 
         /// <summary>
@@ -63,7 +66,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             if (informationsTypesCount == 0)
             {
                 options.SetVoxelizationParameters(0, default, default);
-                voxels = ArrayPool<bool>.Shared.Rent(0);
+                voxels = new ArraySlice<bool>(0, false);
                 return this;
             }
 
@@ -131,9 +134,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 options.PushTask(informationsTypesCount, "Voxelizing");
                 {
                     int voxelsCount = options.VoxelizationParameters.VoxelsCount;
-                    this.voxels = ArrayPool<bool>.Shared.Rent(voxelsCount);
-                    Array.Clear(this.voxels, 0, voxelsCount);
-                    ArraySlice<bool> voxels = new ArraySlice<bool>(this.voxels, voxelsCount);
+                    this.voxels = new ArraySlice<bool>(voxelsCount, true);
 
                     if (meshesCount > 0)
                     {
@@ -145,8 +146,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             {
                                 int count = meshInformations.Count;
                                 VoxelizationParameters parameters = options.VoxelizationParameters;
-                                VoxelInfo[] voxelsInfo = ArrayPool<VoxelInfo>.Shared.Rent(voxelsCount);
-                                Array.Clear(voxelsInfo, 0, voxelsCount);
+                                ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(voxelsCount, true);
                                 if (options.ShouldUseTimeSlice)
                                 {
                                     for (int i = 0; i < count; i++)
@@ -166,6 +166,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                 }
                                 else
                                 {
+                                    ArraySlice<bool> voxels = this.voxels;
                                     Local(meshInformations);
 
                                     void Local(ArraySlice<MeshInformation> list)
@@ -186,7 +187,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                         }
                                     }
                                 }
-                                ArrayPool<VoxelInfo>.Shared.Return(voxelsInfo);
+                                voxelsInfo.Dispose();
                             }
                             meshInformations.Dispose();
                         }
@@ -213,6 +214,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             }
                             else
                             {
+                                ArraySlice<bool> voxels = this.voxels;
                                 Local(options, boxInformations);
 
                                 void Local(NavigationGenerationOptions options_, ArraySlice<BoxInformation> list)
@@ -269,11 +271,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
-        public void Dispose()
-        {
-            ArrayPool<bool>.Shared.Return(voxels);
-            voxels = default;
-        }
+        public void Dispose() => voxels.Dispose();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Vector3 TranslatePoint(Vector3 point, Quaternion rotation, Vector3 lossyScale, Vector3 worldPosition)
