@@ -432,7 +432,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
             for (int i = column.First; i < column.Last; i++)
             {
-                // TODO: Should allow yielding here?
                 // TODO: This can be optimized so neighbour spans must not be iterated all the time.
                 // TODO: This may also be optimized to divide the amount of checkings if the result of PresentNeighbour is also shared with the neighbour.
 
