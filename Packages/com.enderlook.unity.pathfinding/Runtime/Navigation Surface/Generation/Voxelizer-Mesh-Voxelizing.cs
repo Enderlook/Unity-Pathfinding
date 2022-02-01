@@ -42,7 +42,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 Vector3 v1 = vertices[triangles[i]].ToNumerics();
                 Triangle<Vector3> triangle = new Triangle<Vector3>(v1, v2, v3);
 
-                Vector3 cross = Vector3.Cross(triangle.Second - triangle.First, triangle.Second - triangle.First);
+                Vector3 cross = Vector3.Cross(triangle.Second - triangle.First, triangle.Third - triangle.First);
                 bool isTriangleFrontFacing = Vector3.Dot(cross, Vector3.UnitZ) <= 0f;
                 BoundingBox<Vector3> triangleBounds = triangle.BoundingBox();
 
@@ -148,7 +148,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             }
                             else
                             {
-                                for (; iback < parameters.Depth && voxels[indexBack].IsBackFace; iback++, indexBack++, Debug.Assert(indexBack == parameters.GetIndex(x, y, iback))) { }
+                                for (; iback < parameters.Depth && voxels[indexBack].IsBackFace; iback++, indexBack++)
+                                    Debug.Assert(indexBack == parameters.GetIndex(x, y, iback));
                             }
                         }
 
