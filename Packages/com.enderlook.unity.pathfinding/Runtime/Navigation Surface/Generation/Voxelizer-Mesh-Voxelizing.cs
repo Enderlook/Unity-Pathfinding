@@ -37,9 +37,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
             for (int i = 0, n = triangles.Length; i < n; i += 3)
             {
                 // Reverse order to avoid range check.
-                Vector3 v3 = Unsafe.As<UnityEngine.Vector3, Vector3>(ref Unsafe.AsRef(vertices[triangles[i + 2]]));
-                Vector3 v2 = Unsafe.As<UnityEngine.Vector3, Vector3>(ref Unsafe.AsRef(vertices[triangles[i + 1]]));
-                Vector3 v1 = Unsafe.As<UnityEngine.Vector3, Vector3>(ref Unsafe.AsRef(vertices[triangles[i]]));
+                Vector3 v3 = vertices[triangles[i + 2]].ToNumerics();
+                Vector3 v2 = vertices[triangles[i + 1]].ToNumerics();
+                Vector3 v1 = vertices[triangles[i]].ToNumerics();
                 Triangle<Vector3> triangle = new Triangle<Vector3>(v1, v2, v3);
 
                 Vector3 cross = Vector3.Cross(triangle.Second - triangle.First, triangle.Second - triangle.First);
