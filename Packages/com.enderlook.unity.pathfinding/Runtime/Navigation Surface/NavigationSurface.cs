@@ -240,10 +240,10 @@ namespace Enderlook.Unity.Pathfinding
                         voxelizer = await voxelizer.Process();
                         options.StepTask();
 
-                        HeightField heightField = await HeightField.Create(voxelizer.Voxels, options);
+                        HeightField heightField = await HeightField.Create(options, voxelizer.Voxels);
                         options.StepTask();
 
-                        CompactOpenHeightField compactOpenHeightField = await CompactOpenHeightField.Create(heightField, options);
+                        CompactOpenHeightField compactOpenHeightField = await CompactOpenHeightField.Create(options, heightField);
                         options.StepTask();
 
                         heightField.Dispose();

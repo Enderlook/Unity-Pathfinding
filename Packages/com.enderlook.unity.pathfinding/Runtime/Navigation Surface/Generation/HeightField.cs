@@ -38,10 +38,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <summary>
         /// Creates a new height field.
         /// </summary>
-        /// <param name="voxels">Voxel information of the height field.</param>
         /// <param name="options">Stores configuration information.</param>
+        /// <param name="voxels">Voxel information of the height field.</param>
         /// <returns>Generated height field.</returns>
-        public static async ValueTask<HeightField> Create(ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
+        public static async ValueTask<HeightField> Create(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             Debug.Assert(voxels.Length >= parameters.VoxelsCount, $"{nameof(voxels)}.{nameof(voxels.Length)} can't be lower than {nameof(parameters)}.{nameof(parameters.VoxelsCount)}.");
@@ -52,17 +52,17 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.PushTask(parameters.VoxelsCount, "Generating Height Field");
             {
                 if (options.UseMultithreading)
-                    spans = MultiThread(columns, voxels, options);
+                    spans = MultiThread(options, voxels, columns);
                 else if (options.ShouldUseTimeSlice)
-                    spans = await SingleThread<Toggle.Yes>(columns, voxels, options);
+                    spans = await SingleThread<Toggle.Yes>(options, voxels, columns);
                 else
-                    spans = await SingleThread<Toggle.No>(columns, voxels, options);
+                    spans = await SingleThread<Toggle.No>(options, voxels, columns);
             }
             options.PopTask();
             return new HeightField(columns, spans);
         }
 
-        private static async ValueTask<HeightSpan[]> SingleThread<TYield>(ArraySlice<HeightColumn> columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
+        private static async ValueTask<HeightSpan[]> SingleThread<TYield>(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
@@ -84,7 +84,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     else
                     {
                         for (int y = 0; y < parameters.Height; y++)
-                            SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans, x, z, ref added, y);
+                            SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans, x, z, ref added, y);
                     }
                     Debug.Assert(index == parameters.GetIndex(x, z));
                     columns[index++] = new HeightColumn(start, spans.Count - start);
@@ -98,19 +98,19 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 {
                     if (y >= parameters.Height)
                         break;
-                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
 
                     if (y >= parameters.Height)
                         break;
-                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
 
                     if (y >= parameters.Height)
                         break;
-                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
 
                     if (y >= parameters.Height)
                         break;
-                    SingleThread_ProcesssVoxel(options, voxels, parameters, ref spans_, x, z, ref added, y++);
+                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
 
                     if (timeSlicer.MustYield())
                         return true;
@@ -120,7 +120,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void SingleThread_ProcesssVoxel(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, VoxelizationParameters parameters, ref RawPooledList<HeightSpan> spans, int x, int z, ref bool added, int y)
+        private static void SingleThread_ProcesssVoxel(NavigationGenerationOptions options, VoxelizationParameters parameters, ReadOnlyArraySlice<bool> voxels, ref RawPooledList<HeightSpan> spans, int x, int z, ref bool added, int y)
         {
             bool isSolid = voxels[parameters.GetIndex(x, y, z)];
             if (!added)
@@ -140,7 +140,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.StepTask();
         }
 
-        private static HeightSpan[] MultiThread(ArraySlice<HeightColumn> columns, ReadOnlyArraySlice<bool> voxels, NavigationGenerationOptions options)
+        private static HeightSpan[] MultiThread(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             HeightSpan[] spans = ArrayPool<HeightSpan>.Shared.Rent(parameters.VoxelsCount);

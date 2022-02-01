@@ -155,10 +155,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                         await VoxelizeMesh<Toggle.Yes, Toggle.No>(
                                             timeSlicer,
                                             parameters,
-                                            content,
-                                            voxelsInfo,
                                             voxels
-                                        );
+,
+                                            content,
+                                            voxelsInfo);
                                         content.Dispose();
                                         options.StepTask();
                                         await timeSlicer.Yield();
@@ -177,10 +177,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                             ValueTask task = VoxelizeMesh<Toggle.No, Toggle.No>(
                                                 timeSlicer,
                                                 parameters,
-                                                content,
-                                                voxelsInfo,
                                                 voxels
-                                            );
+,
+                                                content,
+                                                voxelsInfo);
                                             Debug.Assert(task.IsCompleted);
                                             content.Dispose();
                                             options.StepTask();
@@ -199,7 +199,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         options.PushTask(boxesCount, "Voxelizing Box Colliders");
                         {
                             if (options.UseMultithreading)
-                                VoxelizeBoxes_MultiThread.Calculate(options, boxInformations, voxels);
+                                VoxelizeBoxes_MultiThread.Calculate(options, voxels, boxInformations);
                             else if (options.ShouldUseTimeSlice)
                             {
                                 for (int i = 0; i < boxesCount; i++)

@@ -3,7 +3,6 @@ using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -19,9 +18,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private static async ValueTask VoxelizeMesh<TYield, TInterlock>(
             TimeSlicer timeSlicer,
             VoxelizationParameters parameters,
+            ArraySlice<bool> destination,
             MeshInformation content,
-            ArraySlice<VoxelInfo> voxels,
-            ArraySlice<bool> destination)
+            ArraySlice<VoxelInfo> voxels)
 
         {
             Debug.Assert(voxels.Length >= parameters.VoxelsCount);
@@ -206,121 +205,121 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
             }
 
-            bool FillFromIFrontToIBack(int x, int y, ref int index_, int iback, ref int z2)
+            bool FillFromIFrontToIBack(int x, int y, ref int index, int iback, ref int z2)
             {
                 while (true)
                 {
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (z2 >= iback)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                    voxels[index_].Fill = true;
+                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
+                    voxels[index].Fill = true;
                     z2++;
-                    index_++;
+                    index++;
 
                     if (timeSlicer.MustYield())
                         return true;
@@ -328,105 +327,105 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return false;
             }
 
-            bool StepForwardToBackFace(int x, int y, ref int index_, ref int iback)
+            bool StepForwardToBackFace(int x, int y, ref int index, ref int iback)
             {
                 while (true)
                 {
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
-                    if (iback >= parameters.Depth || !voxels[index_].IsBackFace)
+                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
                         break;
                     iback++;
-                    index_++;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
+                    index++;
+                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
 
                     if (timeSlicer.MustYield())
                         return true;
@@ -434,7 +433,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return false;
             }
 
-            bool FillVoxels(Triangle<Vector3> triangle, bool isTriangleFrontFacing, int imaxZ, ref int index_, int x, int y, ref int z)
+            bool FillVoxels(Triangle<Vector3> triangle, bool isTriangleFrontFacing, int imaxZ, ref int index, int x, int y, ref int z)
             {
                 while (true)
                 {
@@ -442,33 +441,33 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         break;
                     BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
                     z++;
-                    index_++;
+                    index++;
 
                     if (z > imaxZ)
                         break;
                     box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
                     z++;
-                    index_++;
+                    index++;
 
                     if (z > imaxZ)
                         break;
                     box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
                     z++;
-                    index_++;
+                    index++;
 
                     if (z > imaxZ)
                         break;
                     box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
                     z++;
-                    index_++;
+                    index++;
 
                     if (timeSlicer.MustYield())
                         return true;
@@ -476,89 +475,89 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return false;
             }
 
-            bool StepForwardToCavity(ref int index_, ref int iback)
+            bool StepForwardToCavity(ref int index, ref int iback)
             {
                 while (true)
                 {
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
-                    if (iback >= parameters.Depth || voxels[index_].Fill)
+                    if (iback >= parameters.Depth || voxels[index].Fill)
                         break;
                     iback++;
-                    index_++;
+                    index++;
 
                     if (timeSlicer.MustYield())
                         return true;
@@ -566,129 +565,129 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return false;
             }
 
-            bool CalculateFront(int x, int y, ref int ifront, ref int index_)
+            bool CalculateFront(int x, int y, ref int ifront, ref int index)
             {
                 while (true)
                 {
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (ifront >= parameters.Depth)
                         break;
-                    Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index_].IsFrontFace)
+                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+                    if (!voxels[index].IsFrontFace)
                         break;
                     ifront++;
-                    index_++;
+                    index++;
 
                     if (timeSlicer.MustYield())
                         return true;
@@ -699,10 +698,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Voxelize_FillVoxel(VoxelizationParameters parameters, ArraySlice<VoxelInfo> voxels, bool isTriangleFrontFacing, int index_, int x, int y, int z)
+        private static void Voxelize_FillVoxel(VoxelizationParameters parameters, ArraySlice<VoxelInfo> voxels, bool isTriangleFrontFacing, int index, int x, int y, int z)
         {
-            Debug.Assert(index_ == parameters.GetIndex(x, y, z));
-            ref VoxelInfo voxel = ref voxels[index_];
+            Debug.Assert(index == parameters.GetIndex(x, y, z));
+            ref VoxelInfo voxel = ref voxels[index];
             if (!voxel.Fill)
                 voxel.Front = isTriangleFrontFacing;
             else
@@ -746,9 +745,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 ValueTask task = VoxelizeMesh<Toggle.No, Toggle.Yes>(
                     options.TimeSlicer,
                     parameters,
+                    voxels,
                     content,
-                    voxelsInfo,
-                    voxels);
+                    voxelsInfo);
                 Debug.Assert(task.IsCompleted);
                 content.Dispose();
 

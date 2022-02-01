@@ -202,7 +202,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
             public VoxelizeBoxes_MultiThread() => action = Process;
 
-            public static void Calculate(NavigationGenerationOptions options, ArraySlice<BoxInformation> list, ArraySlice<bool> voxels)
+            public static void Calculate(NavigationGenerationOptions options, ArraySlice<bool> voxels, ArraySlice<BoxInformation> list)
             {
                 ObjectPool<VoxelizeBoxes_MultiThread> pool = ObjectPool<VoxelizeBoxes_MultiThread>.Shared;
                 VoxelizeBoxes_MultiThread instance = pool.Rent();

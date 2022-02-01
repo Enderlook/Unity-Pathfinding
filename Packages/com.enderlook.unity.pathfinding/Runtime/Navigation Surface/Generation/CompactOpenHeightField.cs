@@ -36,10 +36,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <summary>
         /// Creates a the open height field of a height field.
         /// </summary>
-        /// <param name="heightField">Height field used to create open height field.</param>
         /// <param name="options">Stores configuration information.</param>
+        /// <param name="heightField">Height field used to create open height field.</param>
         /// <returns>The open height field of the height field.</returns>
-        public static async ValueTask<CompactOpenHeightField> Create(HeightField heightField, NavigationGenerationOptions options)
+        public static async ValueTask<CompactOpenHeightField> Create(NavigationGenerationOptions options, HeightField heightField)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             heightField.DebugAssert(nameof(heightField), parameters, $"{nameof(options)}.{nameof(options.VoxelizationParameters)}");
@@ -49,9 +49,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.PushTask(2, "Compact Open Height Field");
             {
                 if (options.ShouldUseTimeSlice)
-                    spans = await Initialize<Toggle.Yes>(heightField, columns, spans, options);
+                    spans = await Initialize<Toggle.Yes>(options, heightField, columns, spans);
                 else
-                    spans = await Initialize<Toggle.No>(heightField, columns, spans, options);
+                    spans = await Initialize<Toggle.No>(options, heightField, columns, spans);
                 options.StepTask();
 
                 options.PushTask(parameters.ColumnsCount, "Calculate Neighbours");
@@ -94,7 +94,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
         }
 
-        private static async ValueTask<RawPooledList<HeightSpan>> Initialize<TYield>(HeightField heightField, ArraySlice<HeightColumn> columns, RawPooledList<HeightSpan> spanBuilder, NavigationGenerationOptions options)
+        private static async ValueTask<RawPooledList<HeightSpan>> Initialize<TYield>(NavigationGenerationOptions options, HeightField heightField, ArraySlice<HeightColumn> columns, RawPooledList<HeightSpan> spanBuilder)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
             options.PushTask(parameters.ColumnsCount, "Initialize");
@@ -443,7 +443,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(LeftForward) ||
                     typeof(T) == typeof(LeftBackward))
                 {
-                    while (CalculateNeighboursLoop<Side.Left, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, left, ref spans[i]))
+                    while (CalculateNeighboursLoop<Side.Left, TYield>(timeSlicer, spans, left, maxTraversableStep, minTraversableHeight, ref spans[i]))
                         await timeSlicer.Yield();
                 }
 
@@ -454,7 +454,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(RightBackwardIncrement))
                 {
-                    while (CalculateNeighboursLoop<Side.Right, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, right, ref spans[i]))
+                    while (CalculateNeighboursLoop<Side.Right, TYield>(timeSlicer, spans, right, maxTraversableStep, minTraversableHeight, ref spans[i]))
                         await timeSlicer.Yield();
                 }
 
@@ -465,7 +465,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightForward) ||
                     typeof(T) == typeof(LeftForward))
                 {
-                    while (CalculateNeighboursLoop<Side.Forward, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, forward, ref spans[i]))
+                    while (CalculateNeighboursLoop<Side.Forward, TYield>(timeSlicer, spans, forward, maxTraversableStep, minTraversableHeight, ref spans[i]))
                         await timeSlicer.Yield();
                 }
 
@@ -476,7 +476,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     typeof(T) == typeof(RightBackwardIncrement) ||
                     typeof(T) == typeof(LeftBackward))
                 {
-                    while (CalculateNeighboursLoop<Side.Backward, TYield>(timeSlicer, spans, maxTraversableStep, minTraversableHeight, backward, ref spans[i]))
+                    while (CalculateNeighboursLoop<Side.Backward, TYield>(timeSlicer, spans, backward, maxTraversableStep, minTraversableHeight, ref spans[i]))
                         await timeSlicer.Yield();
                 }
             }
@@ -485,7 +485,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool CalculateNeighboursLoop<TSide, TYield>(TimeSlicer timeSlicer, ArraySlice<HeightSpan> spans, int maxTraversableStep, int minTraversableHeight, HeightColumn column, ref HeightSpan span)
+        private static bool CalculateNeighboursLoop<TSide, TYield>(TimeSlicer timeSlicer, ArraySlice<HeightSpan> spans, HeightColumn column, int maxTraversableStep, int minTraversableHeight, ref HeightSpan span)
         {
             // Hack: HeightSpan is immutable for the outside, however this function must initialize (mutate) the struct.
             ref HeightSpanBuilder span_ = ref Unsafe.As<HeightSpan, HeightSpanBuilder>(ref span);
