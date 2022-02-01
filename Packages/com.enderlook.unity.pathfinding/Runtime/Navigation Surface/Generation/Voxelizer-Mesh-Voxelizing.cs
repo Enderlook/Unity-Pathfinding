@@ -86,29 +86,32 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
             }
 
-            int index = 0;
+            int baseIndex = 0;
             for (int x = 0; x < parameters.Width; x++)
             {
                 for (int y = 0; y < parameters.Height; y++)
                 {
+                    Debug.Assert(baseIndex == parameters.GetIndex(x, y, 0));
                     for (int z = 0; z < parameters.Depth; z++)
                     {
-                        if (!voxels[index++].Fill)
+                        int index = baseIndex + z;
+                        Debug.Assert(index == parameters.GetIndex(x, y, z));
+                        if (!voxels[index].Fill)
                             continue;
 
                         int ifront = z;
-                        int index_ = parameters.GetIndex(x, y, ifront); // TODO: Check if this can be replaced with `index + ?`.
+                        int indexFront = index;
                         if (Toggle.IsToggled<TYield>())
                         {
-                            while (CalculateFront(x, y, ref ifront, ref index_))
+                            while (CalculateFront(x, y, ref ifront, ref indexFront))
                                 await timeSlicer.Yield();
                         }
                         else
                         {
-                            for (; ifront < parameters.Depth; ifront++, index_++)
+                            for (; ifront < parameters.Depth; ifront++, indexFront++)
                             {
-                                Debug.Assert(index_ == parameters.GetIndex(x, y, ifront));
-                                if (!voxels[index_].IsFrontFace)
+                                Debug.Assert(indexFront == parameters.GetIndex(x, y, ifront));
+                                if (!voxels[indexFront].IsFrontFace)
                                     break;
                             }
                         }
@@ -117,56 +120,58 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             break;
 
                         int iback = ifront;
+                        int indexBack = indexFront;
 
                         // Step forward to cavity.
                         if (Toggle.IsToggled<TYield>())
                         {
-                            while (StepForwardToCavity(ref index_, ref iback))
+                            while (StepForwardToCavity(ref indexBack, ref iback))
                                 await timeSlicer.Yield();
                         }
                         else
                         {
-                            for (; iback < parameters.Depth && !voxels[index_].Fill; iback++, index_++) { }
+                            for (; iback < parameters.Depth && !voxels[indexBack].Fill; iback++, indexBack++) { }
                         }
 
                         if (iback >= parameters.Depth)
                             break;
 
                         // Check if iback is back voxel.
-                        Debug.Assert(index_ == parameters.GetIndex(x, y, iback));
-                        if (voxels[index_].IsBackFace)
+                        Debug.Assert(indexBack == parameters.GetIndex(x, y, iback));
+                        if (voxels[indexBack].IsBackFace)
                         {
                             // Step forward to back face.
                             if (Toggle.IsToggled<TYield>())
                             {
-                                if (StepForwardToBackFace(x, y, ref index_, ref iback))
+                                if (StepForwardToBackFace(x, y, ref indexBack, ref iback))
                                     await timeSlicer.Yield();
                             }
                             else
                             {
-                                for (; iback < parameters.Depth && voxels[index_].IsBackFace; iback++, index_++, Debug.Assert(index_ == parameters.GetIndex(x, y, iback))) { }
+                                for (; iback < parameters.Depth && voxels[indexBack].IsBackFace; iback++, indexBack++, Debug.Assert(indexBack == parameters.GetIndex(x, y, iback))) { }
                             }
                         }
 
-                        index_ = parameters.GetIndex(x, y, ifront); // TODO: Check if this can be replaced with `index + ?`.
+                        Debug.Assert(indexFront == parameters.GetIndex(x, y, ifront));
                         // Fill from ifront to iback.
                         if (Toggle.IsToggled<TYield>())
                         {
                             int z2 = ifront;
-                            while (FillFromIFrontToIBack(x, y, ref index_, iback, ref z2))
+                            while (FillFromIFrontToIBack(x, y, ref indexFront, iback, ref z2))
                                 await timeSlicer.Yield();
                         }
                         else
                         {
-                            for (int z2 = ifront; z2 < iback; z2++, index_++)
+                            for (int z2 = ifront; z2 < iback; z2++, indexFront++)
                             {
-                                Debug.Assert(index_ == parameters.GetIndex(x, y, z2));
-                                voxels[index_].Fill = true;
+                                Debug.Assert(indexFront == parameters.GetIndex(x, y, z2));
+                                voxels[indexFront].Fill = true;
                             }
                         }
 
                         z = iback;
                     }
+                    baseIndex += parameters.Depth;
                 }
             }
 
