@@ -140,7 +140,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         options.PushTask(meshesCount, "Voxelizing Mesh Renderers");
                         {
                             if (options.UseMultithreading)
-                                VoxelizeMeshes_MultiThread.Calculate(options, voxels, meshInformations);
+                                VoxelizeMeshes_MultiThread.Calculate(options, meshInformations, voxels);
                             else
                             {
                                 int count = meshInformations.Count;
@@ -154,12 +154,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                         MeshInformation content = meshInformations[i];
                                         await VoxelizeMesh<Toggle.Yes, Toggle.No>(
                                             timeSlicer,
-                                            content.Vertices,
-                                            content.Triangles,
-                                            voxelsInfo,
                                             parameters,
-                                            content.Min,
-                                            content.Max,
+                                            content,
+                                            voxelsInfo,
                                             voxels
                                         );
                                         content.Dispose();
@@ -178,12 +175,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                             MeshInformation content = list[i];
                                             ValueTask task = VoxelizeMesh<Toggle.No, Toggle.No>(
                                                 timeSlicer,
-                                                content.Vertices,
-                                                content.Triangles,
-                                                voxelsInfo,
                                                 parameters,
-                                            content.Min,
-                                            content.Max,
+                                                content,
+                                                voxelsInfo,
                                                 voxels
                                             );
                                             Debug.Assert(task.IsCompleted);
@@ -204,7 +198,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         options.PushTask(boxesCount, "Voxelizing Box Colliders");
                         {
                             if (options.UseMultithreading)
-                                VoxelizeBoxes_MultiThread.Calculate(options, voxels, boxInformations);
+                                VoxelizeBoxes_MultiThread.Calculate(options, boxInformations, voxels);
                             else if (options.ShouldUseTimeSlice)
                             {
                                 for (int i = 0; i < boxesCount; i++)

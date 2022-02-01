@@ -18,12 +18,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
     {
         private static async ValueTask VoxelizeMesh<TYield, TInterlock>(
             TimeSlicer timeSlicer,
-            ReadOnlyArraySlice<UnityEngine.Vector3> vertices,
-            ReadOnlyArraySlice<int> triangles,
-            ArraySlice<VoxelInfo> voxels,
             VoxelizationParameters parameters,
-            UnityEngine.Vector3 min,
-            UnityEngine.Vector3 max,
+            MeshInformation content,
+            ArraySlice<VoxelInfo> voxels,
             ArraySlice<bool> destination)
 
         {
@@ -34,12 +31,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
             // Build triangles.
             // For each triangle, perform SAT (Separation axis theorem) intersection check with the AABcs within the triangle AABB.
-            for (int i = 0, n = triangles.Length; i < n; i += 3)
+            for (int i = 0, n = content.Triangles.Length; i < n; i += 3)
             {
                 // Reverse order to avoid range check.
-                Vector3 v3 = vertices[triangles[i + 2]].ToNumerics();
-                Vector3 v2 = vertices[triangles[i + 1]].ToNumerics();
-                Vector3 v1 = vertices[triangles[i]].ToNumerics();
+                Vector3 v3 = content.Vertices[content.Triangles[i + 2]].ToNumerics();
+                Vector3 v2 = content.Vertices[content.Triangles[i + 1]].ToNumerics();
+                Vector3 v1 = content.Vertices[content.Triangles[i]].ToNumerics();
                 Triangle<Vector3> triangle = new Triangle<Vector3>(v1, v2, v3);
 
                 Vector3 cross = Vector3.Cross(triangle.Second - triangle.First, triangle.Third - triangle.First);
@@ -77,7 +74,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             {
                                 BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                                 if (triangle.Intersects(box))
-                                    Voxelize_FillVoxel(voxels, parameters, isTriangleFrontFacing, index_, x, y, z);
+                                    Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
                             }
                         }
                         index_ += yIndexIncrease;
@@ -177,7 +174,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
 
             {
-                CalculateMultiplesVolumeIndexes(min, max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
+                CalculateMultiplesVolumeIndexes(content.Min, content.Max, parameters, out int xMinMultiple, out int yMinMultiple, out int zMinMultiple, out int xMaxMultiple, out int yMaxMultiple, out int zMaxMultiple);
 
                 int index = parameters.Depth * (parameters.Height * xMinMultiple);
                 for (int x = xMinMultiple; x < xMaxMultiple; x++)
@@ -445,7 +442,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         break;
                     BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(voxels, parameters, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
                     z++;
                     index_++;
 
@@ -453,7 +450,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         break;
                     box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(voxels, parameters, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
                     z++;
                     index_++;
 
@@ -461,7 +458,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         break;
                     box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(voxels, parameters, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
                     z++;
                     index_++;
 
@@ -469,7 +466,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         break;
                     box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
                     if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(voxels, parameters, isTriangleFrontFacing, index_, x, y, z);
+                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
                     z++;
                     index_++;
 
@@ -702,7 +699,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Voxelize_FillVoxel(ArraySlice<VoxelInfo> voxels, VoxelizationParameters parameters, bool isTriangleFrontFacing, int index_, int x, int y, int z)
+        private static void Voxelize_FillVoxel(VoxelizationParameters parameters, ArraySlice<VoxelInfo> voxels, bool isTriangleFrontFacing, int index_, int x, int y, int z)
         {
             Debug.Assert(index_ == parameters.GetIndex(x, y, z));
             ref VoxelInfo voxel = ref voxels[index_];
@@ -722,7 +719,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
             public VoxelizeMeshes_MultiThread() => action = Process;
 
-            public static void Calculate(NavigationGenerationOptions options, ArraySlice<bool> voxels, ArraySlice<MeshInformation> list)
+            public static void Calculate(NavigationGenerationOptions options, ArraySlice<MeshInformation> list, ArraySlice<bool> voxels)
             {
                 ObjectPool<VoxelizeMeshes_MultiThread> pool = ObjectPool<VoxelizeMeshes_MultiThread>.Shared;
                 VoxelizeMeshes_MultiThread instance = pool.Rent();
@@ -750,12 +747,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 MeshInformation content = list[index];
                 ValueTask task = VoxelizeMesh<Toggle.No, Toggle.Yes>(
                     options.TimeSlicer,
-                    content.Vertices,
-                    content.Triangles,
-                    voxelsInfo,
                     parameters,
-                    content.Min,
-                    content.Max,
+                    content,
+                    voxelsInfo,
                     voxels);
                 Debug.Assert(task.IsCompleted);
                 content.Dispose();

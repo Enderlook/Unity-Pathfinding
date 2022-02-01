@@ -26,7 +26,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 Debug.Assert(Unsafe.AreSame(ref current, ref meshInformations[k++]));
 #endif
 
-                if (CalculateMeshBounds<TYield>(ref j, ref current, options))
+                if (CalculateMeshBounds<TYield>(options, ref j, ref current))
                 {
                     unsafe
                     {
@@ -82,14 +82,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
             private void Process(int index)
             {
                 int i = 0;
-                bool value = CalculateMeshBounds<Toggle.No>(ref i, ref list[index], options);
+                bool value = CalculateMeshBounds<Toggle.No>(options, ref i, ref list[index]);
                 Debug.Assert(!value);
                 options.StepTask();
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool CalculateMeshBounds<TYield>(ref int i, ref MeshInformation pack, NavigationGenerationOptions options)
+        private static bool CalculateMeshBounds<TYield>(NavigationGenerationOptions options, ref int i, ref MeshInformation pack)
         {
 #if UNITY_ASSERTIONS
             int j = i;

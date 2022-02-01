@@ -196,13 +196,13 @@ namespace Enderlook.Unity.Pathfinding.Generation
         private sealed class VoxelizeBoxes_MultiThread
         {
             private readonly Action<int> action;
-            private ArraySlice<BoxInformation> list;
             private NavigationGenerationOptions options;
+            private ArraySlice<BoxInformation> list;
             private ArraySlice<bool> voxels;
 
             public VoxelizeBoxes_MultiThread() => action = Process;
 
-            public static void Calculate(NavigationGenerationOptions options, ArraySlice<bool> voxels, ArraySlice<BoxInformation> list)
+            public static void Calculate(NavigationGenerationOptions options, ArraySlice<BoxInformation> list, ArraySlice<bool> voxels)
             {
                 ObjectPool<VoxelizeBoxes_MultiThread> pool = ObjectPool<VoxelizeBoxes_MultiThread>.Shared;
                 VoxelizeBoxes_MultiThread instance = pool.Rent();
