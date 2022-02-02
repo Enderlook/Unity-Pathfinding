@@ -33,6 +33,12 @@ namespace Enderlook.Unity.Pathfinding
         [SerializeField, Min(0), Tooltip("Aproximate size of voxels. Lower values increases accuracy at cost of perfomance.")]
         private float voxelSize = 1f;
 
+        [SerializeField, Min(0), Tooltip("Maximum amount of cells between two floors to be considered neighbours.")]
+        private int maximumTraversableStep = 1;
+
+        [SerializeField, Min(0), Tooltip("Minimum height between a floor and a ceil to be considered traversable.")]
+        private int minimumTraversableHeight = 1;
+
         [SerializeField, Min(0), Tooltip("For executions that happens in the main thread, determines the amount of milliseconds executed per frame.\nUse 0 to disable time slicing.")]
         private int backingExecutionTimeSlice = 1000 / 60;
 
@@ -167,6 +173,8 @@ namespace Enderlook.Unity.Pathfinding
                     LayerMask includeLayers = this.includeLayers;
                     CollectionType collectObjects = this.collectObjects;
                     GeometryType collectInformation = this.collectInformation;
+                    int maximumTraversableStep = this.maximumTraversableStep;
+                    int minimumTraversableHeight = this.minimumTraversableHeight;
 
                     if (voxelSize <= 0) ThrowVoxelSizeMustBeGreaterThanZero();
 
@@ -179,6 +187,9 @@ namespace Enderlook.Unity.Pathfinding
 
                     if (options.Progress != 1 || !options.IsCompleted)
                         ThrowNavigationInProgress();
+
+                    options.MaximumTraversableStep = maximumTraversableStep;
+                    options.MinimumTraversableHeight = minimumTraversableHeight;
 
                     TimeSlicer timeSlicer = options.TimeSlicer;
 
