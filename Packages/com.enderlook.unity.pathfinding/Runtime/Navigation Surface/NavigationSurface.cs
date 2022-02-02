@@ -178,9 +178,9 @@ namespace Enderlook.Unity.Pathfinding
 
                     if (voxelSize <= 0) ThrowVoxelSizeMustBeGreaterThanZero();
 
-                    if (collectInformation.HasFlag(GeometryType.PhysicsColliders))
+                    if ((collectInformation & GeometryType.PhysicsColliders) != 0)
                         throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
-                    if (collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders))
+                    if ((collectInformation & GeometryType.PhysicsTriggerColliders) != 0)
                         throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
 
                     if (options.Progress != 1 || !options.IsCompleted)
@@ -205,13 +205,13 @@ namespace Enderlook.Unity.Pathfinding
                         {
                             case CollectionType.Volume:
                             {
-                                bool renderMeshes = collectInformation.HasFlag(GeometryType.RenderMeshes);
+                                bool renderMeshes = (collectInformation & GeometryType.RenderMeshes) != 0;
                                 if (renderMeshes)
                                     // This is cheaper than FindObjectOfType<MeshFilter>() since it doesn't allocate twice nor check types of each element twice.
                                     voxelizer = await voxelizer.Enqueue(Unsafe.As<MeshFilter[]>(FindObjectsOfType(typeof(MeshFilter))));
 
-                                bool nonTrigger = collectInformation.HasFlag(GeometryType.PhysicsColliders);
-                                bool trigger = collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders);
+                                bool nonTrigger = (collectInformation & GeometryType.PhysicsColliders) != 0;
+                                bool trigger = (collectInformation & GeometryType.PhysicsTriggerColliders) != 0;
                                 if (nonTrigger || trigger)
                                     voxelizer = await voxelizer.Enqueue(Unsafe.As<Collider[]>(FindObjectsOfType(typeof(Collider))), nonTrigger && trigger ? 2 : (trigger ? 1 : 0));
 
@@ -222,12 +222,12 @@ namespace Enderlook.Unity.Pathfinding
                             }
                             case CollectionType.Children:
                             {
-                                bool renderMeshes = collectInformation.HasFlag(GeometryType.RenderMeshes);
+                                bool renderMeshes = (collectInformation & GeometryType.RenderMeshes) != 0;
                                 if (renderMeshes)
                                     voxelizer = await voxelizer.Enqueue(GetComponentsInChildren<MeshFilter>());
 
-                                bool nonTrigger = collectInformation.HasFlag(GeometryType.PhysicsColliders);
-                                bool trigger = collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders);
+                                bool nonTrigger = (collectInformation & GeometryType.PhysicsColliders) != 0;
+                                bool trigger = (collectInformation & GeometryType.PhysicsTriggerColliders) != 0;
                                 if (nonTrigger || trigger)
                                     voxelizer = await voxelizer.Enqueue(GetComponentsInChildren<Collider>(), nonTrigger && trigger ? 2 : (trigger ? 1 : 0));
 
