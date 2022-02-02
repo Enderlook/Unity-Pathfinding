@@ -759,42 +759,19 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <summary>
         /// Information of a voxel.
         /// </summary>
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct VoxelInfo
         {
-            private byte flags;
-
             /// <summary>
             /// Whenever this voxel has content or is empty.
             /// </summary>
-            public bool Fill {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => (flags & 1 << 1) > 0;
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                set {
-                    if (value)
-                        flags |= 1 << 1;
-                    else
-                        flags = (byte)(flags & ~(1 << 1));
-                }
-            }
-
-            internal bool Front {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => (flags & 1 << 2) > 0;
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                set {
-                    if (value)
-                        flags |= 1 << 2;
-                    else
-                        flags = (byte)(flags & ~(1 << 2));
-                }
-            }
+            public bool Fill;
+            public bool Front;
 
             /// <summary>
             /// Whenever it's the front face.
             /// </summary>
-            public bool IsFrontFace {
+            public bool IsFrontFace
+            {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => Fill && Front;
             }
@@ -802,7 +779,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
             /// <summary>
             /// Whenever it's the back face.
             /// </summary>
-            public bool IsBackFace {
+            public bool IsBackFace
+            {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => Fill && !Front;
             }
