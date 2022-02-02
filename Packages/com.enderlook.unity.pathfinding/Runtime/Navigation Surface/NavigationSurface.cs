@@ -181,7 +181,7 @@ namespace Enderlook.Unity.Pathfinding
                     if ((collectInformation & GeometryType.PhysicsColliders) != 0)
                         throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
                     if ((collectInformation & GeometryType.PhysicsTriggerColliders) != 0)
-                        throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
+                        throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsTriggerColliders}.");
 
                     if (options.Progress != 1 || !options.IsCompleted)
                         ThrowNavigationInProgress();
