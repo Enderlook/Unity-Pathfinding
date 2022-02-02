@@ -62,7 +62,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// <summary>
         /// Minimum height between a floor and a ceil to be considered traversable.
         /// </summary>
-        public int MininimumTraversableHeight {
+        public int MinimumTraversableHeight {
             get => minimumTraversableHeight;
             set {
                 if (value < 1) ThrowHelper.ThrowArgumentOutOfRangeException_ValueMustBeGreaterThanZero();

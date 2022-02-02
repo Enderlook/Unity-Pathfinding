@@ -300,7 +300,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
             int maxTraversableStep = options.MaximumTraversableStep;
-            int minTraversableHeight = options.MaximumTraversableStep;
+            int minTraversableHeight = options.MinimumTraversableHeight;
 
             int xM = parameters.Width - 1;
             int zM = parameters.Depth - 1;
