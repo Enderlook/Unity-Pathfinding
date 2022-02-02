@@ -183,11 +183,10 @@ namespace Enderlook.Unity.Pathfinding
                     if (collectInformation.HasFlag(GeometryType.PhysicsTriggerColliders))
                         throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsColliders}.");
 
-                    options.ExecutionTimeSlice = backingExecutionTimeSlice;
-
                     if (options.Progress != 1 || !options.IsCompleted)
                         ThrowNavigationInProgress();
 
+                    options.ExecutionTimeSlice = backingExecutionTimeSlice;
                     options.MaximumTraversableStep = maximumTraversableStep;
                     options.MinimumTraversableHeight = minimumTraversableHeight;
 
