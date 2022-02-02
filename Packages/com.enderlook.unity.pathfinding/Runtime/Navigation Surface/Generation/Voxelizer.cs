@@ -134,7 +134,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 options.PushTask(informationsTypesCount, "Voxelizing");
                 {
                     int voxelsCount = options.VoxelizationParameters.VoxelsCount;
-                    this.voxels = new ArraySlice<bool>(voxelsCount, true);
+                    voxels = new ArraySlice<bool>(voxelsCount, true);
 
                     if (meshesCount > 0)
                     {
@@ -155,8 +155,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                         await VoxelizeMesh<Toggle.Yes, Toggle.No>(
                                             timeSlicer,
                                             parameters,
-                                            voxels
-,
+                                            voxels,
                                             content,
                                             voxelsInfo);
                                         content.Dispose();
@@ -177,8 +176,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                             ValueTask task = VoxelizeMesh<Toggle.No, Toggle.No>(
                                                 timeSlicer,
                                                 parameters,
-                                                voxels
-,
+                                                voxels,
                                                 content,
                                                 voxelsInfo);
                                             Debug.Assert(task.IsCompleted);
