@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
@@ -57,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 options.PushTask(parameters.ColumnsCount, "Calculate Neighbours");
                 {
                     if (options.UseMultithreading)
-                        CalculateNeighboursMultiThread(options, columns, spans);
+                        MultiThread.Calculate(options, columns, spans);
                     else if (options.ShouldUseTimeSlice)
                         await CalculateNeighboursSingleThread<Toggle.Yes>(options, columns, spans);
                     else
@@ -295,18 +296,40 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
         }
 
-        private static void CalculateNeighboursMultiThread(NavigationGenerationOptions options, ArraySlice<HeightColumn> columns, ArraySlice<HeightSpan> spans)
+        private sealed class MultiThread
         {
-            TimeSlicer timeSlicer = options.TimeSlicer;
-            VoxelizationParameters parameters = options.VoxelizationParameters;
-            int maxTraversableStep = options.MaximumTraversableStep;
-            int minTraversableHeight = options.MinimumTraversableHeight;
+            private readonly Action<int> action;
+            private NavigationGenerationOptions options;
+            private ArraySlice<HeightColumn> columns;
+            private ArraySlice<HeightSpan> spans;
 
-            int xM = parameters.Width - 1;
-            int zM = parameters.Depth - 1;
+            public MultiThread() => action = Process;
 
-            Parallel.For(0, parameters.ColumnsCount, index =>
+            public static void Calculate(NavigationGenerationOptions options, ArraySlice<HeightColumn> columns, ArraySlice<HeightSpan> spans)
             {
+                ObjectPool<MultiThread> pool = ObjectPool<MultiThread>.Shared;
+                MultiThread instance = pool.Rent();
+                {
+                    instance.options = options;
+                    instance.columns = columns;
+                    instance.spans = spans;
+
+                    Parallel.For(0, options.VoxelizationParameters.ColumnsCount, instance.action);
+
+                    instance.options = default;
+                    instance.columns = default;
+                    instance.spans = default;
+                }
+                pool.Return(instance);
+            }
+
+            private void Process(int index)
+            {
+                TimeSlicer timeSlicer = options.TimeSlicer;
+                VoxelizationParameters parameters = options.VoxelizationParameters;
+                int xM = parameters.Width - 1;
+                int zM = parameters.Depth - 1;
+
                 Vector2Int v = parameters.From2D(index);
                 int x = v.x;
                 int z = v.y;
@@ -315,34 +338,34 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 if (x == 0)
                 {
                     if (z == 0)
-                        task = CalculateNeighboursBody<RightForward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<RightForward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                     else if (z != zM)
-                        task = CalculateNeighboursBody<RightForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<RightForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                     else
-                        task = CalculateNeighboursBody<RightBackwardIncrement, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<RightBackwardIncrement, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                 }
                 else if (x != xM)
                 {
                     if (z == 0)
-                        task = CalculateNeighboursBody<LeftRightForward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftRightForward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                     else if (z != zM)
-                        task = CalculateNeighboursBody<LeftRightForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftRightForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                     else
-                        task = CalculateNeighboursBody<LeftRightBackwardIncrement, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftRightBackwardIncrement, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                 }
                 else
                 {
                     if (z == 0)
-                        task = CalculateNeighboursBody<LeftForward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftForward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                     else if (z != zM)
-                        task = CalculateNeighboursBody<LeftForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftForwardBackward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                     else
-                        task = CalculateNeighboursBody<LeftBackward, Toggle.No>(timeSlicer, parameters, columns, spans, maxTraversableStep, minTraversableHeight, index, x, z);
+                        task = CalculateNeighboursBody<LeftBackward, Toggle.No>(timeSlicer, parameters, columns, spans, options.MaximumTraversableStep, options.MinimumTraversableHeight, index, x, z);
                 }
 
                 Debug.Assert(task.IsCompleted);
                 options.StepTask();
-            });
+            }
         }
 
         private struct LeftRightForwardBackward { }

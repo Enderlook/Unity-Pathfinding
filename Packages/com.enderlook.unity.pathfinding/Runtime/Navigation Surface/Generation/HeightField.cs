@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
@@ -52,7 +53,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.PushTask(parameters.VoxelsCount, "Generating Height Field");
             {
                 if (options.UseMultithreading)
-                    spans = MultiThread(options, voxels, columns);
+                    spans = MultiThread.Calculate(options, voxels, columns);
                 else if (options.ShouldUseTimeSlice)
                     spans = await SingleThread<Toggle.Yes>(options, voxels, columns);
                 else
@@ -140,12 +141,43 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.StepTask();
         }
 
-        private static HeightSpan[] MultiThread(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
+        private sealed class MultiThread
         {
-            VoxelizationParameters parameters = options.VoxelizationParameters;
-            HeightSpan[] spans = ArrayPool<HeightSpan>.Shared.Rent(parameters.VoxelsCount);
-            Parallel.For(0, parameters.ColumnsCount, index =>
+            private readonly Action<int> action;
+            private NavigationGenerationOptions options;
+            private ReadOnlyArraySlice<bool> voxels;
+            private ArraySlice<HeightColumn> columns;
+            private HeightSpan[] spans;
+
+            public MultiThread() => action = Process;
+
+            public static HeightSpan[] Calculate(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
             {
+                VoxelizationParameters parameters = options.VoxelizationParameters;
+                HeightSpan[] span = ArrayPool<HeightSpan>.Shared.Rent(parameters.VoxelsCount);
+                ObjectPool<MultiThread> pool = ObjectPool<MultiThread>.Shared;
+                MultiThread instance = pool.Rent();
+                {
+                    instance.options = options;
+                    instance.voxels = voxels;
+                    instance.columns = columns;
+                    instance.spans = span;
+
+                    Parallel.For(0, parameters.ColumnsCount, instance.action);
+
+                    instance.options = default;
+                    instance.voxels = default;
+                    instance.columns = default;
+                    instance.spans = default;
+                }
+                pool.Return(instance);
+                return span;
+            }
+
+            private void Process(int index)
+            {
+                VoxelizationParameters parameters = options.VoxelizationParameters;
+
                 int x = index / parameters.Width;
                 int z = index % parameters.Width;
 
@@ -173,8 +205,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
                 Debug.Assert(index == parameters.GetIndex(x, z));
                 columns[index] = new HeightColumn(start, count - start);
-            });
-            return spans;
+            }
         }
 
         /// <inheritdoc cref="IDisposable.Dispose"/>
