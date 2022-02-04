@@ -11,13 +11,13 @@ namespace Enderlook.Unity.Pathfinding.Utils
     /// Represent an sliced array.
     /// </summary>
     /// <typeparam name="T">Type of array elements.</typeparam>
-#if UNITY_ASSERTIONS
+#if DEBUG
     internal struct ArraySlice<T>
 #else
     internal readonly struct ArraySlice<T>
 #endif
     {
-#if UNITY_ASSERTIONS
+#if DEBUG
         private T[] array;
         private int length;
 
@@ -56,7 +56,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ArraySlice(T[] array, int length)
         {
-#if UNITY_ASSERTIONS
+#if DEBUG
             this.array = array;
             this.length = length;
 #else
@@ -69,7 +69,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ArraySlice(int length, bool clear)
         {
-#if UNITY_ASSERTIONS
+#if DEBUG
             this.length = length;
             array = ArrayPool<T>.Shared.Rent(length);
 #else
@@ -85,7 +85,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             Debug.Assert(!(array is null));
             ArrayPool<T>.Shared.Return(Array);
-#if UNITY_ASSERTIONS
+#if DEBUG
             array = null;
 #endif
 

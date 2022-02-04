@@ -14,7 +14,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         public struct Backward { }
 
-        [System.Diagnostics.Conditional("UNITY_ASSERTIONS"), MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [System.Diagnostics.Conditional("DEBUG"), MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void DebugAssert<T>()
             => Debug.Assert(
                 typeof(T) == typeof(Left) ||

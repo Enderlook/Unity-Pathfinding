@@ -102,7 +102,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     isCompleted = task.IsCompleted;
                 }
                 Unlock(ref taskLock);
-#if UNITY_ASSERTIONS
+#if DEBUG
                 if (isCompleted)
                 {
                     Lock(ref continuationsLock);
@@ -226,7 +226,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             Debug.Assert(UnityThread.IsMainThread);
             return new Yielder(this, Time.realtimeSinceStartup
-#if UNITY_ASSERTIONS
+#if DEBUG
                 , version
 #endif
                 );
@@ -298,20 +298,20 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             private readonly TimeSlicer timeSlicer;
             private readonly float token;
-#if UNITY_ASSERTIONS
+#if DEBUG
             private readonly int version;
 #endif
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Yielder(TimeSlicer timeSlicer, float token
-#if UNITY_ASSERTIONS
+#if DEBUG
                 , int version
 #endif
                 )
             {
                 this.timeSlicer = timeSlicer;
                 this.token = token;
-#if UNITY_ASSERTIONS
+#if DEBUG
                 this.version = version;
 #endif
             }
@@ -320,7 +320,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Yielder GetAwaiter()
             {
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(version == timeSlicer.version);
 #endif
                 return this;
@@ -330,7 +330,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void GetResult()
             {
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(version == timeSlicer.version);
 #endif
             }
@@ -341,7 +341,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get
                 {
-#if UNITY_ASSERTIONS
+#if DEBUG
                     Debug.Assert(version == timeSlicer.version);
 #endif
                     return timeSlicer.nextYield > token;
@@ -351,7 +351,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
             /// <inheritdoc cref="INotifyCompletion.OnCompleted(Action)"/>
             public void OnCompleted(Action continuation)
             {
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(version == timeSlicer.version);
 #endif
                 if (IsCompleted)

@@ -37,14 +37,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     }
                     else
                     {
-#if UNITY_ASSERTIONS
+#if DEBUG
                         int j = 0;
 #endif
                         ref T current = ref list[0];
                         ref T end = ref Unsafe.Add(ref list[list.Length - 1], 1);
                         for (int i = 0; i < list.Length; i++)
                         {
-#if UNITY_ASSERTIONS
+#if DEBUG
                             Debug.Assert(Unsafe.AreSame(ref current, ref list[j++]));
 #endif
                             min = Vector3.Min(min, current.Min);

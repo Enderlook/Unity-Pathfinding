@@ -112,13 +112,13 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         int startIndex = spanBuilder.Count;
 
                         HeightField.HeightColumn column = heightField.Columns[index];
-#if UNITY_ASSERTIONS
+#if DEBUG
                         bool wasSolid = default;
 #endif
                         int i = 0;
                         int y = 0;
                         while (InitializeWork<TYield>(timeSlicer, heightField, columns, ref spanBuilder, column, startIndex, ref index, ref i, ref y
-#if UNITY_ASSERTIONS
+#if DEBUG
                             , ref wasSolid
 #endif
                         ))
@@ -133,7 +133,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool InitializeWork<TYield>(TimeSlicer timeSlicer, in HeightField heightField, ArraySlice<HeightColumn> columns, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, int startIndex, ref int index, ref int i, ref int y
-#if UNITY_ASSERTIONS
+#if DEBUG
             , ref bool wasSolid
 #endif
             )
@@ -147,7 +147,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 {
                     HeightField.HeightSpan span = spans[i++];
 
-#if UNITY_ASSERTIONS
+#if DEBUG
                     wasSolid = span.IsSolid;
 #endif
 
@@ -170,7 +170,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         {
                             span = spans[i++];
 
-#if UNITY_ASSERTIONS
+#if DEBUG
                             Debug.Assert(wasSolid != span.IsSolid);
                             wasSolid = span.IsSolid;
 #endif
@@ -182,7 +182,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         else
                         {
                             Debug.Assert(i == spans.Length - 1);
-#if UNITY_ASSERTIONS
+#if DEBUG
                             Debug.Assert(wasSolid != spans[i].IsSolid);
 #endif
                             const int ceil = -1;
@@ -197,7 +197,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             for (; i < spans.Length - 1; i++)
             {
                 HeightField.HeightSpan span = spans[i];
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(wasSolid != span.IsSolid);
                 wasSolid = span.IsSolid;
 #endif
@@ -219,7 +219,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             {
                 Debug.Assert(i == spans.Length - 1);
                 HeightField.HeightSpan span = spans[i];
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(wasSolid != span.IsSolid);
 #endif
                 if (!span.IsSolid)

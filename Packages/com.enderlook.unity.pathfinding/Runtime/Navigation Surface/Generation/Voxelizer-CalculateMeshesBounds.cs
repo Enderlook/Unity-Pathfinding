@@ -15,21 +15,21 @@ namespace Enderlook.Unity.Pathfinding.Generation
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             int count = meshInformations.Count;
-#if UNITY_ASSERTIONS
+#if DEBUG
             int k = i;
 #endif
             ref MeshInformation current = ref meshInformations[i];
             ref MeshInformation end = ref Unsafe.Add(ref meshInformations[count - 1], 1);
             while (Unsafe.IsAddressLessThan(ref current, ref end))
             {
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(Unsafe.AreSame(ref current, ref meshInformations[k++]));
 #endif
 
                 if (CalculateMeshBounds<TYield>(options, ref j, ref current))
                 {
                     i = MathHelper.GetIndex(meshInformations, ref current);
-#if UNITY_ASSERTIONS
+#if DEBUG
                     Debug.Assert(i == j);
 #endif
                     return true;
@@ -86,7 +86,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool CalculateMeshBounds<TYield>(NavigationGenerationOptions options, ref int i, ref MeshInformation pack)
         {
-#if UNITY_ASSERTIONS
+#if DEBUG
             int j = i;
 #endif
             ref Vector3 current = ref pack.Vertices[i];
@@ -96,7 +96,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             Vector3 max = pack.Max;
             while (Unsafe.IsAddressLessThan(ref current, ref end))
             {
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(Unsafe.AreSame(ref current, ref pack.Vertices[j++]));
 #endif
 
@@ -120,7 +120,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         long currentPointer = ((IntPtr)Unsafe.AsPointer(ref current)).ToInt64();
                         long startPointer = ((IntPtr)Unsafe.AsPointer(ref pack.Vertices[0])).ToInt64();
                         i = (int)((currentPointer - startPointer) / Unsafe.SizeOf<Vector3>());
-#if UNITY_ASSERTIONS
+#if DEBUG
                         Debug.Assert(i == j);
 #endif
                     }

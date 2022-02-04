@@ -15,14 +15,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             int count = boxInformations.Count;
-#if UNITY_ASSERTIONS
+#if DEBUG
             int j = i;
 #endif
             ref BoxInformation current = ref boxInformations[i];
             ref BoxInformation end = ref Unsafe.Add(ref boxInformations[count - 1], 1);
             while (Unsafe.IsAddressLessThan(ref current, ref end))
             {
-#if UNITY_ASSERTIONS
+#if DEBUG
                 Debug.Assert(Unsafe.AreSame(ref current, ref boxInformations[j++]));
 #endif
 
@@ -46,7 +46,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                 {
                     i = MathHelper.GetIndex(boxInformations, ref current);
-#if UNITY_ASSERTIONS
+#if DEBUG
                     Debug.Assert(i == j);
 #endif
                     return true;

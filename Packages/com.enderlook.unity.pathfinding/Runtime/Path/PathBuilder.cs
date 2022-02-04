@@ -146,7 +146,7 @@ namespace Enderlook.Unity.Pathfinding
                         }
                     }
 
-#if UNITY_ASSERTIONS
+#if DEBUG
                     visited.Clear();
                     visited.Add(to);
 #endif
@@ -155,10 +155,10 @@ namespace Enderlook.Unity.Pathfinding
                     {
                         while (edges.TryGetValue(to, out TNode from))
                         {
-#if UNITY_ASSERTIONS
+#if DEBUG
                             if (!visited.Add(from))
                             {
-                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag UNITY_ASSERTIONS is enabled.");
+                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
                                 break;
                             }
 #endif
@@ -195,10 +195,10 @@ namespace Enderlook.Unity.Pathfinding
                     bool hasPrevious = false;
                     while (edges.TryGetValue(to, out TNode from))
                     {
-#if UNITY_ASSERTIONS
+#if DEBUG
                         if (!visited.Add(from))
                         {
-                            Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag UNITY_ASSERTIONS is enabled.");
+                            Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
                             break;
                         }
 #endif
@@ -305,17 +305,17 @@ namespace Enderlook.Unity.Pathfinding
                             : coordComparer.Equals(endPosition, end2)))
                             path.Add(end2);
 
-#if UNITY_ASSERTIONS
+#if DEBUG
                         visited.Clear();
                         visited.Add(to);
 #endif
 
                         while (edges.TryGetValue(to, out TNode from))
                         {
-#if UNITY_ASSERTIONS
+#if DEBUG
                             if (!visited.Add(from))
                             {
-                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag UNITY_ASSERTIONS is enabled.");
+                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
                                 break;
                             }
 #endif
