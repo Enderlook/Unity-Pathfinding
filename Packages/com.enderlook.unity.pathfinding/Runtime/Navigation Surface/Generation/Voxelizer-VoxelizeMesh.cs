@@ -3,11 +3,11 @@ using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
-using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
+using Debug = UnityEngine.Debug;
 using Mathf = UnityEngine.Mathf;
 
 namespace Enderlook.Unity.Pathfinding.Generation
