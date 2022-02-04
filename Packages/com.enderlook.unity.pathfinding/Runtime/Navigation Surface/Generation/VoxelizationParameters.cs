@@ -154,10 +154,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3Int From3D(int index)
         {
-            Debug.Assert(index < Width * Height * Depth);
             int v = Math.DivRem(index, Depth, out int z);
             int x = Math.DivRem(v, Height, out int y);
-            Debug.Assert(index == GetIndex(z, y, x));
+            Debug.Assert(index < Width * Height * Depth && index == GetIndex(z, y, x));
             return new Vector3Int(x, y, z);
         }
 
@@ -184,13 +183,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetIndex(int x, int y, int z)
         {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < Depth);
-            Debug.Assert(y >= 0);
             int index = (Depth * ((Height * x) + y)) + z;
-            Debug.Assert(index < Width * Height * Depth);
+            Debug.Assert(x >= 0 && x < Width && z >= 0 && z < Depth && y >= 0 && index < Width * Height * Depth);
             return index;
         }
 
@@ -203,12 +197,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int GetIndex(int x, int z)
         {
-            Debug.Assert(x >= 0);
-            Debug.Assert(x < Width);
-            Debug.Assert(z >= 0);
-            Debug.Assert(z < Depth);
             int index = (Depth * x) + z;
-            Debug.Assert(index < Width * Depth);
+            Debug.Assert(x >= 0 && x < Width && z >= 0 && z < Depth && index < Width * Depth);
             return index;
         }
     }
