@@ -45,15 +45,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                 if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                 {
-                    unsafe
-                    {
-                        long currentPointer = ((IntPtr)Unsafe.AsPointer(ref current)).ToInt64();
-                        long startPointer = ((IntPtr)Unsafe.AsPointer(ref boxInformations[0])).ToInt64();
-                        i = (int)((currentPointer - startPointer) / Unsafe.SizeOf<BoxInformation>());
+                    i = MathHelper.GetIndex(boxInformations, ref current);
 #if UNITY_ASSERTIONS
-                        Debug.Assert(i == j);
+                    Debug.Assert(i == j);
 #endif
-                    }
                     return true;
                 }
             }

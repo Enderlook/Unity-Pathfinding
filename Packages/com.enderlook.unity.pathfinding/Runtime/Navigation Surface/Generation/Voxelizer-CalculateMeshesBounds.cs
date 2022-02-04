@@ -28,15 +28,10 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                 if (CalculateMeshBounds<TYield>(options, ref j, ref current))
                 {
-                    unsafe
-                    {
-                        long currentPointer = ((IntPtr)Unsafe.AsPointer(ref current)).ToInt64();
-                        long startPointer = ((IntPtr)Unsafe.AsPointer(ref meshInformations[0])).ToInt64();
-                        i = (int)((currentPointer - startPointer) / Unsafe.SizeOf<MeshInformation>());
+                    i = MathHelper.GetIndex(meshInformations, ref current);
 #if UNITY_ASSERTIONS
-                        Debug.Assert(i == j);
+                    Debug.Assert(i == j);
 #endif
-                    }
                     return true;
                 }
 
