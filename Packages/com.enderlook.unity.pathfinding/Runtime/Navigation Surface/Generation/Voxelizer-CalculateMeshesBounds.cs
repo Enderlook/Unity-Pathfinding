@@ -22,15 +22,11 @@ namespace Enderlook.Unity.Pathfinding.Generation
             ref MeshInformation end = ref Unsafe.Add(ref meshInformations[count - 1], 1);
             while (Unsafe.IsAddressLessThan(ref current, ref end))
             {
-#if DEBUG
-                Debug.Assert(Unsafe.AreSame(ref current, ref meshInformations[k++]));
-#endif
-
                 if (CalculateMeshBounds<TYield>(options, ref j, ref current))
                 {
                     i = MathHelper.GetIndex(meshInformations, ref current);
 #if DEBUG
-                    Debug.Assert(i == j);
+                    Debug.Assert(k == i);
 #endif
                     return true;
                 }
@@ -38,6 +34,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 min = Vector3.Min(min, current.Min);
                 max = Vector3.Max(max, current.Max);
 
+#if DEBUG
+                Debug.Assert(Unsafe.AreSame(ref current, ref meshInformations[k++]));
+#endif
                 current = ref Unsafe.Add(ref current, 1);
                 options.StepTask();
             }
