@@ -18,8 +18,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #if DEBUG
             int j = i;
 #endif
-            ref BoxInformation current = ref boxInformations[i];
-            ref BoxInformation end = ref Unsafe.Add(ref boxInformations[count - 1], 1);
+            ref BoxInformation start = ref boxInformations[i];
+            ref BoxInformation current = ref start;
+            ref BoxInformation end = ref Unsafe.Add(ref current, count - i);
             while (Unsafe.IsAddressLessThan(ref current, ref end))
             {
 #if DEBUG
@@ -45,13 +46,16 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                 if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                 {
-                    i = MathHelper.GetIndex(boxInformations, ref current);
+                    i += MathHelper.IndexesTo(ref start, ref current);
 #if DEBUG
                     Debug.Assert(i == j);
 #endif
                     return true;
                 }
             }
+#if DEBUG
+            Debug.Assert(j == count);
+#endif
             return false;
         }
 

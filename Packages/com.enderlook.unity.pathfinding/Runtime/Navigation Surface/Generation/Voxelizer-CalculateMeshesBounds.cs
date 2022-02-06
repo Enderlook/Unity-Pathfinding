@@ -18,13 +18,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #if DEBUG
             int k = i;
 #endif
-            ref MeshInformation current = ref meshInformations[i];
-            ref MeshInformation end = ref Unsafe.Add(ref meshInformations[count - 1], 1);
+            ref MeshInformation start = ref meshInformations[i];
+            ref MeshInformation current = ref start;
+            ref MeshInformation end = ref Unsafe.Add(ref current, count - i);
             while (Unsafe.IsAddressLessThan(ref current, ref end))
             {
                 if (CalculateMeshBounds<TYield>(options, ref j, ref current))
                 {
-                    i = MathHelper.GetIndex(meshInformations, ref current);
+                    i += MathHelper.IndexesTo(ref start, ref current);
 #if DEBUG
                     Debug.Assert(k == i);
 #endif
@@ -40,6 +41,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 current = ref Unsafe.Add(ref current, 1);
                 options.StepTask();
             }
+#if DEBUG
+            Debug.Assert(k == count);
+#endif
             return false;
         }
 
@@ -88,8 +92,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #if DEBUG
             int j = i;
 #endif
-            ref Vector3 current = ref pack.Vertices[i];
-            ref Vector3 end = ref Unsafe.Add(ref pack.Vertices[pack.Vertices.Length - 1], 1);
+            ref Vector3 start = ref pack.Vertices[i];
+            ref Vector3 current = ref start;
+            ref Vector3 end = ref Unsafe.Add(ref start, pack.Vertices.Length - i);
             TimeSlicer timeSlicer = options.TimeSlicer;
             Vector3 min = pack.Min;
             Vector3 max = pack.Max;
@@ -112,22 +117,22 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                 if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                 {
+                    if (!Unsafe.IsAddressLessThan(ref current, ref end))
+                        goto end;
+
                     pack.Min = min;
                     pack.Max = max;
-                    unsafe
-                    {
-                        long currentPointer = ((IntPtr)Unsafe.AsPointer(ref current)).ToInt64();
-                        long startPointer = ((IntPtr)Unsafe.AsPointer(ref pack.Vertices[0])).ToInt64();
-                        i = (int)((currentPointer - startPointer) / Unsafe.SizeOf<Vector3>());
+                    i += MathHelper.IndexesTo(ref start, ref current);
 #if DEBUG
-                        Debug.Assert(i == j);
+                    Debug.Assert(i == j);
 #endif
-                    }
                     return true;
                 }
             }
+            end:
             pack.Min = min;
             pack.Max = max;
+            i = 0;
             return false;
         }
     }

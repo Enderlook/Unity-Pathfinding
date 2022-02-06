@@ -18,13 +18,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UVector3 ToUnity(this NVector3 value) => new UVector3(value.X, value.Y, value.Z);
 
-        public unsafe static int GetIndex<T>(RawPooledList<T> list, ref T current)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public unsafe static int IndexesTo<T>(ref T start, ref T end)
         {
-            long currentPointer = ((IntPtr)Unsafe.AsPointer(ref current)).ToInt64();
-            long startPointer = ((IntPtr)Unsafe.AsPointer(ref list[0])).ToInt64();
-            int index = (int)((currentPointer - startPointer) / Unsafe.SizeOf<T>());
-            Debug.Assert(list.Count > index);
-            return index;
+            long currentPointer = ((IntPtr)Unsafe.AsPointer(ref end)).ToInt64();
+            long startPointer = ((IntPtr)Unsafe.AsPointer(ref start)).ToInt64();
+            return (int)((currentPointer - startPointer) / Unsafe.SizeOf<T>());
         }
     }
 }
