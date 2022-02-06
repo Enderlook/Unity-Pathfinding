@@ -60,21 +60,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 {
                     for (int y = iminY; y <= imaxY; y++)
                     {
-                        if (Toggle.IsToggled<TYield>())
-                        {
-                            int z = iminZ;
-                            while (FillVoxels(triangle, isTriangleFrontFacing, imaxZ, ref index_, x, y, ref z))
-                                await timeSlicer.Yield();
-                        }
-                        else
-                        {
-                            for (int z = iminZ; z <= imaxZ; z++, index_++)
-                            {
-                                BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
-                                if (triangle.Intersects(box))
-                                    Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index_, x, y, z);
-                            }
-                        }
+                        int z = iminZ;
+                        while (VoxelizeMesh_FillVoxels<TYield>(timeSlicer, parameters, voxels, voxelSize, minAnchor, triangle, isTriangleFrontFacing, imaxZ, ref index_, x, y, ref z))
+                            await timeSlicer.Yield();
                         index_ += yIndexIncrease;
                     }
                     index_ += xIndexIncrease;
@@ -96,20 +84,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                         int ifront = z;
                         int indexFront = index;
-                        if (Toggle.IsToggled<TYield>())
-                        {
-                            while (CalculateFront(x, y, ref ifront, ref indexFront))
-                                await timeSlicer.Yield();
-                        }
-                        else
-                        {
-                            for (; ifront < parameters.Depth; ifront++, indexFront++)
-                            {
-                                Debug.Assert(indexFront == parameters.GetIndex(x, y, ifront));
-                                if (!voxels[indexFront].IsFrontFace)
-                                    break;
-                            }
-                        }
+                        while (VoxelizeMesh_CalculateFront<TYield>(timeSlicer, parameters, voxels, ref ifront, ref indexFront
+#if DEBUG
+                            , x, y
+#endif
+                        ))
+                            await timeSlicer.Yield();
 
                         if (ifront >= parameters.Depth)
                             break;
@@ -118,15 +98,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         int indexBack = indexFront;
 
                         // Step forward to cavity.
-                        if (Toggle.IsToggled<TYield>())
-                        {
-                            while (StepForwardToCavity(ref indexBack, ref iback))
-                                await timeSlicer.Yield();
-                        }
-                        else
-                        {
-                            for (; iback < parameters.Depth && !voxels[indexBack].Fill; iback++, indexBack++) { }
-                        }
+                        while (VoxelizeMesh_StepForwardToCavity<TYield>(timeSlicer, parameters, voxels, ref iback, ref indexBack))
+                            await timeSlicer.Yield();
 
                         if (iback >= parameters.Depth)
                             break;
@@ -136,34 +109,23 @@ namespace Enderlook.Unity.Pathfinding.Generation
                         if (voxels[indexBack].IsBackFace)
                         {
                             // Step forward to back face.
-                            if (Toggle.IsToggled<TYield>())
-                            {
-                                while (StepForwardToBackFace(x, y, ref indexBack, ref iback))
-                                    await timeSlicer.Yield();
-                            }
-                            else
-                            {
-                                for (; iback < parameters.Depth && voxels[indexBack].IsBackFace; iback++, indexBack++)
-                                    Debug.Assert(indexBack == parameters.GetIndex(x, y, iback));
-                            }
+                            while (VoxelizeMesh_StepForwardToBackFace<TYield>(timeSlicer, parameters, in voxels, ref iback, ref indexBack
+#if DEBUG
+                                , x, y
+#endif
+                            ))
+                                await timeSlicer.Yield();
                         }
 
                         Debug.Assert(indexFront == parameters.GetIndex(x, y, ifront));
                         // Fill from ifront to iback.
-                        if (Toggle.IsToggled<TYield>())
-                        {
-                            int z2 = ifront;
-                            while (FillFromIFrontToIBack(x, y, ref indexFront, iback, ref z2))
-                                await timeSlicer.Yield();
-                        }
-                        else
-                        {
-                            for (int z2 = ifront; z2 < iback; z2++, indexFront++)
-                            {
-                                Debug.Assert(indexFront == parameters.GetIndex(x, y, z2));
-                                voxels[indexFront].Fill = true;
-                            }
-                        }
+                        int z2 = ifront;
+                        while (VoxelizeMesh_FillFrontFrontToBack<TYield>(timeSlicer, in parameters, in voxels, ref indexFront, iback, ref z2
+#if DEBUG
+                            , x, y
+#endif
+                        ))
+                            await timeSlicer.Yield();
 
                         z = iback;
                     }
@@ -181,531 +143,958 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     for (int y = yMinMultiple; y < yMaxMultiple; y++)
                     {
                         index += zMinMultiple;
-                        for (int z = zMinMultiple; z < zMaxMultiple; z++, index++)
-                        {
-                            Debug.Assert(index == parameters.GetIndex(x, y, z));
-                            if (voxels[index].Fill)
-                            {
-                                if (Toggle.IsToggled<TInterlock>())
-                                    // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
-                                    // During the construction of this array we already reserved an additional space at the end to prevent
-                                    // modifying undefined memory in case of setting the last used element of the voxel.
-                                    // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
-                                    InterlockedOr(ref Unsafe.As<bool, int>(ref destination[index]), 1);
-                                else
-                                    destination[index] = true;
-                            }
-                            if (Toggle.IsToggled<TYield>())
-                                await timeSlicer.Yield();
-                        }
+                        int z = zMinMultiple;
+                        while (VoxelizeMesh_CopyToDestination<TYield, TInterlock>(timeSlicer, parameters, voxels, destination, zMaxMultiple, ref index, ref z
+#if DEBUG
+                            , x, y
+#endif
+                        ))
+                            await timeSlicer.Yield();
                         index += parameters.Depth - zMaxMultiple;
                     }
                     index += parameters.Depth * (parameters.Height - yMaxMultiple);
                 }
             }
-
-            bool FillFromIFrontToIBack(int x, int y, ref int index, int iback, ref int z2)
-            {
-                while (true)
-                {
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (z2 >= iback)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, z2));
-                    voxels[index].Fill = true;
-                    z2++;
-                    index++;
-
-                    if (timeSlicer.MustYield())
-                        return true;
-                }
-                return false;
-            }
-
-            bool StepForwardToBackFace(int x, int y, ref int index, ref int iback)
-            {
-                while (true)
-                {
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (iback >= parameters.Depth || !voxels[index].IsBackFace)
-                        break;
-                    iback++;
-                    index++;
-                    Debug.Assert(index == parameters.GetIndex(x, y, iback));
-
-                    if (timeSlicer.MustYield())
-                        return true;
-                }
-                return false;
-            }
-
-            bool FillVoxels(Triangle<Vector3> triangle, bool isTriangleFrontFacing, int imaxZ, ref int index, int x, int y, ref int z)
-            {
-                while (true)
-                {
-                    if (z > imaxZ)
-                        break;
-                    BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
-                    if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
-                    z++;
-                    index++;
-
-                    if (z > imaxZ)
-                        break;
-                    box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
-                    if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
-                    z++;
-                    index++;
-
-                    if (z > imaxZ)
-                        break;
-                    box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
-                    if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
-                    z++;
-                    index++;
-
-                    if (z > imaxZ)
-                        break;
-                    box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
-                    if (triangle.Intersects(box))
-                        Voxelize_FillVoxel(parameters, voxels, isTriangleFrontFacing, index, x, y, z);
-                    z++;
-                    index++;
-
-                    if (timeSlicer.MustYield())
-                        return true;
-                }
-                return false;
-            }
-
-            bool StepForwardToCavity(ref int index, ref int iback)
-            {
-                while (true)
-                {
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (iback >= parameters.Depth || voxels[index].Fill)
-                        break;
-                    iback++;
-                    index++;
-
-                    if (timeSlicer.MustYield())
-                        return true;
-                }
-                return false;
-            }
-
-            bool CalculateFront(int x, int y, ref int ifront, ref int index)
-            {
-                while (true)
-                {
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (ifront >= parameters.Depth)
-                        break;
-                    Debug.Assert(index == parameters.GetIndex(x, y, ifront));
-                    if (!voxels[index].IsFrontFace)
-                        break;
-                    ifront++;
-                    index++;
-
-                    if (timeSlicer.MustYield())
-                        return true;
-                }
-
-                return false;
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Voxelize_FillVoxel(VoxelizationParameters parameters, ArraySlice<VoxelInfo> voxels, bool isTriangleFrontFacing, int index, int x, int y, int z)
+        private static bool VoxelizeMesh_CopyToDestination<TYield, TInterlock>(TimeSlicer timeSlicer, VoxelizationParameters parameters, ArraySlice<VoxelInfo> voxels, ArraySlice<bool> destination, int zMaxMultiple, ref int index, ref int z
+#if DEBUG
+            , int x, int y
+#endif
+            )
         {
-            Debug.Assert(index == parameters.GetIndex(x, y, z));
-            ref VoxelInfo voxel = ref voxels[index];
-            if (!voxel.Fill)
-                voxel.Front = isTriangleFrontFacing;
-            else
-                voxel.Front &= isTriangleFrontFacing;
-            voxel.Fill = true;
+            /* This code is equivalent to:
+             *  for (; z < zMaxMultiple; z++, index++)
+             *  {
+             *      Debug.Assert(index == parameters.GetIndex(x, y, z));
+             *      if (voxels[index].Fill)
+             *      {
+             *          if (Toggle.IsToggled<TInterlock>())
+             *              // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+             *              // During the construction of this array we already reserved an additional space at the end to prevent
+             *              // modifying undefined memory in case of setting the last used element of the voxel.
+             *              // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+             *              InterlockedOr(ref Unsafe.As<bool, int>(ref destination[index]), 1);
+             *          else
+             *              destination[index] = true;
+             *      }
+             *  }
+             */
+
+#if DEBUG
+            Debug.Assert(voxels.Length > index + zMaxMultiple - z
+                && destination.Length > index + zMaxMultiple - z
+                && index + zMaxMultiple - z == parameters.GetIndex(x, y, zMaxMultiple));
+#endif
+            ref VoxelInfo start = ref voxels[index];
+            ref VoxelInfo voxel = ref start;
+            ref bool destination_ = ref destination[index];
+            const int unroll = 4;
+            ref VoxelInfo end = ref Unsafe.Add(ref start, zMaxMultiple - z - unroll);
+#if DEBUG
+            int i = index;
+            int z_ = z;
+#endif
+
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (voxel.Fill)
+                {
+                    if (Toggle.IsToggled<TInterlock>())
+                        // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                        // During the construction of this array we already reserved an additional space at the end to prevent
+                        // modifying undefined memory in case of setting the last used element of the voxel.
+                        // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+                        InterlockedOr(ref Unsafe.As<bool, int>(ref destination_), 1);
+                    else
+                        destination_ = true;
+                }
+                voxel = ref Unsafe.Add(ref voxel, 1);
+                destination_ = ref Unsafe.Add(ref destination_, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, z_));
+                i++;
+                z_++;
+#endif
+
+                if (voxel.Fill)
+                {
+                    if (Toggle.IsToggled<TInterlock>())
+                        // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                        // During the construction of this array we already reserved an additional space at the end to prevent
+                        // modifying undefined memory in case of setting the last used element of the voxel.
+                        // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+                        InterlockedOr(ref Unsafe.As<bool, int>(ref destination_), 1);
+                    else
+                        destination_ = true;
+                }
+                voxel = ref Unsafe.Add(ref voxel, 1);
+                destination_ = ref Unsafe.Add(ref destination_, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, z_));
+                i++;
+                z_++;
+#endif
+
+                if (voxel.Fill)
+                {
+                    if (Toggle.IsToggled<TInterlock>())
+                        // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                        // During the construction of this array we already reserved an additional space at the end to prevent
+                        // modifying undefined memory in case of setting the last used element of the voxel.
+                        // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+                        InterlockedOr(ref Unsafe.As<bool, int>(ref destination_), 1);
+                    else
+                        destination_ = true;
+                }
+                voxel = ref Unsafe.Add(ref voxel, 1);
+                destination_ = ref Unsafe.Add(ref destination_, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, z_));
+                i++;
+                z_++;
+#endif
+
+                if (voxel.Fill)
+                {
+                    if (Toggle.IsToggled<TInterlock>())
+                        // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                        // During the construction of this array we already reserved an additional space at the end to prevent
+                        // modifying undefined memory in case of setting the last used element of the voxel.
+                        // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+                        InterlockedOr(ref Unsafe.As<bool, int>(ref destination_), 1);
+                    else
+                        destination_ = true;
+                }
+                voxel = ref Unsafe.Add(ref voxel, 1);
+                destination_ = ref Unsafe.Add(ref destination_, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, z_));
+                i++;
+                z_++;
+#endif
+
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                    index += offset;
+                    z += offset;
+#if DEBUG
+                    Debug.Assert(i == index && z_ == z && index == parameters.GetIndex(x, y, z));
+#endif
+                    return true;
+                }
+            }
+
+            end = ref Unsafe.Add(ref end, unroll);
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (voxel.Fill)
+                {
+                    if (Toggle.IsToggled<TInterlock>())
+                        // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                        // During the construction of this array we already reserved an additional space at the end to prevent
+                        // modifying undefined memory in case of setting the last used element of the voxel.
+                        // 1 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
+                        InterlockedOr(ref Unsafe.As<bool, int>(ref destination_), 1);
+                    else
+                        destination_ = true;
+                }
+                voxel = ref Unsafe.Add(ref voxel, 1);
+                destination_ = ref Unsafe.Add(ref destination_, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, z_));
+                i++;
+                z_++;
+#endif
+            }
+
+            {
+                int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                index += offset;
+#if DEBUG
+                Debug.Assert(i == index && z_ == zMaxMultiple && index == parameters.GetIndex(x, y, z_));
+#endif
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool VoxelizeMesh_FillFrontFrontToBack<TYield>(TimeSlicer timeSlicer, in VoxelizationParameters parameters, in ArraySlice<VoxelInfo> voxels, ref int index, int iback, ref int z
+#if DEBUG
+            , int x, int y
+#endif
+            )
+        {
+            /* This code is equivalent to:
+             *  for (int z = ifront; z < iback; z++, index++)
+             *  {
+             *      Debug.Assert(index == parameters.GetIndex(x, y, z));
+             *      voxels[index].Fill = true;
+             *  }
+             */
+
+#if DEBUG
+            Debug.Assert(voxels.Length > index + iback - z - 1
+                && index + iback - z - 1 == parameters.GetIndex(x, y, iback - 1));
+#endif
+            ref VoxelInfo start = ref voxels[index];
+            ref VoxelInfo voxel = ref start;
+            const int unroll = 16;
+            ref VoxelInfo end = ref Unsafe.Add(ref start, iback - z - unroll);
+#if DEBUG
+            int i = index;
+#endif
+
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                Unsafe.Add(ref voxel, 0).Fill = true;
+                Unsafe.Add(ref voxel, 1).Fill = true;
+                Unsafe.Add(ref voxel, 2).Fill = true;
+                Unsafe.Add(ref voxel, 3).Fill = true;
+                Unsafe.Add(ref voxel, 4).Fill = true;
+                Unsafe.Add(ref voxel, 5).Fill = true;
+                Unsafe.Add(ref voxel, 6).Fill = true;
+                Unsafe.Add(ref voxel, 7).Fill = true;
+                Unsafe.Add(ref voxel, 8).Fill = true;
+                Unsafe.Add(ref voxel, 9).Fill = true;
+                Unsafe.Add(ref voxel, 10).Fill = true;
+                Unsafe.Add(ref voxel, 11).Fill = true;
+                Unsafe.Add(ref voxel, 12).Fill = true;
+                Unsafe.Add(ref voxel, 13).Fill = true;
+                Unsafe.Add(ref voxel, 14).Fill = true;
+                Unsafe.Add(ref voxel, 15).Fill = true;
+
+                voxel = ref Unsafe.Add(ref voxel, unroll);
+#if DEBUG
+                i += unroll;
+#endif
+
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                    index += offset;
+                    z += offset;
+#if DEBUG
+                    Debug.Assert(i == index);
+#endif
+                    return true;
+                }
+            }
+
+            end = ref Unsafe.Add(ref end, unroll);
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                voxel.Fill = true;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                i++;
+#endif
+            }
+
+            {
+                int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                index += offset;
+                z += offset;
+#if DEBUG
+                Debug.Assert(i == index && z == iback);
+#endif
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool VoxelizeMesh_StepForwardToBackFace<TYield>(TimeSlicer timeSlicer, in VoxelizationParameters parameters, in ArraySlice<VoxelInfo> voxels, ref int iback, ref int index
+#if DEBUG
+            , int x, int y
+#endif
+            )
+        {
+            /* This code is equivalent to:
+             *  for (; iback < parameters.Depth && voxels[index].IsBackFace; iback++, index++)
+             *     Debug.Assert(index == parameters.GetIndex(x, y, iback));
+             */
+
+            Debug.Assert(voxels.Length > index + parameters.Depth - iback);
+            ref VoxelInfo start = ref voxels[index];
+            ref VoxelInfo voxel = ref start;
+            const int unroll = 16;
+            ref VoxelInfo end = ref Unsafe.Add(ref start, parameters.Depth - iback - unroll);
+#if DEBUG
+            int i = index, b = iback;
+#endif
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (!voxel.IsBackFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                    index += offset;
+                    iback += offset;
+#if DEBUG
+                    Debug.Assert(i == index && b == iback);
+#endif
+                    return true;
+                }
+            }
+
+            end = ref Unsafe.Add(ref start, unroll);
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (!voxel.IsBackFace) break;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(i == parameters.GetIndex(x, y, b) && b < parameters.Depth);
+                i++;
+                b++;
+#endif
+            }
+
+        end:
+            {
+                int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                index += offset;
+                iback += offset;
+#if DEBUG
+                Debug.Assert(i == index && b == iback);
+#endif
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool VoxelizeMesh_StepForwardToCavity<TYield>(TimeSlicer timeSlicer, in VoxelizationParameters parameters, in ArraySlice<VoxelInfo> voxels, ref int iback, ref int index)
+        {
+            /* This code is equivalent to:
+             *  for (; iback < parameters.Depth && !voxels[index].Fill; iback++, index++) { }
+             */
+
+            Debug.Assert(voxels.Length > index + parameters.Depth - iback);
+            ref VoxelInfo start = ref voxels[index];
+            ref VoxelInfo voxel = ref start;
+            const int unroll = 16;
+            ref VoxelInfo end = ref Unsafe.Add(ref start, parameters.Depth - iback - unroll);
+#if DEBUG
+            int i = index, b = iback;
+#endif
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (voxel.Fill) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                    index += offset;
+                    iback += offset;
+#if DEBUG
+                    Debug.Assert(i == index && b == iback);
+#endif
+                    return true;
+                }
+            }
+
+            end = ref Unsafe.Add(ref end, unroll);
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (voxel.Fill) break;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(b < parameters.Depth);
+                i++;
+                b++;
+#endif
+            }
+
+            end:
+            {
+                int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                index += offset;
+                iback += offset;
+#if DEBUG
+                Debug.Assert(i == index && b == iback);
+#endif
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool VoxelizeMesh_CalculateFront<TYield>(TimeSlicer timeslicer, in VoxelizationParameters parameters, in ArraySlice<VoxelInfo> voxels, ref int ifront, ref int index
+#if DEBUG
+            , int x, int y
+#endif
+            )
+        {
+            /* This code is equivalent to:
+             *  for (; ifront < parameters.Depth; ifront++, index++)
+             *  {
+             *      Debug.Assert(index == parameters.GetIndex(x, y, ifront));
+             *      if (!voxels[index].IsFrontFace)
+             *      break;
+             *  }
+             */
+
+#if DEBUG
+            Debug.Assert(index == parameters.GetIndex(x, y, ifront)
+                && parameters.Depth - 1 - ifront + index == parameters.GetIndex(x, y, parameters.Depth - 1)
+                && voxels.Length > index + parameters.Depth - ifront);
+#endif
+            ref VoxelInfo start = ref voxels[index];
+            ref VoxelInfo voxel = ref start;
+            const int unroll = 16;
+#if DEBUG
+            int i = index;
+            int f = ifront;
+#endif
+            ref VoxelInfo end = ref Unsafe.Add(ref start, parameters.Depth - ifront - unroll);
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (!voxel.IsFrontFace) goto end;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+
+                if (Toggle.IsToggled<TYield>() && timeslicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                    index += offset;
+                    ifront += offset;
+#if DEBUG
+                    Debug.Assert(i == index && f == ifront);
+#endif
+                    return true;
+                }
+            }
+
+            end = ref Unsafe.Add(ref start, unroll);
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            {
+                if (!voxel.IsFrontFace) break;
+                voxel = ref Unsafe.Add(ref voxel, 1);
+#if DEBUG
+                Debug.Assert(f < parameters.Depth);
+                i++;
+                f++;
+#endif
+            }
+
+            end:
+            { 
+                int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                index += offset;
+                ifront += offset;
+#if DEBUG
+                Debug.Assert(i == index && f == ifront);
+#endif
+            }
+
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool VoxelizeMesh_FillVoxels<TYield>(TimeSlicer timeSlicer, in VoxelizationParameters parameters, in ArraySlice<VoxelInfo> voxels, Vector3 voxelSize, Vector3 minAnchor, Triangle<Vector3> triangle, bool isTriangleFrontFacing, int imaxZ, ref int index, int x, int y, ref int z)
+        {
+            /* This code is equivalent to:
+             *  for (int z = iminZ; z <= imaxZ; z++, index++)
+             *  {
+             *      BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z) * voxelSize) + minAnchor, voxelSize);
+             *      if (triangle.Intersects(box))
+             *      {
+             *          Debug.Assert(index_ == parameters.GetIndex(x, y, z));
+             *          ref VoxelInfo voxel = ref voxels[index];
+             *          if (!voxel.Fill)
+             *              voxel.Front = isTriangleFrontFacing;
+             *          else
+             *              voxel.Front &= isTriangleFrontFacing;
+             *          voxel.Fill = true;
+             *      }
+             *  }
+             */
+
+            Debug.Assert(index == parameters.GetIndex(x, y, z)
+                && imaxZ - z + index == parameters.GetIndex(x, y, imaxZ)
+                && voxels.Length > imaxZ - z + index);
+            int oldZ = z;
+            ref VoxelInfo start = ref voxels[index];
+            ref VoxelInfo voxel = ref start;
+#if DEBUG
+            int i = index;
+#endif
+
+            const int unroll = 4;
+            int stopAt = imaxZ - unroll;
+            while (z < stopAt)
+            {
+                BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z++) * voxelSize) + minAnchor, voxelSize);
+                if (triangle.Intersects(box))
+                {
+                    if (!voxel.Fill)
+                        voxel.Front = isTriangleFrontFacing;
+                    else
+                        voxel.Front &= isTriangleFrontFacing;
+                    voxel.Fill = true;
+                }
+#if DEBUG
+                i++;
+#endif
+                voxel = ref Unsafe.Add(ref voxel, 1);
+
+                box = BoundingBox.FromCenter((new Vector3(x, y, z++) * voxelSize) + minAnchor, voxelSize);
+                if (triangle.Intersects(box))
+                {
+                    if (!voxel.Fill)
+                        voxel.Front = isTriangleFrontFacing;
+                    else
+                        voxel.Front &= isTriangleFrontFacing;
+                    voxel.Fill = true;
+                }
+#if DEBUG
+                i++;
+#endif
+                voxel = ref Unsafe.Add(ref voxel, 1);
+
+                box = BoundingBox.FromCenter((new Vector3(x, y, z++) * voxelSize) + minAnchor, voxelSize);
+                if (triangle.Intersects(box))
+                {
+                    if (!voxel.Fill)
+                        voxel.Front = isTriangleFrontFacing;
+                    else
+                        voxel.Front &= isTriangleFrontFacing;
+                    voxel.Fill = true;
+                }
+#if DEBUG
+                i++;
+#endif
+                voxel = ref Unsafe.Add(ref voxel, 1);
+
+                box = BoundingBox.FromCenter((new Vector3(x, y, z++) * voxelSize) + minAnchor, voxelSize);
+                if (triangle.Intersects(box))
+                {
+                    if (!voxel.Fill)
+                        voxel.Front = isTriangleFrontFacing;
+                    else
+                        voxel.Front &= isTriangleFrontFacing;
+                    voxel.Fill = true;
+                }
+#if DEBUG
+                i++;
+#endif
+                voxel = ref Unsafe.Add(ref voxel, 1);
+
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    index += MathHelper.IndexesTo(ref start, ref voxel);
+#if DEBUG
+                    Debug.Assert(index == parameters.GetIndex(x, y, z) && i == index);
+#endif
+                    return true;
+                }
+            }
+
+            while (z <= imaxZ)
+            {
+                BoundingBox<Vector3> box = BoundingBox.FromCenter((new Vector3(x, y, z++) * voxelSize) + minAnchor, voxelSize);
+                if (triangle.Intersects(box))
+                {
+                    if (!voxel.Fill)
+                        voxel.Front = isTriangleFrontFacing;
+                    else
+                        voxel.Front &= isTriangleFrontFacing;
+                    voxel.Fill = true;
+                }
+#if DEBUG
+                i++;
+#endif
+                voxel = ref Unsafe.Add(ref voxel, 1);
+            }
+
+            index += z - oldZ;
+#if DEBUG
+            Debug.Assert(index - 1 == parameters.GetIndex(x, y, z - 1) && i == index);
+#endif
+
+            return false;
         }
 
         private sealed class VoxelizeMeshes_MultiThread
