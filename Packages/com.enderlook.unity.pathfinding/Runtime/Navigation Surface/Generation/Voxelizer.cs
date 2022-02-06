@@ -161,7 +161,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
                                             voxelsInfo);
                                         content.Dispose();
                                         options.StepTask();
-                                        await timeSlicer.Yield();
                                     }
                                 }
                                 else
@@ -296,6 +295,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static void CalculateMultiplesVolumeIndexes(
             Vector3 min, Vector3 max,
             in VoxelizationParameters parameters,
