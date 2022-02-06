@@ -81,6 +81,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear() => System.Array.Clear(Array, 0, Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
             Debug.Assert(!(array is null));

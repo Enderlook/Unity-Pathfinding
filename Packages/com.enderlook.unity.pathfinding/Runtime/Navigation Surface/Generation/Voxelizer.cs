@@ -146,11 +146,12 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             {
                                 int count = meshInformations.Count;
                                 VoxelizationParameters parameters = options.VoxelizationParameters;
-                                ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(voxelsCount, true);
+                                ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(voxelsCount, false);
                                 if (options.ShouldUseTimeSlice)
                                 {
                                     for (int i = 0; i < count; i++)
                                     {
+                                        voxelsInfo.Clear();
                                         MeshInformation content = meshInformations[i];
                                         await VoxelizeMesh<Toggle.Yes, Toggle.No>(
                                             timeSlicer,
@@ -170,6 +171,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                                     void Local(ArraySlice<MeshInformation> list)
                                     {
+                                        voxelsInfo.Clear();
                                         for (int i = 0; i < count; i++)
                                         {
                                             MeshInformation content = list[i];
