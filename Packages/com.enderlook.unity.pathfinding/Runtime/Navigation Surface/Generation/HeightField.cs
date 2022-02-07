@@ -1,5 +1,4 @@
-﻿using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Pools;
+﻿using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
@@ -53,92 +52,113 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.PushTask(parameters.VoxelsCount, "Generating Height Field");
             {
                 if (options.UseMultithreading)
-                    spans = MultiThread.Calculate(options, voxels, columns);
+                    spans = MultiThread.Calculate(options, voxels, columns).Array;
                 else if (options.ShouldUseTimeSlice)
-                    spans = await SingleThread<Toggle.Yes>(options, voxels, columns);
+                    spans = (await SingleThread<Toggle.Yes>(options, voxels, columns)).Array;
                 else
-                    spans = await SingleThread<Toggle.No>(options, voxels, columns);
+                    spans = (await SingleThread<Toggle.No>(options, voxels, columns)).Array;
             }
             options.PopTask();
             return new HeightField(columns, spans);
         }
 
-        private static async ValueTask<HeightSpan[]> SingleThread<TYield>(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
+        private static async ValueTask<ArraySlice<HeightSpan>> SingleThread<TYield>(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
             // TODO: Spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
-            RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
-            int index = 0;
+            ArraySlice<HeightSpan> spans = new ArraySlice<HeightSpan>(parameters.VoxelsCount, false);
+            int spansCount = 0;
+            int indexColumn = 0;
             for (int x = 0; x < parameters.Width; x++)
             {
                 for (int z = 0; z < parameters.Depth; z++)
                 {
-                    int start = spans.Count;
-                    bool added = false;
+                    // TODO: This may produce error if Height is 1 or 0.
+
+                    int start = spansCount;
+                    int index = parameters.GetIndex(x, 0, z);
+
+                    bool isSolid = voxels[index];
+                    spans[spansCount++] = new HeightSpan(isSolid);
+                    options.StepTask();
+                    int y = 1;
+                    index += parameters.Depth;
+
                     if (Toggle.IsToggled<TYield>())
-                    {
-                        int y = 0;
-                        while (Local(ref spans, x, z, ref added, ref y))
-                            await timeSlicer.Yield();
-                    }
-                    else
-                    {
-                        for (int y = 0; y < parameters.Height; y++)
-                            SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans, x, z, ref added, y);
-                    }
-                    Debug.Assert(index == parameters.GetIndex(x, z));
-                    columns[index++] = new HeightColumn(start, spans.Count - start);
+                        await timeSlicer.Yield();
+
+                    int end = index + ((parameters.Height - 2) * parameters.Depth);
+                    Debug.Assert(end == parameters.GetIndex(x, parameters.Height - 1, z));
+                    while (ProcessColumn<TYield>(options, timeSlicer, parameters, voxels, spans, ref spansCount, x, z, ref y, ref index, end))
+                        await timeSlicer.Yield();
+                    Debug.Assert(indexColumn == parameters.GetIndex(x, z));
+                    columns[indexColumn++] = new HeightColumn(start, spansCount - start);
                 }
             }
-            return spans.UnderlyingArray;
-
-            bool Local(ref RawPooledList<HeightSpan> spans_, int x, int z, ref bool added, ref int y)
-            {
-                while (true)
-                {
-                    if (y >= parameters.Height)
-                        break;
-                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
-
-                    if (y >= parameters.Height)
-                        break;
-                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
-
-                    if (y >= parameters.Height)
-                        break;
-                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
-
-                    if (y >= parameters.Height)
-                        break;
-                    SingleThread_ProcesssVoxel(options, parameters, voxels, ref spans_, x, z, ref added, y++);
-
-                    if (timeSlicer.MustYield())
-                        return true;
-                }
-                return false;
-            }
+            return spans;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void SingleThread_ProcesssVoxel(NavigationGenerationOptions options, VoxelizationParameters parameters, ReadOnlyArraySlice<bool> voxels, ref RawPooledList<HeightSpan> spans, int x, int z, ref bool added, int y)
+        private static bool ProcessColumn<TYield>(NavigationGenerationOptions options, TimeSlicer timeSlicer, in VoxelizationParameters parameters, in ReadOnlyArraySlice<bool> voxels, in ArraySlice<HeightSpan> spans, ref int spansCount, int x, int z, ref int y, ref int index, int end)
         {
-            bool isSolid = voxels[parameters.GetIndex(x, y, z)];
-            if (!added)
+            ref bool startVoxel = ref Unsafe.AsRef(voxels[index]);
+            ref bool voxel = ref startVoxel;
+            ref HeightSpan startSpan = ref spans[spansCount - 1];
+            ref HeightSpan span = ref startSpan;
+            ref bool end_ = ref Unsafe.Add(ref voxel, end - index + 1);
+#if DEBUG
+            int i = index;
+            int y_ = y;
+            int s = spansCount;
+#endif
+
+            // TODO: Apply loop unrolling.
+            while (Unsafe.IsAddressLessThan(ref voxel, ref end_))
             {
-                spans.Add(new HeightSpan(isSolid));
-                added = true;
-            }
-            else
-            {
-                ref HeightSpan span = ref spans[spans.Count - 1];
+                bool isSolid = voxel;
                 if (span.IsSolid == isSolid)
                     // HACK: HeightSpan.Height is readonly, however we are still constructing it so we mutate it.
                     Unsafe.AsRef(span.Height)++;
                 else
-                    spans.Add(new HeightSpan(isSolid));
+                {
+#if DEBUG
+                    s++;
+                    Debug.Assert(spans.Length > s);
+#endif
+                    span = ref Unsafe.Add(ref span, 1);
+                    span = new HeightSpan(isSolid);
+                }
+#if DEBUG
+                Debug.Assert(y_ < parameters.Height && i == parameters.GetIndex(x, y_, z));
+                y_++;
+                i += parameters.Depth;
+#endif
+                voxel = ref Unsafe.Add(ref voxel, parameters.Depth);
+                options.StepTask();
+
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref startVoxel, ref voxel);
+                    index += offset;
+                    y += offset / parameters.Depth;
+                    spansCount += MathHelper.IndexesTo(ref startSpan, ref span);
+#if DEBUG
+                    Debug.Assert(i == index && y_ == y && s == spansCount);
+#endif
+                    return true;
+                }
             }
-            options.StepTask();
+
+            {
+                index += MathHelper.IndexesTo(ref startVoxel, ref voxel);
+                spansCount += MathHelper.IndexesTo(ref startSpan, ref span);
+#if DEBUG
+                Debug.Assert(y_ == parameters.Height && i == index && s == spansCount);
+#endif
+            }
+
+            return false;
         }
 
         private sealed class MultiThread
@@ -147,14 +167,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
             private NavigationGenerationOptions options;
             private ReadOnlyArraySlice<bool> voxels;
             private ArraySlice<HeightColumn> columns;
-            private HeightSpan[] spans;
+            private ArraySlice<HeightSpan> spans;
 
             public MultiThread() => action = Process;
 
-            public static HeightSpan[] Calculate(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
+            public static ArraySlice<HeightSpan> Calculate(NavigationGenerationOptions options, ReadOnlyArraySlice<bool> voxels, ArraySlice<HeightColumn> columns)
             {
                 VoxelizationParameters parameters = options.VoxelizationParameters;
-                HeightSpan[] span = ArrayPool<HeightSpan>.Shared.Rent(parameters.VoxelsCount);
+                ArraySlice<HeightSpan> span = new ArraySlice<HeightSpan>(parameters.VoxelsCount, false);
                 ObjectPool<MultiThread> pool = ObjectPool<MultiThread>.Shared;
                 MultiThread instance = pool.Rent();
                 {
@@ -174,37 +194,27 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return span;
             }
 
-            private void Process(int index)
+            private void Process(int columnIndex)
             {
                 VoxelizationParameters parameters = options.VoxelizationParameters;
 
-                int x = index / parameters.Width;
-                int z = index % parameters.Width;
+                int x = columnIndex / parameters.Width;
+                int z = columnIndex % parameters.Width;
 
-                bool added = false;
-                int start = index * parameters.Height;
-                int count = start;
+                int start = columnIndex * parameters.Height;
+                int spansCount = start;
+                int index = parameters.GetIndex(x, 0, z);
+                bool isSolid = voxels[index];
+                spans[spansCount++] = new HeightSpan(isSolid);
+                options.StepTask();
+                int y = 1;
+                index += parameters.Depth;
 
-                for (int y = 0; y < parameters.Height; y++)
-                {
-                    bool isSolid = voxels[parameters.GetIndex(x, y, z)];
-                    if (!added)
-                    {
-                        spans[count++] = new HeightSpan(isSolid);
-                        added = true;
-                    }
-                    else
-                    {
-                        ref HeightSpan span = ref spans[count - 1];
-                        if (span.IsSolid == isSolid)
-                            Unsafe.AsRef(span.Height)++;
-                        else
-                            spans[count++] = new HeightSpan(isSolid);
-                    }
-                    options.StepTask();
-                }
-                Debug.Assert(index == parameters.GetIndex(x, z));
-                columns[index] = new HeightColumn(start, count - start);
+                int end = index + ((parameters.Height - 2) * parameters.Depth);
+                Debug.Assert(end == parameters.GetIndex(x, parameters.Height - 1, z));
+                bool value = ProcessColumn<Toggle.No>(options, options.TimeSlicer, parameters, voxels, spans, ref spansCount, x, z, ref y, ref index, end);
+                Debug.Assert(!value && columnIndex == parameters.GetIndex(x, z));
+                columns[columnIndex] = new HeightColumn(start, spansCount - start);
             }
         }
 
