@@ -117,12 +117,16 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #endif
                         int i = 0;
                         int y = 0;
-                        while (InitializeWork<TYield>(timeSlicer, heightField, columns, ref spanBuilder, column, startIndex, ref index, ref i, ref y
+                        if (InitializeWorkStart(heightField, ref spanBuilder, column, ref wasSolid, ref i, ref y))
+                        {
+                            while (InitializeWork<TYield>(timeSlicer, heightField, ref spanBuilder, column, ref i, ref y
 #if DEBUG
-                            , ref wasSolid
+                                , ref wasSolid
 #endif
-                        ))
-                            await timeSlicer.Yield();
+                            ))
+                                await timeSlicer.Yield();
+                        }
+                        columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
                         options.StepTask();
                     }
                 }
@@ -132,7 +136,64 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool InitializeWork<TYield>(TimeSlicer timeSlicer, in HeightField heightField, ArraySlice<HeightColumn> columns, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, int startIndex, ref int index, ref int i, ref int y
+        private static bool InitializeWorkStart(in HeightField heightField, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, ref bool wasSolid, ref int i, ref int y)
+        {
+            ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
+            Debug.Assert(spans.Length > 0);
+            if (spans.Length > 1)
+            {
+                HeightField.HeightSpan span = spans[i++];
+
+#if DEBUG
+                wasSolid = span.IsSolid;
+#endif
+
+                if (!span.IsSolid)
+                {
+                    /* Do we actually need to add this span?
+                     * If we remove it, everything works... the output is just a bit different,
+                     * maybe it doesn't mater. */
+                    const int floor = -1;
+                    int ceil = y + span.Height;
+                    spanBuilder.Add(new HeightSpan(floor, ceil));
+
+                    // Regardless we remove above span, this line must stay.
+                    y += span.Height;
+                }
+                else
+                {
+                    int floor = y + span.Height;
+                    if (spans.Length > 2)
+                    {
+                        span = spans[i++];
+
+#if DEBUG
+                        Debug.Assert(wasSolid != span.IsSolid);
+                        wasSolid = span.IsSolid;
+#endif
+
+                        y += span.Height;
+                        int ceil = y;
+                        spanBuilder.Add(new HeightSpan(floor, ceil));
+                    }
+                    else
+                    {
+                        Debug.Assert(i == spans.Length - 1);
+#if DEBUG
+                        Debug.Assert(wasSolid != spans[i].IsSolid);
+#endif
+                        const int ceil = -1;
+                        spanBuilder.Add(new HeightSpan(floor, ceil));
+
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool InitializeWork<TYield>(TimeSlicer timeSlicer, in HeightField heightField, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, ref int i, ref int y
 #if DEBUG
             , ref bool wasSolid
 #endif
@@ -141,60 +202,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
             Debug.Assert(spans.Length > 0);
 
-            if (i == 0)
-            {
-                if (spans.Length > 1)
-                {
-                    HeightField.HeightSpan span = spans[i++];
-
-#if DEBUG
-                    wasSolid = span.IsSolid;
-#endif
-
-                    if (!span.IsSolid)
-                    {
-                        /* Do we actually need to add this span?
-                         * If we remove it, everything works... the output is just a bit different,
-                         * maybe it doesn't mater. */
-                        const int floor = -1;
-                        int ceil = y + span.Height;
-                        spanBuilder.Add(new HeightSpan(floor, ceil));
-
-                        // Regardless we remove above span, this line must stay.
-                        y += span.Height;
-                    }
-                    else
-                    {
-                        int floor = y + span.Height;
-                        if (spans.Length > 2)
-                        {
-                            span = spans[i++];
-
-#if DEBUG
-                            Debug.Assert(wasSolid != span.IsSolid);
-                            wasSolid = span.IsSolid;
-#endif
-
-                            y += span.Height;
-                            int ceil = y;
-                            spanBuilder.Add(new HeightSpan(floor, ceil));
-                        }
-                        else
-                        {
-                            Debug.Assert(i == spans.Length - 1);
-#if DEBUG
-                            Debug.Assert(wasSolid != spans[i].IsSolid);
-#endif
-                            const int ceil = -1;
-                            spanBuilder.Add(new HeightSpan(floor, ceil));
-
-                            goto end;
-                        }
-                    }
-                }
-            }
-
-            for (; i < spans.Length - 1; i++)
+            for (; i < spans.Length - 1;)
             {
                 HeightField.HeightSpan span = spans[i];
 #if DEBUG
@@ -210,6 +218,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
                 else
                     y += span.Height;
+                i++;
 
                 if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                     return true;
@@ -229,9 +238,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     spanBuilder.Add(new HeightSpan(floor, ceil));
                 }
             }
-
-            end:
-            columns[index++] = new HeightColumn(startIndex, spanBuilder.Count);
             return false;
         }
 
