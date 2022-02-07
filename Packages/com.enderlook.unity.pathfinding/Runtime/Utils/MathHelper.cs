@@ -21,9 +21,18 @@ namespace Enderlook.Unity.Pathfinding.Generation
         [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe static int IndexesTo<T>(ref T start, ref T end)
         {
-            long currentPointer = ((IntPtr)Unsafe.AsPointer(ref end)).ToInt64();
-            long startPointer = ((IntPtr)Unsafe.AsPointer(ref start)).ToInt64();
-            return (int)((currentPointer - startPointer) / Unsafe.SizeOf<T>());
+            if (IntPtr.Size == 4)
+            {
+                int currentPointer = ((IntPtr)Unsafe.AsPointer(ref end)).ToInt32();
+                int startPointer = ((IntPtr)Unsafe.AsPointer(ref start)).ToInt32();
+                return (currentPointer - startPointer) / Unsafe.SizeOf<T>();
+            }
+            else
+            {
+                long currentPointer = ((IntPtr)Unsafe.AsPointer(ref end)).ToInt64();
+                long startPointer = ((IntPtr)Unsafe.AsPointer(ref start)).ToInt64();
+                return (int)((currentPointer - startPointer) / Unsafe.SizeOf<T>());
+            }
         }
     }
 }
