@@ -187,22 +187,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     Unsafe.Add(ref voxel, 14).Fill = true;
                     Unsafe.Add(ref voxel, 15).Fill = true;
 
-                    destination = true;
-                    Unsafe.Add(ref destination, 1) = true;
-                    Unsafe.Add(ref destination, 2) = true;
-                    Unsafe.Add(ref destination, 3) = true;
-                    Unsafe.Add(ref destination, 4) = true;
-                    Unsafe.Add(ref destination, 5) = true;
-                    Unsafe.Add(ref destination, 6) = true;
-                    Unsafe.Add(ref destination, 7) = true;
-                    Unsafe.Add(ref destination, 8) = true;
-                    Unsafe.Add(ref destination, 9) = true;
-                    Unsafe.Add(ref destination, 10) = true;
-                    Unsafe.Add(ref destination, 11) = true;
-                    Unsafe.Add(ref destination, 12) = true;
-                    Unsafe.Add(ref destination, 13) = true;
-                    Unsafe.Add(ref destination, 14) = true;
-                    Unsafe.Add(ref destination, 15) = true;
+                    unsafe {
+                        new Span<bool>(Unsafe.AsPointer(ref destination), unroll).Fill(true);
+                    }
                 }
                 else
                     // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
