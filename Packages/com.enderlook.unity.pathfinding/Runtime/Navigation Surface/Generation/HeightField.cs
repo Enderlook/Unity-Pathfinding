@@ -66,7 +66,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
         {
             TimeSlicer timeSlicer = options.TimeSlicer;
             VoxelizationParameters parameters = options.VoxelizationParameters;
-            // TODO: Spans could be replaced from type RawPooledList<HeightSpan> to HeightSpan[resolution.Cells] instead.
             ArraySlice<HeightSpan> spans = new ArraySlice<HeightSpan>(parameters.VoxelsCount, false);
             int spansCount = 0;
             int indexColumn = 0;
