@@ -139,7 +139,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
             float voxelSize = maxLength / resolution;
 
-            Vector3 unit = voxelSize * Vector3.one;
+            // TODO: *2 is used as a temporary fix for the VoxelizeMesh method.
+            Vector3 unit = 2 * voxelSize * Vector3.one;
             minAnchor -= unit;
             maxAnchor += unit;
 
