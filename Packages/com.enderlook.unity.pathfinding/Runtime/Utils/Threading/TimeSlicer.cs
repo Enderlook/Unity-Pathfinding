@@ -1,4 +1,5 @@
-﻿using Enderlook.Unity.Threading;
+﻿using Enderlook.Pools;
+using Enderlook.Unity.Threading;
 
 using System;
 using System.Runtime.CompilerServices;
@@ -253,7 +254,34 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 task = task.Preserve();
             }
             Unlock(ref taskLock);
-            task.GetAwaiter().OnCompleted(() => continuation(state));
+            task.GetAwaiter().OnCompleted(OnCompletedContinuation.Rent(continuation, state));
+        }
+
+        private sealed class OnCompletedContinuation
+        {
+            private readonly Action action;
+            private Action<object> continuation;
+            private object state;
+
+            public OnCompletedContinuation() => action = Callback;
+
+            public static Action Rent(Action<object> continuation, object state)
+            {
+                OnCompletedContinuation instance = ObjectPool<OnCompletedContinuation>.Shared.Rent();
+                instance.continuation = continuation;
+                instance.state = state;
+                return instance.action;
+            }
+
+            private void Callback()
+            {
+                Action<object> continuation = this.continuation;
+                object state = this.state;
+                this.continuation = default;
+                this.state = default;
+                ObjectPool<OnCompletedContinuation>.Shared.Return(this);
+                continuation(state);
+            }
         }
 
         /// <inheritdoc cref="IValueTaskSource.GetResult(short)"/>
