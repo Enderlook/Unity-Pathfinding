@@ -1,5 +1,4 @@
-﻿using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Unity.Threading;
+﻿using Enderlook.Unity.Threading;
 
 using System;
 using System.Runtime.CompilerServices;
@@ -23,16 +22,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
         {
             while (!self.task.IsCompleted)
             {
-                bool found;
-                Action action;
-                Lock(ref self.continuationsLock);
-                {
-                    found = self.continuations.TryDequeue(out action);
-                }
-                Unlock(ref self.continuationsLock);
-                if (!found)
+                Action continuation = self.poolContinuation;
+                self.poolContinuation = default;
+                if (continuation is null)
                     break;
-                action();
+                continuation();
             }
             if (self.executionTimeSlice != float.PositiveInfinity)
                 self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
@@ -40,8 +34,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
 
         private float nextYield = float.PositiveInfinity;
 
-        private RawPooledQueue<Action> continuations = RawPooledQueue<Action>.Create();
-        private int continuationsLock;
+        private Action poolContinuation;
 
         private ValueTask task;
         private int taskLock;
@@ -104,13 +97,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 Unlock(ref taskLock);
 #if DEBUG
                 if (isCompleted)
-                {
-                    Lock(ref continuationsLock);
-                    {
-                        Debug.Assert(continuations.IsEmpty);
-                    }
-                    Unlock(ref continuationsLock);
-                }
+                    Debug.Assert(poolContinuation is null);
 #endif
                 return isCompleted;
             }
@@ -134,17 +121,13 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public void Reset()
         {
             version++;
-            Lock(ref continuationsLock);
+            Lock(ref taskLock);
             {
-                Lock(ref taskLock);
-                {
-                    continuations.Clear();
-                    task = default;
-                    canContinue = true;
-                }
-                Unlock(ref taskLock);
+                poolContinuation = default;
+                task = default;
+                canContinue = true;
             }
-            Unlock(ref continuationsLock);
+            Unlock(ref taskLock);;
         }
 
         /// <summary>
@@ -169,21 +152,16 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public void Poll()
         {
             Debug.Assert(UnityThread.IsMainThread);
-            if (executionTimeSlice == 0 || continuations.Count == 0)
+            if (executionTimeSlice == 0 || poolContinuation is null)
                 return;
             nextYield = Time.realtimeSinceStartup + executionTimeSlice;
             do
             {
-                bool found;
-                Action action;
-                Lock(ref continuationsLock);
-                {
-                    found = continuations.TryDequeue(out action);
-                }
-                Unlock(ref continuationsLock);
-                if (!found)
-                    return;
-                action();
+                Action continuation = poolContinuation;
+                poolContinuation = default;
+                if (continuation is null)
+                    break;
+                continuation();
             } while (Time.realtimeSinceStartup < nextYield);
         }
 
@@ -200,16 +178,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 {
                     while (!task.IsCompleted)
                     {
-                        bool found;
-                        Action action;
-                        Lock(ref continuationsLock);
-                        {
-                            found = continuations.TryDequeue(out action);
-                        }
-                        Unlock(ref continuationsLock);
-                        if (!found)
+                        Action continuation = poolContinuation;
+                        poolContinuation = default;
+                        if (continuation is null)
                             break;
-                        action();
+                        continuation();
                     }
                     if (executionTimeSlice != float.PositiveInfinity)
                         nextYield = Time.realtimeSinceStartup + executionTimeSlice;
@@ -365,11 +338,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
 #endif
                 if (IsCompleted)
                     continuation();
-                Lock(ref timeSlicer.continuationsLock);
-                {
-                    timeSlicer.continuations.Enqueue(continuation);
-                }
-                Unlock(ref timeSlicer.continuationsLock);
+                Debug.Assert(timeSlicer.poolContinuation is null);
+                timeSlicer.poolContinuation = continuation;
             }
         }
     }
