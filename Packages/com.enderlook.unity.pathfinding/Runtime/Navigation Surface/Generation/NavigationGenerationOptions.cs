@@ -203,9 +203,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
             Unlock(ref stepLock);
         }
 
-        /// <inheritdoc cref="TimeSlicer.Poll"/>
-        public void Poll() => TimeSlicer.Poll();
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void PushTask_(int steps, int step, string name)
         {

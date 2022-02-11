@@ -70,20 +70,21 @@ namespace Enderlook.Unity.Pathfinding
 
         private void Update()
         {
-            if (!options.TimeSlicer.IsCompleted)
-                options.Poll();
+            TimeSlicer timeSlicer = options.TimeSlicer;
+            if (!timeSlicer.IsCompleted)
+                timeSlicer.Poll();
             else
             {
                 int j = 0;
                 for (int i = 0; i < timeSlicers.Count; i++)
                 {
-                    TimeSlicer timeSlicer = timeSlicers[i];
-                    if (timeSlicer.IsCompleted)
+                    TimeSlicer timeSlicer_ = timeSlicers[i];
+                    if (timeSlicer_.IsCompleted)
                         continue;
 
-                    timeSlicer.Poll();
+                    timeSlicer_.Poll();
 
-                    timeSlicers[j++] = timeSlicer;
+                    timeSlicers[j++] = timeSlicer_;
                 }
                 timeSlicers = RawList<TimeSlicer>.From(timeSlicers.UnderlyingArray, j);
             }
@@ -100,7 +101,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
 #if UNITY_EDITOR
-        internal void Poll() => options.Poll();
+        internal void Poll() => options.TimeSlicer.Poll();
 
         internal float Progress() => options.Progress;
 #endif

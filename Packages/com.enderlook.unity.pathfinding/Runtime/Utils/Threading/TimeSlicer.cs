@@ -163,7 +163,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
             canContinue = false;
         }
 
-        /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Poll"/>
+        /// <summary>
+        /// Poll execution of this <see cref="TimeSlicer"/>.
+        /// </summary>
         public void Poll()
         {
             Debug.Assert(UnityThread.IsMainThread);
@@ -186,7 +188,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         /// <summary>
-        /// Forces <see cref="TimeSlicer"/> to run synchronously and returns instance to pool.
+        /// Forces <see cref="TimeSlicer"/> to run synchronously.
         /// </summary>
         public void RunSynchronously()
         {
@@ -220,7 +222,10 @@ namespace Enderlook.Unity.Pathfinding.Utils
             task = default;
         }
 
-        /// <inheritdoc cref="ITimeSlicer{TAwaitable, TAwaiter}.Yield"/>
+        /// <summary>
+        /// An awaiter that waits until next call of <see cref="Poll"/> if <see cref="ExecutionTimeSlice"/> has been exceeded.
+        /// </summary>
+        /// <returns>An awaiter.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Yielder Yield()
         {
@@ -232,6 +237,10 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 );
         }
 
+        /// <summary>
+        /// Determines if the <see cref="ExecutionTimeSlice"/> has been exceeded.
+        /// </summary>
+        /// <returns><see langword="true"/> if the <see cref="ExecutionTimeSlice"/> has been exceeded.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MustYield() => nextYield < Time.realtimeSinceStartup;
 
