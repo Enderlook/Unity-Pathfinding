@@ -49,7 +49,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
             RawPooledList<HeightSpan> spans = RawPooledList<HeightSpan>.Create();
             options.PushTask(2, "Compact Open Height Field");
             {
-                if (options.ShouldUseTimeSlice)
+                TimeSlicer timeSlicer = options.TimeSlicer;
+                if (timeSlicer.ShouldUseTimeSlice)
                     spans = await Initialize<Toggle.Yes>(options, heightField, columns, spans);
                 else
                     spans = await Initialize<Toggle.No>(options, heightField, columns, spans);
@@ -57,9 +58,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                 options.PushTask(parameters.ColumnsCount, "Calculate Neighbours");
                 {
-                    if (options.UseMultithreading)
+                    if (timeSlicer.UseMultithreading)
                         MultiThread.Calculate(options, columns, spans);
-                    else if (options.ShouldUseTimeSlice)
+                    else if (timeSlicer.ShouldUseTimeSlice)
                         await CalculateNeighboursSingleThread<Toggle.Yes>(options, columns, spans);
                     else
                         await CalculateNeighboursSingleThread<Toggle.No>(options, columns, spans);

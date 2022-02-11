@@ -62,7 +62,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             options = new NavigationGenerationOptions();
 
-            if (options.UseMultithreading)
+            if (options.TimeSlicer.UseMultithreading)
                 Task.Factory.StartNew(buildNavigationFunc, this).Unwrap();
             else
                 BuildNavigation();
@@ -70,7 +70,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private void Update()
         {
-            if (!options.IsCompleted)
+            if (!options.TimeSlicer.IsCompleted)
                 options.Poll();
             else
             {
@@ -108,7 +108,7 @@ namespace Enderlook.Unity.Pathfinding
         internal ValueTask CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination, bool synchronous = false)
         {
             if (options is null) ThrowNoNavigation();
-            if (!options.IsCompleted) ThrowNavigationInProgress();
+            if (!options.TimeSlicer.IsCompleted) ThrowNavigationInProgress();
 
             if (!SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.TryFrom(this, destination, out SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher))
             {
@@ -147,20 +147,21 @@ namespace Enderlook.Unity.Pathfinding
                 options = new NavigationGenerationOptions();
 #endif
 
-            if (!options.IsCompleted) ThrowNavigationInProgress();
+            TimeSlicer timeSlicer = options.TimeSlicer;
+            if (!timeSlicer.IsCompleted) ThrowNavigationInProgress();
 
 #if UNITY_EDITOR
-            bool useMultithreading = options.UseMultithreading;
+            bool useMultithreading = timeSlicer.UseMultithreading;
             if (isEditor)
-                options.UseMultithreading = true;
+                timeSlicer.UseMultithreading = true;
 #endif
 
             ValueTask task = Work();
-            options.SetTask(task);
+            timeSlicer.SetTask(task);
 
 #if UNITY_EDITOR
             if (isEditor)
-                options.AsTask().GetAwaiter().OnCompleted(() => options.UseMultithreading = useMultithreading);
+                timeSlicer.AsTask().GetAwaiter().OnCompleted(() => timeSlicer.UseMultithreading = useMultithreading);
 #endif
 
             return task;
@@ -183,14 +184,12 @@ namespace Enderlook.Unity.Pathfinding
                     if ((collectInformation & GeometryType.PhysicsTriggerColliders) != 0)
                         throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsTriggerColliders}.");
 
-                    if (options.Progress != 1 || !options.IsCompleted)
+                    if (options.Progress != 1 || !timeSlicer.IsCompleted)
                         ThrowNavigationInProgress();
 
-                    options.ExecutionTimeSlice = backingExecutionTimeSlice;
+                    timeSlicer.ExecutionTimeSlice = backingExecutionTimeSlice;
                     options.MaximumTraversableStep = maximumTraversableStep;
                     options.MinimumTraversableHeight = minimumTraversableHeight;
-
-                    TimeSlicer timeSlicer = options.TimeSlicer;
 
                     options.PushTask(4, "Generate Navigation Mesh");
                     {
@@ -263,7 +262,7 @@ namespace Enderlook.Unity.Pathfinding
                         {
                             spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.Spans.Length);
                             VoxelizationParameters parameters = options.VoxelizationParameters;
-                            if (options.UseMultithreading)
+                            if (timeSlicer.UseMultithreading)
                             {
                                 Parallel.For(0, parameters.ColumnsCount, i =>
                                 {
@@ -274,7 +273,7 @@ namespace Enderlook.Unity.Pathfinding
                             }
                             else
                             {
-                                if (options.ShouldUseTimeSlice)
+                                if (timeSlicer.ShouldUseTimeSlice)
                                 {
                                     for (int i = 0; i < parameters.ColumnsCount; i++)
                                     {

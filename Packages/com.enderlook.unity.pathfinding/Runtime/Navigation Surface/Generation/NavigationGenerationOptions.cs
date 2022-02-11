@@ -26,26 +26,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
         /// </summary>
         public readonly TimeSlicer TimeSlicer = new TimeSlicer();
 
-        /// <inheritdoc cref="TimeSlicer.ExecutionTimeSlice"/>
-        public int ExecutionTimeSlice
-        {
-            get => (int)(TimeSlicer.ExecutionTimeSlice * 1000);
-            set => TimeSlicer.ExecutionTimeSlice = value / 1000f;
-        }
-
-        /// <inheritdoc cref="TimeSlicer.ShouldUseTimeSlice"/>
-        public bool ShouldUseTimeSlice => TimeSlicer.ShouldUseTimeSlice;
-
-        /// <inheritdoc cref="TimeSlicer.UseMultithreading"/>
-        public bool UseMultithreading
-        {
-            get => TimeSlicer.UseMultithreading;
-            set => TimeSlicer.UseMultithreading = value;
-        }
-
-        /// <inheritdoc cref="TimeSlicer.IsCompleted"/>
-        public bool IsCompleted => TimeSlicer.IsCompleted;
-
         /// <summary>
         /// Maximum amount of cells between two floors to be considered neighbours.
         /// </summary>
@@ -160,12 +140,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
             }
         }
-
-        /// <inheritdoc cref="TimeSlicer.SetTask(ValueTask)"/>
-        public void SetTask(ValueTask task) => TimeSlicer.SetTask(task);
-
-        /// <inheritdoc cref="TimeSlicer.AsTask"/>
-        public ValueTask AsTask() => TimeSlicer.AsTask();
 
         public void SetVoxelizationParameters(float voxelSize, Vector3 min, Vector3 max)
             => VoxelizationParameters = VoxelizationParameters.WithVoxelSize(min, max, voxelSize);

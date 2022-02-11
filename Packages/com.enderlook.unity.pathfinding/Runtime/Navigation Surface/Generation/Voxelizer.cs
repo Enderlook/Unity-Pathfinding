@@ -80,7 +80,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                     if (meshesCount > 0)
                     {
-                        if (options.UseMultithreading)
+                        if (timeSlicer.UseMultithreading)
                             CalculateMeshesBounds_MultiThread.Calculate(options, meshInformations, ref min, ref max);
                         else
                         {
@@ -88,7 +88,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                             {
                                 int i = 0;
                                 int j = 0;
-                                if (options.ShouldUseTimeSlice)
+                                if (timeSlicer.ShouldUseTimeSlice)
                                 {
                                     while (CalculateMeshesBounds_SingleThread<Toggle.Yes>(ref i, ref j, ref min, ref max))
                                         await timeSlicer.Yield();
@@ -105,14 +105,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                     if (boxesCount > 0)
                     {
-                        if (options.UseMultithreading)
+                        if (timeSlicer.UseMultithreading)
                             CalculateBoxesBounds_MultiThread.Calculate(options, boxInformations, ref min, ref max);
                         else
                         {
                             options.PushTask(boxesCount, "Calculate Bounding Box of Mesh Renderers");
                             {
                                 int i = 0;
-                                if (options.ShouldUseTimeSlice)
+                                if (timeSlicer.ShouldUseTimeSlice)
                                 {
                                     while (CalculateBoxesBounds_SingleThread<Toggle.Yes>(ref i, ref min, ref max))
                                         await timeSlicer.Yield();
@@ -140,14 +140,14 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     {
                         options.PushTask(meshesCount, "Voxelizing Mesh Renderers");
                         {
-                            if (options.UseMultithreading)
+                            if (timeSlicer.UseMultithreading)
                                 VoxelizeMeshes_MultiThread.Calculate(options, meshInformations, voxels);
                             else
                             {
                                 int count = meshInformations.Count;
                                 VoxelizationParameters parameters = options.VoxelizationParameters;
                                 ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(voxelsCount, false);
-                                if (options.ShouldUseTimeSlice)
+                                if (timeSlicer.ShouldUseTimeSlice)
                                 {
                                     for (int i = 0; i < count; i++)
                                     {
@@ -197,9 +197,9 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     {
                         options.PushTask(boxesCount, "Voxelizing Box Colliders");
                         {
-                            if (options.UseMultithreading)
+                            if (timeSlicer.UseMultithreading)
                                 VoxelizeBoxes_MultiThread.Calculate(options, voxels, boxInformations);
-                            else if (options.ShouldUseTimeSlice)
+                            else if (timeSlicer.ShouldUseTimeSlice)
                             {
                                 for (int i = 0; i < boxesCount; i++)
                                 {

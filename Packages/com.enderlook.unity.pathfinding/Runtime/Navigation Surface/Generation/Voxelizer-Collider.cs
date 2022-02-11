@@ -18,7 +18,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
         {
             meshInformations.EnsureCapacity(colliders.Length);
 
-            if (options.ShouldUseTimeSlice)
+            if (options.TimeSlicer.ShouldUseTimeSlice)
                 return EnqueueAsync(colliders, mode);
             else
                 return EnqueueSync(colliders, mode);
