@@ -127,7 +127,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 task = default;
                 canContinue = true;
             }
-            Unlock(ref taskLock);;
+            Unlock(ref taskLock);
         }
 
         /// <summary>
