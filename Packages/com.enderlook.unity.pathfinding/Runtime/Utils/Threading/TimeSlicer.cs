@@ -1,7 +1,9 @@
-﻿using Enderlook.Pools;
+﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Threading;
 
 using System;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,40 +14,142 @@ using UnityEngine;
 namespace Enderlook.Unity.Pathfinding.Utils
 {
     /// <summary>
-    /// A time slicer system that allow to yield over multiple calls of <see cref="Poll"/>.
+    /// A time slicer system that allow to yield over multiple frames.
     /// </summary>
-    internal sealed class TimeSlicer : IValueTaskSource, IWatchdog<TimeSlicer.Yielder, TimeSlicer.Yielder>
+    public sealed class TimeSlicer : IValueTaskSource, IWatchdog<TimeSlicer.YieldAwait, TimeSlicer.YieldAwait>, IThreadingPreference<TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>
     {
-        private static readonly Action<TimeSlicer> executionTimeSliceSet = self
-            => self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
+        private static readonly Action<TimeSlicer> runSynchronously = self => self.RunSynchronouslyBody();
 
-        private static readonly Action<TimeSlicer> runSynchronously = self =>
+        private static RawPooledList<TimeSlicer> continuationsToRun = RawPooledList<TimeSlicer>.Create();
+        private static RawPooledList<TimeSlicer> tasksToCompleteList = Info.SupportMultithreading ? default : RawPooledList<TimeSlicer>.Create();
+        private static readonly BlockingCollection<TimeSlicer> tasksToCompleteCollection = Info.SupportMultithreading ? new BlockingCollection<TimeSlicer>() : null;
+        private static int staticLock;
+
+        static TimeSlicer()
         {
-            while (!self.task.IsCompleted)
+            UnityThread.OnUpdate += Work;
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.update += () =>
             {
-                Action continuation = self.poolContinuation;
-                self.poolContinuation = default;
-                if (continuation is null)
-                    break;
-                continuation();
+                if (!UnityEditor.EditorApplication.isPlaying)
+                    Work();
+            };
+#endif
+
+            if (Info.SupportMultithreading)
+            {
+                Task.Factory.StartNew(async () =>
+                {
+                    while (true)
+                    {
+                        TimeSlicer timeSlicer = tasksToCompleteCollection.Take();
+                        ValueTask task;
+                        timeSlicer.Lock();
+                        {
+                            task = timeSlicer.task;
+                            timeSlicer.task = default;
+                        }
+                        timeSlicer.Unlock();
+                        await task;
+                    }
+                }, TaskCreationOptions.LongRunning).Unwrap();
             }
-            if (self.executionTimeSlice != float.PositiveInfinity)
-                self.nextYield = Time.realtimeSinceStartup + self.executionTimeSlice;
-        };
 
-        private float nextYield = float.PositiveInfinity;
+            void Work()
+            {
+                Debug.Assert(UnityThread.IsMainThread);
 
-        private Action poolContinuation;
+                RawPooledList<TimeSlicer> list;
+                StaticLock();
+                {
+                    list = continuationsToRun;
+                    continuationsToRun = RawPooledList<TimeSlicer>.Create();
+                }
+                StaticUnlock();
 
-        private ValueTask task;
-        private int taskLock;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    TimeSlicer timeSlicer = list[i];
+                    timeSlicer.nextYield = Time.realtimeSinceStartup + timeSlicer.executionTimeSlice;
+                    Action continuation = timeSlicer.yieldContinuation;
+                    timeSlicer.yieldContinuation = null;
+                    // Check if continuation is null in case RunSynchronously was executed before or duing the execution of this method.
+                    if (continuation is null)
+                        continue;
+                    continuation();
+                }
 
-        private short version;
+                list.Dispose();
+
+                if (!Info.SupportMultithreading)
+                {
+                    StaticLock();
+                    {
+                        list = tasksToCompleteList;
+                        tasksToCompleteList = RawPooledList<TimeSlicer>.Create();
+                    }
+                    StaticUnlock();
+
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        TimeSlicer timeSlicer = list[i];
+                        ValueTask task;
+                        timeSlicer.Lock();
+                        {
+                            task = timeSlicer.task;
+                            timeSlicer.task = default;
+                        }
+                        timeSlicer.Unlock();
+                        task.GetAwaiter().GetResult();
+                    }
+
+                    list.Dispose();
+                }
+            }
+        }
 
         /// <summary>
-        /// If <see cref="UseMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
+        /// Determines at which time the next yield must be done.
+        /// </summary>
+        private float nextYield = float.PositiveInfinity;
+        /// <summary>
+        /// Determines the execution time allowed per yield when executing in the Unity thread.
+        /// </summary>
+        private float executionTimeSlice = float.PositiveInfinity;
+        /// <summary>
+        /// Stores the original value of <see cref="executionTimeSlice"/> while method <see cref="RunSynchronously"/> is being executed.<br/>
+        /// Use <see cref="float.NaN"/> is no value is stored.
+        /// </summary>
+        private float oldExecutionTimeSlice = float.NaN;
+        /// <summary>
+        /// Whenever it shoud use multithreading when possible.
+        /// </summary>
+        public bool PreferMultithreading { get; set; } = Info.SupportMultithreading;
+
+        private TimeSlicer parent;
+        private RawPooledList<TimeSlicer> children = RawPooledList<TimeSlicer>.Create();
+
+        /// <summary>
+        /// Stores continuation produced by <see cref="YieldAwait"/> and <see cref="ParentAwait"/>.
+        /// </summary>
+        /// <remarks>We not use interlocking primitives to read this field because we always do it from the Unity thread.</remarks>
+        private Action yieldContinuation;
+
+        private ValueTask task;
+
+        private short version;
+        private int @lock;
+
+        /// <summary>
+        /// Determines if execution can continue or has been cancelled.
+        /// </summary>
+        private bool canContinue;
+
+        /// <summary>
+        /// If <see cref="PreferMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
         /// Use 0 to disable this feature.<br/>
-        /// For part of the execution which must be completed on the main thread, this value is always used regardless of <see cref="UseMultithreading"/> value.
+        /// For part of the execution which must be completed on the main thread, this value must always be used regardless of <see cref="PreferMultithreading"/> value.<br/>
+        /// If <see cref="RunSynchronously"/> is being executed, this value is overwritted as <c>0</c> until the execution of <see cref="MarkAsCompleted"/>.
         /// </summary>
         public float ExecutionTimeSlice
         {
@@ -64,16 +168,10 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     float oldExecutionTimeSlice = executionTimeSlice;
                     executionTimeSlice = value;
                     if (oldExecutionTimeSlice == float.PositiveInfinity)
-                    {
-                        if (UnityThread.IsMainThread)
-                            nextYield = Time.realtimeSinceStartup + value;
-                        else
-                            UnityThread.RunNow(executionTimeSliceSet, this);
-                    }
+                        nextYield = 0;
                 }
             }
         }
-        private float executionTimeSlice = float.PositiveInfinity;
 
         /// <summary>
         /// Whenever it should use time slice.
@@ -81,24 +179,34 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public bool ShouldUseTimeSlice => nextYield != float.PositiveInfinity && UnityThread.IsMainThread;
 
         /// <summary>
-        /// Whenever it shoud use multithreading when possible.
-        /// </summary>
-        public bool UseMultithreading { get; set; } = Info.SupportMultithreading;
-
-        /// <summary>
         /// Whenever the underlying task is completed.
         /// </summary>
-        public bool IsCompleted {
-            get {
+        public bool IsCompleted
+        {
+            get
+            {
                 bool isCompleted;
-                Lock(ref taskLock);
+                Lock();
                 {
                     isCompleted = task.IsCompleted;
                 }
-                Unlock(ref taskLock);
+                Unlock();
 #if DEBUG
                 if (isCompleted)
-                    Debug.Assert(poolContinuation is null);
+                    Debug.Assert(yieldContinuation is null);
+#endif
+                return isCompleted;
+            }
+        }
+
+        private bool IsCompletedLockless
+        {
+            get
+            {
+                bool isCompleted = task.IsCompleted;
+#if DEBUG
+                if (isCompleted)
+                    Debug.Assert(yieldContinuation is null);
 #endif
                 return isCompleted;
             }
@@ -108,13 +216,52 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// Whenever cancellation was requested by user.
         /// </summary>
         public bool IsCancellationRequested => !canContinue;
-        private bool canContinue;
 
         /// <summary>
         /// Set the associated task of this <see cref="TimeSlicer"/>.
         /// </summary>
         /// <param name="task">Task to associate.</param>
-        public void SetTask(ValueTask task) => this.task = task;
+        public void SetTask(ValueTask task)
+        {
+            if (task.IsCompleted)
+                return;
+
+            Lock();
+            {
+                this.task = task;
+            }
+            Unlock();
+        }
+
+        /// <summary>
+        /// Set a parent slicer to this <see cref="TimeSlicer"/>.
+        /// </summary>
+        /// <param name="parent">Parent <see cref="TimeSlicer"/>.</param>
+        public void SetParent(TimeSlicer parent)
+        {
+            Debug.Assert(yieldContinuation is null);
+            if (parent.IsCompleted)
+                return;
+
+            this.parent = parent;
+            parent.Lock();
+            {
+                if (!parent.IsCompletedLockless)
+                    parent.children.Add(this);
+                else
+                {
+                    this.parent = default;
+                    Debug.Assert(yieldContinuation is null);
+                }
+            }
+            parent.Unlock();
+        }
+
+        /// <summary>
+        /// Wait until parent allow execution.
+        /// </summary>
+        /// <returns>Awaiter of parent.</returns>
+        public ParentAwait WaitForParentCompletion() => new ParentAwait(this);
 
         /// <summary>
         /// Reset content of this <see cref="TimeSlicer"/>.
@@ -122,13 +269,15 @@ namespace Enderlook.Unity.Pathfinding.Utils
         public void Reset()
         {
             version++;
-            Lock(ref taskLock);
+            Lock();
             {
-                poolContinuation = default;
+                parent = null;
+                children.Clear();
+                yieldContinuation = null;
                 task = default;
                 canContinue = true;
             }
-            Unlock(ref taskLock);
+            Unlock();
         }
 
         /// <summary>
@@ -141,74 +290,136 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// Request cancellation of this <see cref="TimeSlicer"/>.<br/>
         /// To cancell immediately, follow the call with <see cref="RunSynchronously"/>.
         /// </summary>
-        public void RequestCancellation()
-        {
-            Debug.Assert(canContinue);
-            canContinue = false;
-        }
-
-        /// <summary>
-        /// Poll execution of this <see cref="TimeSlicer"/>.
-        /// </summary>
-        public void Poll()
-        {
-            Debug.Assert(UnityThread.IsMainThread);
-            if (executionTimeSlice == 0 || poolContinuation is null)
-                return;
-            nextYield = Time.realtimeSinceStartup + executionTimeSlice;
-            do
-            {
-                Action continuation = poolContinuation;
-                poolContinuation = default;
-                if (continuation is null)
-                    break;
-                continuation();
-            } while (Time.realtimeSinceStartup < nextYield);
-        }
+        public void RequestCancellation() => canContinue = false;
 
         /// <summary>
         /// Forces <see cref="TimeSlicer"/> to run synchronously.
         /// </summary>
         public void RunSynchronously()
         {
-            nextYield = float.PositiveInfinity;
+            parent?.RunSynchronously();
 
             if (!task.IsCompleted)
             {
                 if (UnityThread.IsMainThread)
-                {
-                    while (!task.IsCompleted)
-                    {
-                        Action continuation = poolContinuation;
-                        poolContinuation = default;
-                        if (continuation is null)
-                            break;
-                        continuation();
-                    }
-                    if (executionTimeSlice != float.PositiveInfinity)
-                        nextYield = Time.realtimeSinceStartup + executionTimeSlice;
-                }
+                    RunSynchronouslyBody();
                 else
                     UnityThread.RunNow(runSynchronously, this);
             }
+        }
 
+        private void RunSynchronouslyBody()
+        {
+            oldExecutionTimeSlice = executionTimeSlice;
+            executionTimeSlice = float.PositiveInfinity;
+            nextYield = float.PositiveInfinity;
+            int sleepFor = 0;
+            while (true)
+            {
+                bool break_;
+                Lock();
+                {
+                    break_ = this.task.IsCompleted;
+                }
+                Unlock();
+                if (break_)
+                    break;
+
+                Action continuation = yieldContinuation;
+                yieldContinuation = null;
+                if (continuation is null)
+                {
+                    Thread.Sleep(sleepFor);
+                    sleepFor = Math.Min(sleepFor + 10, 100);
+                    continue;
+                }
+                sleepFor = 0;
+                continuation();
+            }
+
+            ValueTask task;
+            Lock();
+            {
+                task = this.task;
+                this.task = default;
+            }
+            Unlock();
             task.GetAwaiter().GetResult();
-            task = default;
         }
 
         /// <summary>
-        /// An awaiter that waits until next call of <see cref="Poll"/> if <see cref="ExecutionTimeSlice"/> has been exceeded.
+        /// Marks this <see cref="TimeSlicer"/> as finalized.
         /// </summary>
-        /// <returns>An awaiter.</returns>
+        public void MarkAsCompleted()
+        {
+            float oldExecutionTimeSlice = this.oldExecutionTimeSlice;
+            if (oldExecutionTimeSlice != float.NaN)
+            {
+                this.oldExecutionTimeSlice = float.NaN;
+                executionTimeSlice = oldExecutionTimeSlice;
+                if (oldExecutionTimeSlice != float.PositiveInfinity)
+                    nextYield = 0;
+            }
+
+            Debug.Assert(yieldContinuation is null);
+
+            RawPooledList<TimeSlicer> children;
+            Lock();
+            {
+                children = this.children;
+                this.children = RawPooledList<TimeSlicer>.Create();
+            }
+            Unlock();
+
+            // Check if we are inside RunSynchronously method.
+            if (oldExecutionTimeSlice != float.NaN)
+            {
+                // Since we are not inside RunSynchronously, we need to queue the task completion.
+                if (Info.SupportMultithreading)
+                    tasksToCompleteCollection.Add(this);
+                else
+                {
+                    StaticLock();
+                    {
+                        tasksToCompleteList.Add(this);
+                    }
+                    StaticUnlock();
+                }
+            }
+
+            foreach (TimeSlicer child in children)
+            {
+                Action continuation = child.yieldContinuation;
+                child.yieldContinuation = null;
+                child.parent = null;
+                if (!(continuation is null))
+                {
+                    if (child.PreferMultithreading)
+                        // Time slicers which support multithreading are run in a background thread.
+                        Task.Run(continuation);
+                    else
+                    {
+                        // Time slicers which doesn't support multithreading must be run in the main thread so we let the polling take care of it.
+                        Lock();
+                        {
+                            continuationsToRun.Add(child);
+                        }
+                        Unlock();
+                    }
+                }
+            }
+            children.Dispose();
+        }
+
+        /// <summary>
+        /// An awaiter that waits until next frame if <see cref="ExecutionTimeSlice"/> has been exceeded.
+        /// </summary>
+        /// <returns>Awaiter to suspend execution if execution time has been exceeded.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Yielder Yield()
+        public YieldAwait Yield()
         {
             Debug.Assert(UnityThread.IsMainThread);
-            return new Yielder(this, Time.realtimeSinceStartup
-#if DEBUG
-                , version
-#endif
-                );
+            return new YieldAwait(this, Time.realtimeSinceStartup);
         }
 
         /// <summary>
@@ -218,14 +429,29 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MustYield() => nextYield < Time.realtimeSinceStartup;
 
+        /// <summary>
+        /// Continues execution in the Unity thread.
+        /// </summary>
+        /// <returns>Awaiter to continue execution in the Unity thread.</returns>
+        public ToUnityAwait ToUnity() => new ToUnityAwait(this);
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Lock(ref int @lock)
+        private void Lock()
         {
             while (Interlocked.Exchange(ref @lock, 1) == 1) ;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Unlock(ref int @lock) => @lock = 0;
+        private void Unlock() => @lock = 0;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void StaticLock()
+        {
+            while (Interlocked.Exchange(ref staticLock, 1) == 1) ;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void StaticUnlock() => staticLock = 0;
 
         /// <inheritdoc cref="IValueTaskSource.GetStatus(short)"/>
         ValueTaskSourceStatus IValueTaskSource.GetStatus(short token)
@@ -249,11 +475,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
 
             // TODO: Is fine to ignore flags parameter?
 
-            Lock(ref taskLock);
+            Lock();
             {
                 task = task.Preserve();
             }
-            Unlock(ref taskLock);
+            Unlock();
             task.GetAwaiter().OnCompleted(OnCompletedContinuation.Rent(continuation, state));
         }
 
@@ -291,8 +517,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
             RunSynchronously();
         }
 
-        /// <inheritdoc cref="IWatchdog{TAwaitable, TAwaiter}.CanContinue(out TAwaitable)"/>
-        bool IWatchdog<Yielder, Yielder>.CanContinue(out Yielder awaitable)
+        /// <inheritdoc cref="IWatchdog{TAwaitable, Awaiter}.CanContinue(out TAwaitable)"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        bool IWatchdog<YieldAwait, YieldAwait>.CanContinue(out YieldAwait awaitable)
         {
             awaitable = Yield();
             return canContinue;
@@ -304,7 +531,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private static void ThrowArgumentNullException_Continuation()
             => throw new ArgumentNullException("continuation");
 
-        public readonly struct Yielder : IAwaitable<Yielder>, IAwaiter, INotifyCompletion
+        public readonly struct YieldAwait : IAwaitable<YieldAwait>, IAwaiter, INotifyCompletion
         {
             private readonly TimeSlicer timeSlicer;
             private readonly float token;
@@ -313,22 +540,18 @@ namespace Enderlook.Unity.Pathfinding.Utils
 #endif
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Yielder(TimeSlicer timeSlicer, float token
-#if DEBUG
-                , int version
-#endif
-                )
+            public YieldAwait(TimeSlicer timeSlicer, float token)
             {
                 this.timeSlicer = timeSlicer;
                 this.token = token;
 #if DEBUG
-                this.version = version;
+                version = timeSlicer.version;
 #endif
             }
 
             /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Yielder GetAwaiter()
+            public YieldAwait GetAwaiter()
             {
 #if DEBUG
                 Debug.Assert(version == timeSlicer.version);
@@ -366,8 +589,142 @@ namespace Enderlook.Unity.Pathfinding.Utils
 #endif
                 if (IsCompleted)
                     continuation();
-                Debug.Assert(timeSlicer.poolContinuation is null);
-                timeSlicer.poolContinuation = continuation;
+                Debug.Assert(timeSlicer.yieldContinuation is null);
+                timeSlicer.yieldContinuation = continuation;
+                StaticLock();
+                {
+                    continuationsToRun.Add(timeSlicer);
+                }
+                StaticUnlock();
+            }
+        }
+
+        public readonly struct ParentAwait : IAwaitable<ParentAwait>, IAwaiter, INotifyCompletion
+        {
+            private readonly TimeSlicer timeSlicer;
+
+#if DEBUG
+            private readonly int version;
+#endif
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ParentAwait(TimeSlicer timeSlicer)
+            {
+                this.timeSlicer = timeSlicer;
+#if DEBUG
+                version = timeSlicer.version;
+#endif
+            }
+
+            /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ParentAwait GetAwaiter()
+            {
+#if DEBUG
+                Debug.Assert(version == timeSlicer.version);
+#endif
+                return this;
+            }
+
+            /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void GetResult()
+            {
+#if DEBUG
+                Debug.Assert(version == timeSlicer.version);
+#endif
+            }
+
+            /// <inheritdoc cref="IAwaiter.IsCompleted"/>
+            public bool IsCompleted
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get
+                {
+#if DEBUG
+                    Debug.Assert(version == timeSlicer.version);
+#endif
+                    return timeSlicer.parent is null;
+                }
+            }
+
+            /// <inheritdoc cref="INotifyCompletion.OnCompleted(Action)"/>
+            public void OnCompleted(Action continuation)
+            {
+#if DEBUG
+                Debug.Assert(version == timeSlicer.version);
+#endif
+                if (IsCompleted)
+                    continuation();
+                Debug.Assert(timeSlicer.yieldContinuation is null);
+                timeSlicer.yieldContinuation = continuation;
+            }
+        }
+
+        public readonly struct ToUnityAwait : IAwaitable<ToUnityAwait>, IAwaiter, INotifyCompletion
+        {
+            private readonly TimeSlicer timeSlicer;
+
+#if DEBUG
+            private readonly int version;
+#endif
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ToUnityAwait(TimeSlicer timeSlicer)
+            {
+                this.timeSlicer = timeSlicer;
+#if DEBUG
+                version = timeSlicer.version;
+#endif
+            }
+
+            /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public ToUnityAwait GetAwaiter()
+            {
+#if DEBUG
+                Debug.Assert(version == timeSlicer.version);
+#endif
+                return this;
+            }
+
+            /// <inheritdoc cref="IAwaitable{TAwaiter}.GetAwaiter"/>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void GetResult()
+            {
+#if DEBUG
+                Debug.Assert(version == timeSlicer.version);
+#endif
+            }
+
+            /// <inheritdoc cref="IAwaiter.IsCompleted"/>
+            public bool IsCompleted
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get
+                {
+#if DEBUG
+                    Debug.Assert(version == timeSlicer.version);
+#endif
+                    return UnityThread.IsMainThread;
+                }
+            }
+
+            /// <inheritdoc cref="INotifyCompletion.OnCompleted(Action)"/>
+            public void OnCompleted(Action continuation)
+            {
+#if DEBUG
+                Debug.Assert(version == timeSlicer.version);
+#endif
+                if (IsCompleted)
+                    continuation();
+                Debug.Assert(timeSlicer.yieldContinuation is null);
+                timeSlicer.yieldContinuation = continuation;
+                StaticLock();
+                {
+                    continuationsToRun.Add(timeSlicer);
+                }
+                StaticUnlock();
             }
         }
     }

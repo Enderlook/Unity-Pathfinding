@@ -17,7 +17,7 @@ namespace Enderlook.Unity.Pathfinding
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/></term></item>
     ///     <item><term>Others.</term></item>
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/> and <see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/></term></item>
-    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TAwaitable, TAwaiter}(TGraph, CalculationResult, TWatchdog)"/></term></item>
+    ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter}(TGraph, CalculationResult, TWatchdog)"/></term></item>
     /// </list>
     /// </remarks>
     internal interface IPathBuilder<TNode, TCoord>
@@ -43,11 +43,13 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="watchdog">Watchdog of the operation.</param>
         /// <exception cref="InvalidOperationException">Thrown when no builder session was enabled.</exception>
         /// <remarks>If the initial node and the target node are the same, no other method is necessary to be executed apart from this one.</remarks>
-        ValueTask FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
+        ValueTask FinalizeBuilderSession<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
             where TGraph : IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
-            where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
-            where TAwaitable : IAwaitable<TAwaiter>
-            where TAwaiter : IAwaiter;
+            where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
+            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
+            where TWatchdogAwaiter : IAwaiter
+            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
+            where TThreadingAwaiter : IAwaiter;
 
         /// <summary>
         /// Try to dequeue a node (if any) to visit.

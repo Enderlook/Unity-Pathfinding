@@ -65,8 +65,8 @@ namespace Enderlook.Unity.Pathfinding
             toVisit.Enqueue(node, priority);
         }
 
-        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TAwaitable, TAwaiter}(TGraph, CalculationResult, TWatchdog)"/>
-        ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
+        /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter}(TGraph, CalculationResult, TWatchdog)"/>
+        ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
         {
             if ((status & Status.Initialized) == 0) ThrowInvalidOperationException_IsNotInitialized();
 
@@ -118,7 +118,7 @@ namespace Enderlook.Unity.Pathfinding
                     if (requiresSwitch && UnityThread.IsMainThread)
                         requiresSwitch = false;
                     if (requiresSwitch)
-                        await Switch.ToUnity;
+                        await watchdog.ToUnity();
 
                     TCoord previousCoord;
                     TCoord currentCoord = endPosition;
@@ -183,7 +183,7 @@ namespace Enderlook.Unity.Pathfinding
                                 }
                             }
 
-                            if (watchdog.CanContinue(out TAwaitable awaitable))
+                            if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
                                 await awaitable;
                             else
                                 goto timedout;
@@ -213,7 +213,7 @@ namespace Enderlook.Unity.Pathfinding
                             lastOptimizedNode = previousNode;
                         }
 
-                        if (watchdog.CanContinue(out TAwaitable awaitable))
+                        if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
                             await awaitable;
                         else
                             goto timedout;
@@ -322,7 +322,7 @@ namespace Enderlook.Unity.Pathfinding
                             to = from;
                             path.Add(graph.ToPosition(from));
 
-                            if (watchdog.CanContinue(out TAwaitable awaitable))
+                            if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
                                 await awaitable;
                             else
                                 goto timedout;

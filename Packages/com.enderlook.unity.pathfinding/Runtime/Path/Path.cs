@@ -108,6 +108,12 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
+        /// <summary>
+        /// Request cancellation of the pathfinding calculation.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RequestCancellation() => timeSlicer.RequestCancellation();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal TimeSlicer Start()
         {
@@ -116,7 +122,7 @@ namespace Enderlook.Unity.Pathfinding
             return timeSlicer;
         }
 
-        /// <inheritdoc cref="IPathFeedable{TInfo}.Feed(IPathFeeder{TInfo})"/>
+        /// <inheritdoc cref="IPathFeedable{TInfo}.Feed{TFeeder}(TFeeder)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathFeedable<TInfo>.Feed<TFeeder>(TFeeder feeder)
         {
@@ -131,6 +137,7 @@ namespace Enderlook.Unity.Pathfinding
                 status = Status.Timedout;
             else
                 status = Status.None;
+            timeSlicer.MarkAsCompleted();
         }
 
         /// <summary>
@@ -141,6 +148,7 @@ namespace Enderlook.Unity.Pathfinding
             version++;
             list.Clear();
             status = Status.None;
+            timeSlicer.MarkAsCompleted();
         }
 
         /// <summary>
@@ -150,9 +158,11 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetManualPath(IEnumerable<TInfo> path)
         {
-            Debug.Assert(IsCompleted);
+            if (!IsCompleted) ThrowInvalidOperationException_HasNotCompleted();
+            version++;
             list.Clear();
             list.AddRange(path);
+            status = list.Count > 0 ? Status.Found : Status.None;
         }
 
         /// <inheritdoc cref="IEnumerable{T}.GetEnumerator"/>

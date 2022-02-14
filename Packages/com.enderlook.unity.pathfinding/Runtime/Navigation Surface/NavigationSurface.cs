@@ -1,5 +1,4 @@
-﻿using Enderlook.Collections.LowLevel;
-using Enderlook.Threading;
+﻿using Enderlook.Threading;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
@@ -52,42 +51,20 @@ namespace Enderlook.Unity.Pathfinding
         private CompactOpenHeightField compactOpenHeightField;
         private int[] spanToColumn;
 
-        private RawList<TimeSlicer> timeSlicers = RawList<TimeSlicer>.Create();
-
         internal bool HasNavigation => !(options is null) && options.Progress == 1;
 
-        private static readonly Func<NavigationSurface, Task> buildNavigationFunc = async (e) => await e.BuildNavigation();
+#if UNITY_EDITOR
+        private static readonly Func<(bool IsEditor, NavigationSurface Instance), Task> buildNavigationFunc = async e => await e.Instance.BuildNavigation_(e.IsEditor);
+#else
+        private static readonly Func<NavigationSurface, Task> buildNavigationFunc = async e => await e.BuildNavigation_();
+#endif
 
         private void Awake()
         {
-            options = new NavigationGenerationOptions();
+            if (!(options is null))
+                return;
 
-            if (options.TimeSlicer.UseMultithreading)
-                Task.Factory.StartNew(buildNavigationFunc, this).Unwrap();
-            else
-                BuildNavigation();
-        }
-
-        private void Update()
-        {
-            TimeSlicer timeSlicer = options.TimeSlicer;
-            if (!timeSlicer.IsCompleted)
-                timeSlicer.Poll();
-            else
-            {
-                int j = 0;
-                for (int i = 0; i < timeSlicers.Count; i++)
-                {
-                    TimeSlicer timeSlicer_ = timeSlicers[i];
-                    if (timeSlicer_.IsCompleted)
-                        continue;
-
-                    timeSlicer_.Poll();
-
-                    timeSlicers[j++] = timeSlicer_;
-                }
-                timeSlicers = RawList<TimeSlicer>.From(timeSlicers.UnderlyingArray, j);
-            }
+            BuildNavigation();
         }
 
         private void OnDrawGizmosSelected()
@@ -101,40 +78,42 @@ namespace Enderlook.Unity.Pathfinding
         }
 
 #if UNITY_EDITOR
-        internal void Poll() => options.TimeSlicer.Poll();
-
         internal float Progress() => options.Progress;
 #endif
 
         internal ValueTask CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination, bool synchronous = false)
         {
-            if (options is null) ThrowNoNavigation();
-            if (!options.TimeSlicer.IsCompleted) ThrowNavigationInProgress();
-
-            if (!SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.TryFrom(this, destination, out SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher))
+            Lock();
             {
-                path.ManualSetNotFound();
-                goto default_;
+                Awake();
             }
+            Unlock();
 
             TimeSlicer timeSlicer = path.Start();
+            timeSlicer.SetParent(options.TimeSlicer);
             timeSlicer.ExecutionTimeSlice = synchronous ? 0 : pathfindingExecutionTimeSlice;
-
-            ValueTask task = PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.Yielder, TimeSlicer.Yielder>(this, path, position, searcher, timeSlicer);
-
-            timeSlicer.SetTask(task);
+            timeSlicer.SetTask(Work());
 
             if (synchronous)
             {
                 timeSlicer.RunSynchronously();
-                goto default_;
+                return default;
             }
 
-            timeSlicers.Add(timeSlicer);
             return timeSlicer.AsTask();
 
-            default_:
-            return default;
+            async ValueTask Work()
+            {
+                await timeSlicer.WaitForParentCompletion();
+
+                if (!SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.TryFrom(this, destination, out SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher))
+                {
+                    path.ManualSetNotFound();
+                    return;
+                }
+
+                await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(this, path, position, searcher, timeSlicer);
+            }
         }
 
         internal ValueTask BuildNavigation(
@@ -143,33 +122,62 @@ namespace Enderlook.Unity.Pathfinding
 #endif
             )
         {
-#if UNITY_EDITOR
-            if (isEditor && options is null)
+            if (options is null)
                 options = new NavigationGenerationOptions();
-#endif
 
             TimeSlicer timeSlicer = options.TimeSlicer;
+
             if (!timeSlicer.IsCompleted) ThrowNavigationInProgress();
 
 #if UNITY_EDITOR
-            bool useMultithreading = timeSlicer.UseMultithreading;
+            bool useMultithreading = timeSlicer.PreferMultithreading;
             if (isEditor)
-                timeSlicer.UseMultithreading = true;
+                timeSlicer.PreferMultithreading = true;
 #endif
 
-            ValueTask task = Work();
-            timeSlicer.SetTask(task);
+            if (timeSlicer.PreferMultithreading)
+                timeSlicer.SetTask(new ValueTask(Task.Factory.StartNew(buildNavigationFunc,
+#if UNITY_EDITOR
+                    (isEditor, this)
+#else
+                    this
+#endif
+                    ).Unwrap()));
+            else
+                BuildNavigation_(
+#if UNITY_EDITOR
+                    isEditor
+#endif
+                );
 
 #if UNITY_EDITOR
             if (isEditor)
-                timeSlicer.AsTask().GetAwaiter().OnCompleted(() => timeSlicer.UseMultithreading = useMultithreading);
+                timeSlicer.AsTask().GetAwaiter().OnCompleted(() => timeSlicer.PreferMultithreading = useMultithreading);
 #endif
 
-            return task;
+            return timeSlicer.AsTask();
+        }
 
-            async ValueTask Work()
+        internal ValueTask BuildNavigation_(
+#if UNITY_EDITOR
+            bool isEditor = false
+#endif
+            )
+        {
+            try
             {
-                try
+                TimeSlicer timeSlicer = options.TimeSlicer;
+
+                ValueTask task = Work();
+                if (!timeSlicer.PreferMultithreading)
+                    timeSlicer.SetTask(task);
+
+                if (timeSlicer.ExecutionTimeSlice == 0)
+                    timeSlicer.RunSynchronously();
+
+                return timeSlicer.AsTask();
+                              
+                async ValueTask Work()
                 {
                     float voxelSize = this.voxelSize;
                     LayerMask includeLayers = this.includeLayers;
@@ -185,9 +193,6 @@ namespace Enderlook.Unity.Pathfinding
                     if ((collectInformation & GeometryType.PhysicsTriggerColliders) != 0)
                         throw new NotImplementedException($"Not implemented voxelization with {GeometryType.PhysicsTriggerColliders}.");
 
-                    if (options.Progress != 1 || !timeSlicer.IsCompleted)
-                        ThrowNavigationInProgress();
-
                     timeSlicer.ExecutionTimeSlice = backingExecutionTimeSlice;
                     options.MaximumTraversableStep = maximumTraversableStep;
                     options.MinimumTraversableHeight = minimumTraversableHeight;
@@ -198,7 +203,7 @@ namespace Enderlook.Unity.Pathfinding
 
                         bool wasNotInMainThread = !UnityThread.IsMainThread;
                         if (wasNotInMainThread)
-                            await Switch.ToUnity;
+                            await timeSlicer.ToUnity();
 
                         // TODO: Add support for GeometryType of physics colliders.
                         switch (collectObjects)
@@ -263,7 +268,7 @@ namespace Enderlook.Unity.Pathfinding
                         {
                             spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.Spans.Length);
                             VoxelizationParameters parameters = options.VoxelizationParameters;
-                            if (timeSlicer.UseMultithreading)
+                            if (timeSlicer.PreferMultithreading)
                             {
                                 Parallel.For(0, parameters.ColumnsCount, i =>
                                 {
@@ -310,16 +315,18 @@ namespace Enderlook.Unity.Pathfinding
                         voxelizer.Dispose();
                     }
                     options.PopTask();
-                }
-                catch (Exception e)
-                {
-                    Debug.LogException(e);
-                    options = new NavigationGenerationOptions();
-                    throw;
-                }
+                    Debug.Assert(options.Progress == 1);
+                    options.TimeSlicer.MarkAsCompleted();
 
-                void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException("Must be greater than 0.", nameof(voxelSize));
-                void ThrowCollectInformationNotChosen() => throw new ArgumentException("Can't be default", nameof(collectInformation));
+                    void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException("Must be greater than 0.", nameof(voxelSize));
+                    void ThrowCollectInformationNotChosen() => throw new ArgumentException("Can't be default", nameof(collectInformation));
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                options = new NavigationGenerationOptions();
+                throw;
             }
         }
 
@@ -503,7 +510,5 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         private static void ThrowNavigationInProgress() => throw new InvalidOperationException("Navigation generation is in progress.");
-
-        private static void ThrowNoNavigation() => throw new InvalidOperationException("No navigation built.");
     }
 }

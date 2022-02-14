@@ -52,7 +52,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             options.PushTask(parameters.VoxelsCount, "Generating Height Field");
             {
                 TimeSlicer timeSlicer = options.TimeSlicer;
-                if (timeSlicer.UseMultithreading)
+                if (timeSlicer.PreferMultithreading)
                     spans = MultiThread.Calculate(options, voxels, columns).Array;
                 else if (timeSlicer.ShouldUseTimeSlice)
                     spans = (await SingleThread<Toggle.Yes>(options, voxels, columns)).Array;

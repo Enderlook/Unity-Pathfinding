@@ -17,10 +17,5 @@ namespace Enderlook.Unity.Pathfinding
         /// <param name="awaitable">If returns <see langword="true"/>, this is the awaitable to await.</param>
         /// <returns>Whenever it can continue to calculate of it should halt.</returns>
         bool CanContinue(out TAwaitable awaitable);
-
-        /// <summary>
-        /// Whenever it should use multithreading for the operation.
-        /// </summary>
-        bool UseMultithreading { get; }
     }
 }

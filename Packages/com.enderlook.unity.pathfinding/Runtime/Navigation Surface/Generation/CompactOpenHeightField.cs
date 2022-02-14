@@ -58,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
                 options.PushTask(parameters.ColumnsCount, "Calculate Neighbours");
                 {
-                    if (timeSlicer.UseMultithreading)
+                    if (timeSlicer.PreferMultithreading)
                         MultiThread.Calculate(options, columns, spans);
                     else if (timeSlicer.ShouldUseTimeSlice)
                         await CalculateNeighboursSingleThread<Toggle.Yes>(options, columns, spans);

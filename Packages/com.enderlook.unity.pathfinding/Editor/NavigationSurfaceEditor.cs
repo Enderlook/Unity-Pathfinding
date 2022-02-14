@@ -44,11 +44,7 @@ namespace Enderlook.Unity.Pathfinding
                         Task.Run(async () =>
                         {
                             ValueTask task = navigationSurface.BuildNavigation(true);
-                            EditorApplication.CallbackFunction onUpdate = () =>
-                            {
-                                UpdateBar();
-                                navigationSurface.Poll();
-                            };
+                            EditorApplication.CallbackFunction onUpdate = UpdateBar;
                             EditorApplication.update += onUpdate;
                             Action onSchedule = null;
                             onSchedule = () =>

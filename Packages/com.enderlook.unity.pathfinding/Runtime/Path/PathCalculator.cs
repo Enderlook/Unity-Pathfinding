@@ -16,34 +16,37 @@ namespace Enderlook.Unity.Pathfinding
     /// </summary>
     internal static class PathCalculator
     {
-        public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
+        public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(
             TGraph graph, TPath path, TCoord from, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : ISearcherSatisfy<TNode>
-            where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
-            where TAwaitable : IAwaitable<TAwaiter>
-            where TAwaiter : IAwaiter
+            where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
+            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
+            where TWatchdogAwaiter : IAwaiter
+            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
+            where TThreadingAwaiter : IAwaiter
         {
-            if (watchdog.UseMultithreading)
-                return new Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(graph, path, from, searcher, watchdog).Process();
+            if (watchdog.PreferMultithreading)
+                return new Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, path, from, searcher, watchdog).Process();
             else
-                return CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(graph, from, path, searcher, watchdog);
+                return CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, from, path, searcher, watchdog);
         }
 
-        private readonly struct Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>
+        private readonly struct Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>
             where TNodes : IEnumerator<TNode>
             where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
-            where TSearcher : ISearcherSatisfy<TNode>
-            where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
-            where TAwaitable : IAwaitable<TAwaiter>
-            where TAwaiter : IAwaiter
+            where TSearcher : ISearcherSatisfy<TNode> where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
+            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
+            where TWatchdogAwaiter : IAwaiter
+            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
+            where TThreadingAwaiter : IAwaiter
         {
-            private static readonly Func<Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>, Task> action = e => e.InternalProcess().AsTask();
+            private static readonly Func<Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>, Task> action = e => e.InternalProcess().AsTask();
 
             private readonly TGraph graph;
             private readonly TPath path;
@@ -64,19 +67,21 @@ namespace Enderlook.Unity.Pathfinding
                 => new ValueTask(Task.Factory.StartNew(action, this).Unwrap());
 
             private async ValueTask InternalProcess()
-                => await CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(graph, from, path, searcher, watchdog);
+                => await CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, from, path, searcher, watchdog);
         }
 
-        public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
+        public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(
             TGraph graph, TCoord from, TPath path, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
             where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : ISearcherSatisfy<TNode>/*, ISearcherHeuristic<TNode>, ISearcherPosition<TCoord> */
-            where TWatchdog : IWatchdog<TAwaitable, TAwaiter>
-            where TAwaitable : IAwaitable<TAwaiter>
-            where TAwaiter : IAwaiter
+            where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
+            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
+            where TWatchdogAwaiter : IAwaiter
+            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
+            where TThreadingAwaiter : IAwaiter
         {
             // https://github.com/yellowisher/ThetaStar/blob/master/Assets/1_Scripts/PathfindingManager.cs
             // http://idm-lab.org/bib/abstracts/papers/aaai10b.pdf
@@ -168,7 +173,7 @@ namespace Enderlook.Unity.Pathfinding
 
                 @switch = Toggle.IsToggled<THasLineOfSightNode>() && (typeof(TGraph).IsValueType ? (IGraphLineOfSight<TNode>)graph : lineOfSightNodeReferenceType).RequiresUnityThread;
                 if (@switch && !UnityThread.IsMainThread)
-                    await Switch.ToUnity;
+                    await watchdog.ToUnity();
 
                 while (builder.TryDequeueToVisit(out TNode node))
                 {
@@ -262,14 +267,14 @@ namespace Enderlook.Unity.Pathfinding
 
                             builder.EnqueueToVisit(neighbour, newCost);
 
-                            if (!watchdog.CanContinue(out TAwaitable awaitable_))
+                            if (!watchdog.CanContinue(out TWatchdogAwaitable awaitable_))
                                 goto timedout;
                             await awaitable_;
                         }
                     }
 
                     endOfLoop:
-                    if (!watchdog.CanContinue(out TAwaitable awaitable))
+                    if (!watchdog.CanContinue(out TWatchdogAwaitable awaitable))
                         goto timedout;
                     await awaitable;
                 }
@@ -290,7 +295,7 @@ namespace Enderlook.Unity.Pathfinding
             finalize:
                 if (@switch)
                     await Switch.ToBackground;
-                await builder.FinalizeBuilderSession<TGraph, TWatchdog, TAwaitable, TAwaiter>(graph, result, watchdog);
+                await builder.FinalizeBuilderSession<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, result, watchdog);
                 builder.FeedPathTo<TBuilder, TPath, TCoord>(path);
                 ObjectPool<TBuilder>.Shared.Return(builder);
             }
