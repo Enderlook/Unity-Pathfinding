@@ -76,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private float executionTimeSlice = float.PositiveInfinity;
 
         /// <summary>
-        /// Whenever it should to use time slice.
+        /// Whenever it should use time slice.
         /// </summary>
         public bool ShouldUseTimeSlice => nextYield != float.PositiveInfinity && UnityThread.IsMainThread;
 

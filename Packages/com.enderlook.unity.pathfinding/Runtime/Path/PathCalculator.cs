@@ -19,7 +19,7 @@ namespace Enderlook.Unity.Pathfinding
         public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
             TGraph graph, TPath path, TCoord from, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
-            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
+            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : ISearcherSatisfy<TNode>
@@ -35,7 +35,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private readonly struct Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>
             where TNodes : IEnumerator<TNode>
-            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
+            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : ISearcherSatisfy<TNode>
@@ -70,7 +70,7 @@ namespace Enderlook.Unity.Pathfinding
         public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TAwaitable, TAwaiter>(
             TGraph graph, TCoord from, TPath path, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
-            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>*/
+            where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
             where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
             where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : ISearcherSatisfy<TNode>/*, ISearcherHeuristic<TNode>, ISearcherPosition<TCoord> */
