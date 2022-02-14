@@ -13,7 +13,6 @@ namespace Enderlook.Unity.Pathfinding
     /// <remarks>Execution order of methods is:<br/>
     /// <list type="number">
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession()"/></term></item>
-    ///     <item><term><see cref="SetGraphLocation(IGraphLocation{TNode, TCoord})"/></term></item>
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/></term></item>
     ///     <item><term>Others.</term></item>
     ///     <item><term><see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/> and <see cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/></term></item>
