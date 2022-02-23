@@ -1,20 +1,38 @@
-﻿using Enderlook.Unity.Pathfinding.Steerings;
-
-using Enderlook.Collections.Pooled.LowLevel;
+﻿using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
 
 using UnityEngine;
+using Enderlook.Unity.Toolset.Attributes;
 
-namespace Enderlook.Unity.Pathfinding
+namespace Enderlook.Unity.Pathfinding.Steerings
 {
-    [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Follower"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
-    public sealed class NavigationAgentFollower : MonoBehaviour
+    [AddComponentMenu("Enderlook/Pathfinding/Flocking Follower"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
+    public sealed class FlockingFollower : MonoBehaviour, ISteeringBehaviour
     {
         [Header("Flocking")]
         [SerializeField, Tooltip("Determines which leader will it follow.")]
-        public NavigationAgentLeader FlockingLeader;
+        public FlockingLeader flockingLeader;
+        private FlockingLeader FlockingLeader {
+            get => flockingLeader;
+            set
+            {
+                if (subscribedToLeader && flockingLeader is FlockingLeader leader)
+                {
+                    subscribedToLeader = false;
+                    leader.RemoveFollower(this);
+                }
+                flockingLeader = value;
+                if (value is FlockingLeader leader_)
+                {
+                    subscribedToLeader = true;
+                    leader_.AddFollower(this);
+                }
+            }
+        }
+
+        private bool subscribedToLeader;
 
         [SerializeField, Min(0), Tooltip("Determines at which distance from leader should it stop.")]
         private float leaderStoppingDistance;
@@ -82,13 +100,9 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        [Header("Movement")]
-        [SerializeField, Tooltip("Configuration of the agent movement.")]
-        public Movement Movement;
-
-        [Header("Leader Searcher")]
-        [SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight.")]
-        public PathFollower PathFollower;
+        [field: Header("Leader Searcher")]
+        [field: IsProperty, SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight.")]
+        public PathFollower PathFollower { get; set; }
 
         [SerializeField, Tooltip("Determines the strength of path.")]
         private float pathStrength;
@@ -101,84 +115,84 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        [Header("Obstacle Avoidance")]
-        [SerializeField, Tooltip("Configuration of the obstacle avoidance.")]
-        public ObstacleAvoidance ObstacleAvoidance;
+        [field: IsProperty, SerializeField, Tooltip("Determines which layers blocks the vision of the agent when looking for the leader.")]
+        public LayerMask BlockVisionLayers { get; private set; }
 
         internal Rigidbody Rigidbody { get; private set; }
-
-        private Path<Vector3> path;
-        private bool isPending;
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void Awake()
-        {
-            Rigidbody = GetComponent<Rigidbody>();
-            Movement.Initialize(Rigidbody);
-            path = Path<Vector3>.Rent();
-        }
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void OnEnable() => FlockingLeader.AddFollower(this);
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void OnDisable() => FlockingLeader.RemoveFollower(this);
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void FixedUpdate()
-        {
-            if (Movement.IsStopped)
-                return;
-
-            if (FlockingLeader == null)
-                return;
-
-            Movement.MoveAndRotate(Rigidbody, GetDirection());
-        }
-
         private float cooldown = maxCooldown;
         private const float maxCooldown = 4;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
+        private void Awake() => Rigidbody = GetComponent<Rigidbody>();
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
+        private void OnEnable()
+        {
+            if (!subscribedToLeader)
+                return;
+            FlockingLeader.AddFollower(this);
+            subscribedToLeader = true;
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
+        private void OnDisable()
+        {
+            if (!subscribedToLeader)
+                return;
+            FlockingLeader.RemoveFollower(this);
+            subscribedToLeader = false;
+        }
+
+        /// <inheritdoc cref="ISteeringBehaviour.GetDirection()"/>
+        Vector3 ISteeringBehaviour.GetDirection() => GetDirection();
+
         private Vector3 GetDirection()
         {
-            Vector3 direction = Rigidbody.position - FlockingLeader.Rigidbody.position;
+            FlockingLeader flockingLeader = FlockingLeader;
+
+            Vector3 direction = Rigidbody.position - flockingLeader.Rigidbody.position;
             if (direction.magnitude < leaderStoppingDistance)
                 return direction.normalized;
 
-            Span<EntityInfo> entities = FlockingLeader.GetEntitiesInRange(Rigidbody, flockingRange);
+            Span<EntityInfo> entities = flockingLeader.GetEntitiesInRange(Rigidbody, flockingRange);
 
-            Vector3 separation = GetSeparation(entities) * separationWeight;
-            Vector3 alineation = GetAlineation(entities) * alineationWeight;
-            Vector3 cohesion = GetCohesion(entities) * cohesionWeight;
-            Vector3 leader = GetLeader() * leaderWeight;
-
-            Vector3 obstacles = ObstacleAvoidance.GetDirection(Rigidbody);
-
-            bool isNear = !Physics.Linecast(Rigidbody.position, FlockingLeader.Rigidbody.position, ObstacleAvoidance.Layers)
-                && (Vector3.Distance(Rigidbody.position, FlockingLeader.Rigidbody.position) <= flockingRange);
-
-            if (!isNear)
+            Vector3 separation = Vector3.zero;
+            Vector3 alineation = Vector3.zero;
+            Vector3 cohesion = Vector3.zero;
+            for (int i = 0; i < entities.Length; i++)
             {
-                NavigationSurface navigationSurface = FlockingLeader.NavigationAgent.NavigationSurface;
-                if (navigationSurface != null)
+                EntityInfo entity = entities[i];
+
+                float multiplier = flockingRange - entity.Distance;
+                separation += entity.RigidbodyMinusEntity.normalized * multiplier;
+
+                alineation += entity.ForwardFactor;
+
+                cohesion += entity.Position;
+            }
+            separation = separation.normalized;
+            alineation = alineation.normalized;
+            cohesion = ((cohesion / entities.Length) - Rigidbody.position).normalized;
+
+            Vector3 leader = (FlockingLeader.Rigidbody.position - Rigidbody.position).normalized * leaderWeight;
+
+            if (PathFollower.NavigationSurface != null)
+            {
+                bool isNear = !Physics.Linecast(Rigidbody.position, flockingLeader.Rigidbody.position, BlockVisionLayers)
+                    && (Vector3.Distance(Rigidbody.position, flockingLeader.Rigidbody.position) <= flockingRange);
+                if (!isNear)
                 {
-                    Vector3 leaderPosition = FlockingLeader.Rigidbody.position;
+                    Vector3 leaderPosition = flockingLeader.Rigidbody.position;
 
-                    if (path.IsCompleted)
+                    if (!PathFollower.IsCalculatingPath)
                     {
-                        if (isPending)
+                        if (PathFollower.HasPath)
                         {
-                            isPending = false;
-                            PathFollower.SetPath(path);
-                        }
-
-                        if (path.HasPath)
-                        {
-                            if (Vector3.Distance(path.Destination, leaderPosition) > PathFollower.StoppingDistance)
-                                CalculatePath(navigationSurface, leaderPosition);
+                            if (Vector3.Distance(PathFollower.Destination, leaderPosition) > PathFollower.StoppingDistance)
+                                PathFollower.SetDestination(leaderPosition);
                         }
                         else
-                            CalculatePath(navigationSurface, leaderPosition);
+                            PathFollower.SetDestination(leaderPosition);
                     }
 
                     if (PathFollower.HasPath)
@@ -187,59 +201,19 @@ namespace Enderlook.Unity.Pathfinding
                         if (cooldown < 0)
                         {
                             cooldown = maxCooldown;
-                            if (!isPending && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
-                                CalculatePath(navigationSurface, leaderPosition);
+                            if (!PathFollower.IsCalculatingPath && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
+                                PathFollower.SetDestination(leaderPosition);
                         }
 
-                        Vector3 path = PathFollower.GetDirection(Rigidbody) * pathStrength;
-                        return (((separation + alineation + cohesion).normalized * .2f) + path + obstacles).normalized;
+                        Vector3 path = PathFollower.GetDirection() * pathStrength;
+                        return (((separation + alineation + cohesion).normalized * .2f) + path).normalized;
                     }
                 }
             }
 
             {
-                return (separation + alineation + cohesion + leader + obstacles).normalized;
+                return (separation + alineation + cohesion + leader).normalized;
             }
-        }
-
-        private void CalculatePath(NavigationSurface navigationSurface, Vector3 leaderPosition)
-        {
-            navigationSurface.CalculatePath(path, Rigidbody.position, leaderPosition);
-            isPending = true;
-        }
-
-        private Vector3 GetLeader() => (FlockingLeader.Rigidbody.position - Rigidbody.position).normalized;
-
-        private Vector3 GetCohesion(Span<EntityInfo> entities)
-        {
-            Vector3 total = Vector3.zero;
-            for (int i = 0; i < entities.Length; i++)
-                total += entities[i].Position;
-            total /= entities.Length;
-            return (total - Rigidbody.position).normalized;
-        }
-
-        private Vector3 GetAlineation(Span<EntityInfo> entities)
-        {
-            Vector3 total = Vector3.zero;
-            for (int i = 0; i < entities.Length; i++)
-            {
-                EntityInfo entity = entities[i];
-                total += entity.ForwardFactor;
-            }
-            return total.normalized;
-        }
-
-        private Vector3 GetSeparation(Span<EntityInfo> entities)
-        {
-            Vector3 total = Vector3.zero;
-            for (int i = 0; i < entities.Length; i++)
-            {
-                EntityInfo entity = entities[i];
-                float multiplier = flockingRange - entity.Distance;
-                total += entity.RigidbodyMinusEntity.normalized * multiplier;
-            }
-            return total.normalized;
         }
 
 #if UNITY_EDITOR
@@ -286,8 +260,5 @@ namespace Enderlook.Unity.Pathfinding
             Gizmos.DrawWireCube(end, Vector3.one * .1f);
         }
 #endif
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void OnDestroy() => path.Dispose();
     }
 }

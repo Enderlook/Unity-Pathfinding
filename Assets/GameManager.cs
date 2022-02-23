@@ -1,4 +1,4 @@
-﻿using Enderlook.Unity.Pathfinding;
+﻿using Enderlook.Unity.Pathfinding.Steerings;
 
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,9 +7,9 @@ using UnityEngine.UIElements;
 public class GameManager : MonoBehaviour
 {
     [SerializeField]
-    private NavigationAgent agent;
+    private PathFollower agent;
     [SerializeField]
-    private NavigationAgent agent2;
+    private PathFollower agent2;
 
     [SerializeField]
     private Transform target;

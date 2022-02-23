@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Unity.Pathfinding.Steerings;
 
 using System;
 
@@ -6,8 +7,8 @@ using UnityEngine;
 
 namespace Enderlook.Unity.Pathfinding
 {
-    [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Leader"), RequireComponent(typeof(NavigationAgent)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
-    public sealed class NavigationAgentLeader : MonoBehaviour
+    [AddComponentMenu("Enderlook/Pathfinding/Flocking Leader"), RequireComponent(typeof(Rigidbody)), DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
+    public sealed class FlockingLeader : MonoBehaviour
     {
         private RawPooledList<Rigidbody> followers = RawPooledList<Rigidbody>.Create();
 
@@ -16,12 +17,10 @@ namespace Enderlook.Unity.Pathfinding
         // We take advantage of Unity single threading to temporarily store in the same array the closest entites to the requested and so reduce allocations.
         private RawPooledList<EntityInfo> followersInRange = RawPooledList<EntityInfo>.Create();
 
-        internal NavigationAgent NavigationAgent { get; private set; }
-
-        internal Rigidbody Rigidbody => NavigationAgent.Rigidbody;
+        internal Rigidbody Rigidbody { get; private set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void Awake() => NavigationAgent = GetComponent<NavigationAgent>();
+        private void Awake() => Rigidbody = GetComponent<Rigidbody>();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void FixedUpdate()
@@ -34,7 +33,7 @@ namespace Enderlook.Unity.Pathfinding
                 followersPositions[i] = followers[i].position;
         }
 
-        internal void AddFollower(NavigationAgentFollower follower)
+        internal void AddFollower(FlockingFollower follower)
         {
             followers.Add(follower.Rigidbody);
 
@@ -48,7 +47,7 @@ namespace Enderlook.Unity.Pathfinding
             followersPositions[followers.Count - 1] = follower.Rigidbody.position;
         }
 
-        internal void RemoveFollower(NavigationAgentFollower follower) => followers.Remove(follower.Rigidbody);
+        internal void RemoveFollower(FlockingFollower follower) => followers.Remove(follower.Rigidbody);
 
         internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range)
         {
