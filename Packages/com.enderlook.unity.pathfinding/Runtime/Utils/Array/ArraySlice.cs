@@ -72,12 +72,14 @@ namespace Enderlook.Unity.Pathfinding.Utils
 #if DEBUG
             this.length = length;
             array = ArrayPool<T>.Shared.Rent(length);
+            if (clear)
+                System.Array.Clear(array, 0, length);
 #else
             Length = length;
             Array = ArrayPool<T>.Shared.Rent(length);
-#endif
             if (clear)
-                System.Array.Clear(array, 0, length);
+                System.Array.Clear(Array, 0, length);
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -86,7 +88,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
-            Debug.Assert(!(array is null));
+#if !DEBUG
+            Debug.Assert(!(Array is null));
+#endif
             ArrayPool<T>.Shared.Return(Array);
 #if DEBUG
             array = null;

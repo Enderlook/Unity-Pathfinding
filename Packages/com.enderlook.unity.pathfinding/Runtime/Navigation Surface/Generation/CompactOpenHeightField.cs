@@ -118,7 +118,11 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #endif
                         int i = 0;
                         int y = 0;
-                        if (InitializeWorkStart(heightField, ref spanBuilder, column, ref wasSolid, ref i, ref y))
+                        if (InitializeWorkStart(heightField, ref spanBuilder, column
+#if DEBUG
+                            , ref wasSolid
+#endif
+                            , ref i, ref y))
                         {
                             while (InitializeWork<TYield>(timeSlicer, heightField, ref spanBuilder, column, ref i, ref y
 #if DEBUG
@@ -137,7 +141,11 @@ namespace Enderlook.Unity.Pathfinding.Generation
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool InitializeWorkStart(in HeightField heightField, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column, ref bool wasSolid, ref int i, ref int y)
+        private static bool InitializeWorkStart(in HeightField heightField, ref RawPooledList<HeightSpan> spanBuilder, in HeightField.HeightColumn column
+#if DEBUG
+            , ref bool wasSolid
+#endif
+            , ref int i, ref int y)
         {
             ReadOnlySpan<HeightField.HeightSpan> spans = column.Spans(heightField);
             Debug.Assert(spans.Length > 0);
