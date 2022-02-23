@@ -1,5 +1,5 @@
-﻿using Assets.Enderlook.Unity.Pathfinding;
-using Assets.Enderlook.Unity.Pathfinding.Steerings;
+﻿using Enderlook.Unity.Pathfinding;
+using Enderlook.Unity.Pathfinding.Steerings;
 
 using Enderlook.Collections.Pooled.LowLevel;
 

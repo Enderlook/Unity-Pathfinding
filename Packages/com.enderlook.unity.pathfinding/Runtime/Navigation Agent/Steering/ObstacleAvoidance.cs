@@ -5,7 +5,7 @@ using System;
 
 using UnityEngine;
 
-namespace Assets.Enderlook.Unity.Pathfinding.Steerings
+namespace Enderlook.Unity.Pathfinding.Steerings
 {
     /// <summary>
     /// An steering behaviour to avoid multiple obstacles.

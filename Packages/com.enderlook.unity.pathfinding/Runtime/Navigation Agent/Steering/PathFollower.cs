@@ -1,12 +1,11 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Unity.Pathfinding;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
 
 using UnityEngine;
 
-namespace Assets.Enderlook.Unity.Pathfinding.Steerings
+namespace Enderlook.Unity.Pathfinding.Steerings
 {
     /// <summary>
     /// An steering behavour to follow a path.

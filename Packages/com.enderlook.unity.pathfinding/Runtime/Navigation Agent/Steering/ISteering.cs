@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Assets.Enderlook.Unity.Pathfinding.Steerings
+namespace Enderlook.Unity.Pathfinding.Steerings
 {
     /// <summary>
     /// Defines an object which determines the direction of an agent

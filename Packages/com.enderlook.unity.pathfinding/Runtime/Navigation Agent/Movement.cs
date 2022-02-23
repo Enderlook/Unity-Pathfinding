@@ -4,7 +4,7 @@ using System;
 
 using UnityEngine;
 
-namespace Assets.Enderlook.Unity.Pathfinding
+namespace Enderlook.Unity.Pathfinding
 {
     [Serializable]
     public struct Movement
