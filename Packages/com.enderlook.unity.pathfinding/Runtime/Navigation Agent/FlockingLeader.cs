@@ -42,13 +42,18 @@ namespace Enderlook.Unity.Pathfinding
             followers.Add(follower.Rigidbody);
 
             if (followersPositions.Length < followers.Count)
+                Slow();
+            else
+                followersPositions[followers.Count - 1] = follower.Rigidbody.position;
+
+            void Slow()
             {
                 // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
                 Vector3[] newFollowersPositions = new Vector3[followers.Capacity];
                 Array.Copy(followersPositions, newFollowersPositions, followersPositions.Length);
                 followersPositions = newFollowersPositions;
+                followersPositions[followers.Count - 1] = follower.Rigidbody.position;
             }
-            followersPositions[followers.Count - 1] = follower.Rigidbody.position;
         }
 
         internal void RemoveFollower(FlockingFollower follower) => followers.Remove(follower.Rigidbody);
