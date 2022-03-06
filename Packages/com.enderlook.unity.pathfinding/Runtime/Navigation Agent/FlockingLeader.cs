@@ -1,5 +1,6 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
 using Enderlook.Unity.Pathfinding.Steerings;
+using Enderlook.Unity.Threading;
 
 using System;
 
@@ -10,6 +11,8 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Flocking Leader"), RequireComponent(typeof(Rigidbody)), DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class FlockingLeader : MonoBehaviour
     {
+        private static int fixedUpdateCount;
+
         private RawPooledList<Rigidbody> followers = RawPooledList<Rigidbody>.Create();
 
         private Vector3[] followersPositions = Array.Empty<Vector3>();
@@ -19,19 +22,20 @@ namespace Enderlook.Unity.Pathfinding
 
         internal Rigidbody Rigidbody { get; private set; }
 
+        private int lastUpdate;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void Initialize()
+        {
+            if (fixedUpdateCount == 0)
+            {
+                fixedUpdateCount = 1;
+                UnityThread.OnFixedUpdate += () => fixedUpdateCount++;
+            }
+        }
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => Rigidbody = GetComponent<Rigidbody>();
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void FixedUpdate()
-        {
-            if (followersPositions.Length < followers.Count)
-                // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
-                followersPositions = new Vector3[followers.Capacity];
-
-            for (int i = 0; i < followers.Count; i++)
-                followersPositions[i] = followers[i].position;
-        }
 
         internal void AddFollower(FlockingFollower follower)
         {
@@ -51,6 +55,9 @@ namespace Enderlook.Unity.Pathfinding
 
         internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range)
         {
+            if (lastUpdate != fixedUpdateCount)
+                Slow();
+
             followersInRange.Clear();
             Vector3 currentPosition = rigibody.position;
             for (int i = 0; i < followers.Count; i++)
@@ -68,6 +75,17 @@ namespace Enderlook.Unity.Pathfinding
                 Vector3 forwardFactor = transform.forward * distanceFactor;
                 if (distance <= range)
                     followersInRange.Add(new EntityInfo(position, forwardFactor, rigidbodyMinusEntity, distance, distanceFactor));
+            }
+
+            void Slow()
+            {
+                lastUpdate = fixedUpdateCount;
+                if (followersPositions.Length < followers.Count)
+                    // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
+                    followersPositions = new Vector3[followers.Capacity];
+
+                for (int i = 0; i < followers.Count; i++)
+                    followersPositions[i] = followers[i].position;
             }
         }
     }
