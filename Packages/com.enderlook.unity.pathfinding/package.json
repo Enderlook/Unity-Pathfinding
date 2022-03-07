@@ -13,7 +13,7 @@
     "com.enderlook.collections.pooled.low_level": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled.low_level#com.enderlook.collections.pooled.low_level/v0.1.0",
     "com.enderlook.net_compatibility": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.net_compatibility#com.enderlook.net_compatibility/v0.6.2",
     "com.enderlook.threading": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.threading#com.enderlook.threading/v0.2.0",
-    "com.enderlook.unity.threading": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.threading#com.enderlook.unity.threading/v0.7.4",
+    "com.enderlook.unity.threading": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.threading#com.enderlook.unity.threading/v0.7.5",
     "com.enderlook.unity.jobs": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.jobs#com.enderlook.unity.jobs/v0.1.4",
     "com.enderlook.unity.async": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.async#com.enderlook.unity.async/v0.2.4",
     "com.enderlook.unity.toolset": "https://github.com/Enderlook/Unity-Toolset.git?path=Packages/com.enderlook.unity.toolset#com.enderlook.unity.toolset/v0.4.0",
