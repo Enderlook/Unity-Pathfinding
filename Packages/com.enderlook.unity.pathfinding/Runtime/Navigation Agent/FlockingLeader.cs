@@ -3,6 +3,7 @@ using Enderlook.Unity.Pathfinding.Steerings;
 using Enderlook.Unity.Threading;
 
 using System;
+using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
@@ -41,19 +42,20 @@ namespace Enderlook.Unity.Pathfinding
         {
             followers.Add(follower.Rigidbody);
 
-            if (followersPositions.Length < followers.Count)
-                Slow();
+            if (followersPositions.Length >= followers.Count)
+                followersPositions[followers.Count - 1] = follower.Rigidbody.position;
             else
-                followersPositions[followers.Count - 1] = follower.Rigidbody.position;
+                AddFollower_Slow(follower);
+        }
 
-            void Slow()
-            {
-                // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
-                Vector3[] newFollowersPositions = new Vector3[followers.Capacity];
-                Array.Copy(followersPositions, newFollowersPositions, followersPositions.Length);
-                followersPositions = newFollowersPositions;
-                followersPositions[followers.Count - 1] = follower.Rigidbody.position;
-            }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void AddFollower_Slow(FlockingFollower follower)
+        {
+            // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
+            Vector3[] newFollowersPositions = new Vector3[followers.Capacity];
+            Array.Copy(followersPositions, newFollowersPositions, followersPositions.Length);
+            followersPositions = newFollowersPositions;
+            followersPositions[followers.Count - 1] = follower.Rigidbody.position;
         }
 
         internal void RemoveFollower(FlockingFollower follower) => followers.Remove(follower.Rigidbody);
@@ -61,55 +63,39 @@ namespace Enderlook.Unity.Pathfinding
         internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range)
         {
             if (lastUpdate != fixedUpdateCount)
-                Slow();
+                GetEntitiesInRange_Slow();
 
             followersInRange.Clear();
             Vector3 currentPosition = rigibody.position;
             for (int i = 0; i < followers.Count; i++)
-                Check(followersPositions[i], followers[i].transform);
+                GetEntitiesInRange_Check(followersPositions[i], followers[i].transform, range, currentPosition);
 
-            Check(Rigidbody.position, transform);
+            GetEntitiesInRange_Check(Rigidbody.position, transform, range, currentPosition);
 
             return followersInRange.AsSpan();
-
-            void Check(Vector3 position, Transform transform)
-            {
-                Vector3 rigidbodyMinusEntity = currentPosition - position;
-                float distance = rigidbodyMinusEntity.magnitude;
-                float distanceFactor = (range - distance) / range;
-                Vector3 forwardFactor = transform.forward * distanceFactor;
-                if (distance <= range)
-                    followersInRange.Add(new EntityInfo(position, forwardFactor, rigidbodyMinusEntity, distance, distanceFactor));
-            }
-
-            void Slow()
-            {
-                lastUpdate = fixedUpdateCount;
-                if (followersPositions.Length < followers.Count)
-                    // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
-                    followersPositions = new Vector3[followers.Capacity];
-
-                for (int i = 0; i < followers.Count; i++)
-                    followersPositions[i] = followers[i].position;
-            }
         }
-    }
 
-    internal readonly struct EntityInfo
-    {
-        public readonly Vector3 Position;
-        public readonly Vector3 RigidbodyMinusEntity;
-        public readonly Vector3 ForwardFactor;
-        public readonly float Distance;
-        public readonly float DistanceFactor;
-
-        public EntityInfo(Vector3 position, Vector3 forwardFactor, Vector3 rigidbodyMinusEntity, float distance, float distanceFactor)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void GetEntitiesInRange_Check(Vector3 position, Transform transform, float range, Vector3 currentPosition)
         {
-            Position = position;
-            ForwardFactor = forwardFactor;
-            RigidbodyMinusEntity = rigidbodyMinusEntity;
-            Distance = distance;
-            DistanceFactor = distanceFactor;
+            Vector3 rigidbodyMinusEntity = currentPosition - position;
+            float distance = rigidbodyMinusEntity.magnitude;
+            float distanceFactor = (range - distance) / range;
+            Vector3 forwardFactor = transform.forward * distanceFactor;
+            if (distance <= range)
+                followersInRange.Add(new EntityInfo(position, forwardFactor, rigidbodyMinusEntity, distance, distanceFactor));
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void GetEntitiesInRange_Slow()
+        {
+            lastUpdate = fixedUpdateCount;
+            if (followersPositions.Length < followers.Count)
+                // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
+                followersPositions = new Vector3[followers.Capacity];
+
+            for (int i = 0; i < followers.Count; i++)
+                followersPositions[i] = followers[i].position;
         }
     }
 }
