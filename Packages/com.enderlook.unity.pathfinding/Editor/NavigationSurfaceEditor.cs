@@ -1,5 +1,4 @@
-﻿using Enderlook.Unity.Pathfinding.Generation;
-using Enderlook.Unity.Threading;
+﻿using Enderlook.Unity.Threading;
 
 using System;
 using System.Threading.Tasks;
