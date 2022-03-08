@@ -5,7 +5,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
     /// <summary>
     /// Defines an object which determines the direction of an agent.
     /// </summary>
-    internal interface ISteeringBehaviour
+    public interface ISteeringBehaviour
     {
         /// <summary>
         /// Determines the current direction to follow.

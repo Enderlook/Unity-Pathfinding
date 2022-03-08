@@ -8,5 +8,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
             => throw new ArgumentOutOfRangeException("value", "Must be positive.");
         public static void ThrowArgumentOutOfRangeException_ValueCannotBeNegative()
             => throw new ArgumentOutOfRangeException("value", "Can't be negative.");
+
+        public static void ThrowArgumentNullException_SteeringBehaviour()
+            => throw new ArgumentNullException("steeringBehaviour");
     }
 }
