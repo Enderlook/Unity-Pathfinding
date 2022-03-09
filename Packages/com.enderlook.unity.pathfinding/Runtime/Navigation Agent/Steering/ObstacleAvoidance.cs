@@ -65,6 +65,11 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <inheritdoc cref="ISteeringBehaviour.GetDirection()"/>
         Vector3 ISteeringBehaviour.GetDirection()
         {
+#if UNITY_EDITOR
+            if (rigidbody == null)
+                rigidbody = GetComponent<Rigidbody>();
+#endif
+
             float radius = Radius;
             if (predictionTime != 0)
                 radius += predictionRadius;
@@ -136,6 +141,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDrawGizmosSelected()
         {
+            if (rigidbody == null)
+                rigidbody = GetComponent<Rigidbody>();
+
             float radius = Radius;
             if (predictionTime != 0)
                 radius += predictionRadius;
