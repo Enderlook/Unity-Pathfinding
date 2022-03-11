@@ -71,13 +71,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 #endif
 
             float radius = Radius;
+            float overlapRadius = radius;
             if (predictionTime != 0)
-                radius += predictionRadius;
+                overlapRadius += predictionRadius;
 
-            int amount = Physics.OverlapSphereNonAlloc(rigidbody.position, radius, colliders, Layers);
+            int amount = Physics.OverlapSphereNonAlloc(rigidbody.position, overlapRadius, colliders, Layers);
             if (amount == colliders.Length)
             {
-                colliders = Physics.OverlapSphere(rigidbody.position, radius, Layers);
+                colliders = Physics.OverlapSphere(rigidbody.position, overlapRadius, Layers);
                 amount = colliders.Length;
                 Array.Resize(ref colliders, amount + 1);
             }
@@ -87,27 +88,42 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
+            Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
             Vector3 total = Vector3.zero;
+            float squaredRadius = radius * radius;
             int count = 0;
             foreach (Collider collider in span)
             {
-                if (IsMine(collider.transform))
-                    continue;
+                // Check if collider belongs to the same entity which has the obstacle avoidance.
+                Transform current = collider.transform;
+                do
+                {
+                    if (current == transform)
+                        continue;
+                    current = current.parent;
+                } while (current != null);
 
-                Vector3 position;
-                Vector3 closestPoint = collider.ClosestPointOnBounds(rigidbody.position);
-                if (collider.TryGetComponent(out Rigidbody _rigidbody))
-                    position = closestPoint + (_rigidbody.velocity * predictionTime);
-                else
-                    position = closestPoint;
-
-                Vector3 direction = position - currentPosition;
-                float distance = direction.magnitude;
-                if (distance >= Radius)
+                Vector3 difference;
+                Vector3 position = collider.ClosestPointOnBounds(rigidbody.position);
+                current = collider.transform;
+                do
+                {
+                    if (current.TryGetComponent(out Rigidbody rigidbody_))
+                    {
+                        position += rigidbody_.velocity * predictionTime;
+                        difference = position - predicedPosition;
+                        goto outside;
+                    }
+                    current = current.parent;
+                } while (current != null);
+                difference = position - currentPosition;
+            outside:;
+                float sqrMagnitude = difference.sqrMagnitude;
+                if (sqrMagnitude >= squaredRadius)
                     continue;
 
                 count++;
-                total -= (Radius - distance) / Radius * direction;
+                total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
             }
 
             if (count == 0)
@@ -121,22 +137,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             return total;
         }
 
-        private bool IsMine(Transform otherTransform)
-        {
-            if (otherTransform == transform)
-                return true;
-
-            otherTransform = otherTransform.parent;
-            while (otherTransform != null)
-            {
-                if (otherTransform == transform)
-                    return true;
-                otherTransform = otherTransform.parent;
-            }
-
-            return false;
-        }
-
 #if UNITY_EDITOR
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDrawGizmosSelected()
@@ -145,13 +145,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 rigidbody = GetComponent<Rigidbody>();
 
             float radius = Radius;
+            float overlapRadius = radius;
             if (predictionTime != 0)
-                radius += predictionRadius;
+                overlapRadius += predictionRadius;
 
-            int amount = Physics.OverlapSphereNonAlloc(rigidbody.position, radius, colliders, Layers);
+            int amount = Physics.OverlapSphereNonAlloc(rigidbody.position, overlapRadius, colliders, Layers);
             if (amount == colliders.Length)
             {
-                colliders = Physics.OverlapSphere(rigidbody.position, radius, Layers);
+                colliders = Physics.OverlapSphere(rigidbody.position, overlapRadius, Layers);
                 amount = colliders.Length;
                 Array.Resize(ref colliders, amount + 1);
             }
@@ -159,30 +160,50 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (amount == 0)
                 return;
 
-            Vector3 transformPosition = transform.position;
             Gizmos.color = Color.yellow;
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
+            Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
+            float squaredRadius = radius * radius;
+            int count = 0;
             foreach (Collider collider in span)
             {
-                if (IsMine(collider.transform))
-                    continue;
+                // Check if collider belongs to the same entity which has the obstacle avoidance.
+                Transform current = collider.transform;
+                do
+                {
+                    if (current == transform)
+                        continue;
+                    current = current.parent;
+                } while (current != null);
 
-                Vector3 position;
+                Vector3 difference;
                 Vector3 closestPoint = collider.ClosestPointOnBounds(rigidbody.position);
-                if (collider.TryGetComponent(out Rigidbody _rigidbody))
-                    position = closestPoint + (_rigidbody.velocity * predictionTime);
-                else
-                    position = closestPoint;
-
-                Vector3 direction = position - currentPosition;
-                float distance = direction.magnitude;
-                if (distance >= Radius)
+                Vector3 position = closestPoint;
+                current = collider.transform;
+                do
+                {
+                    if (current.TryGetComponent(out Rigidbody rigidbody_))
+                    {
+                        position += rigidbody_.velocity * predictionTime;
+                        difference = position - predicedPosition;
+                        goto outside;
+                    }
+                    current = current.parent;
+                } while (current != null);
+                difference = position - currentPosition;
+            outside:;
+                float sqrMagnitude = difference.sqrMagnitude;
+                if (sqrMagnitude >= squaredRadius)
                     continue;
 
-                Gizmos.DrawLine(transformPosition, position);
-                if (position != closestPoint)
+                count++;
+                Gizmos.DrawLine(currentPosition, position);
+                if (closestPoint != currentPosition)
+                {
                     Gizmos.DrawLine(position, closestPoint);
+                    Gizmos.DrawLine(position, predicedPosition);
+                }
             }
         }
 #endif
