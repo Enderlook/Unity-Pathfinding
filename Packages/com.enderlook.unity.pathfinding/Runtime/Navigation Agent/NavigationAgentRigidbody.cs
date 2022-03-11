@@ -109,6 +109,7 @@ namespace Enderlook.Unity.Pathfinding
                 return;
 
             Vector3 direction = Vector3.zero;
+            float directionSqrMagnitude = 0;
             if (!Brake || RotateEvenWhenBraking)
             {
                 int count = steeringBehavioursCount;
@@ -127,7 +128,7 @@ namespace Enderlook.Unity.Pathfinding
 
                 direction.y = 0;
 
-                if (direction.sqrMagnitude > 1)
+                if ((directionSqrMagnitude = direction.sqrMagnitude) > 1)
                     direction = direction.normalized;
             }
 
@@ -146,6 +147,8 @@ namespace Enderlook.Unity.Pathfinding
             if (UpdateRotation)
             {
                 float maxDegreesDelta = angularSpeed * Time.fixedDeltaTime;
+                if (directionSqrMagnitude < 1)
+                    maxDegreesDelta *= Mathf.Sqrt(directionSqrMagnitude);
                 Quaternion to;
                 if ((rigidbody.constraints & RigidbodyConstraints.FreezePosition) != RigidbodyConstraints.FreezePosition)
                 {
