@@ -14,12 +14,6 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Rigidbody"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationAgentRigidbody : MonoBehaviour
     {
-        [field: Header("Features")]
-        [field: IsProperty, SerializeField, Tooltip("Determines if the agent has control over the rigidbody velocity.")]
-        public bool UpdateVelocity { get; set; } = true;
-
-        [field: IsProperty, SerializeField, Tooltip("Determines if the agent has control over the rigidbody rotation.")]
-        public bool UpdateRotation { get; set; } = true;
         [SerializeField, Tooltip("Initial steering behaviours that determines the movement of this agent.")]
         private SteeringBehaviour[] initialSteeringBehaviours;
 
@@ -68,6 +62,15 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
+        /// <summary>
+        /// Determines if the agent has control over the rigidbody's velocity.
+        /// </summary>
+        public bool UpdateMovement { get; set; } = true;
+
+        /// <summary>
+        /// Determines if the agent has control over the rigidbody's rotation.
+        /// </summary>
+        public bool UpdateRotation { get; set; } = true;
         private new Rigidbody rigidbody;
         private (ISteeringBehaviour Behaviour, float Strength)[] steeringBehaviours;
         private int steeringBehavioursCount;
