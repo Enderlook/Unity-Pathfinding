@@ -43,7 +43,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
         public bool HasPath => !EqualityComparer<RawPooledList<Vector3>.Enumerator>.Default.Equals(enumerator, default);
 
-        public bool IsCalculatingPath => !(path?.HasPath ?? true);
+        public bool IsCalculatingPath => !(path?.IsCompleted ?? true);
 
         public Vector3 NextPosition {
             get {
