@@ -63,14 +63,25 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         /// <summary>
-        /// Determines if the agent has control over the rigidbody's velocity.
+        /// Determines if the agent has control over the rigidbody's poition and velocity.
         /// </summary>
         public bool UpdateMovement { get; set; } = true;
 
         /// <summary>
-        /// Determines if the agent has control over the rigidbody's rotation.
+        /// Determines if the agent has control over the rigidbody's rotation and angular velocity.
         /// </summary>
         public bool UpdateRotation { get; set; } = true;
+
+        /// <summary>
+        /// If <see langword="true"/>, agent will deaccelerate until reach 0 velocity and won't increase it's velocity until this property becomes <see langword="false"/>.
+        /// </summary>
+        public bool Brake { get; set; }
+
+        /// <summary>
+        /// If <see langword="true"/>, agent will rotate even if <see cref="Brake"/> is <see langword="true"/> and velocity reached 0.
+        /// </summary>
+        public bool RotateEvenWhenBraking { get; set; }
+
         private new Rigidbody rigidbody;
         private (ISteeringBehaviour Behaviour, float Strength)[] steeringBehaviours;
         private int steeringBehavioursCount;
@@ -79,7 +90,6 @@ namespace Enderlook.Unity.Pathfinding
         private void Awake()
         {
             rigidbody = GetComponent<Rigidbody>();
-            rigidbody.constraints |= RigidbodyConstraints.FreezeRotation;
 
             SteeringBehaviour[] initialSteeringBehaviours = this.initialSteeringBehaviours;
             int count = steeringBehavioursCount = initialSteeringBehaviours.Length;
@@ -95,41 +105,75 @@ namespace Enderlook.Unity.Pathfinding
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void FixedUpdate()
         {
-            if (!UpdateVelocity && !UpdateRotation)
+            if (!UpdateMovement && !UpdateRotation)
                 return;
 
             Vector3 direction = Vector3.zero;
-            int count = steeringBehavioursCount;
-            (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours;
-            if (unchecked((uint)count) > (uint)array.Length)
+            if (!Brake || RotateEvenWhenBraking)
             {
-                Debug.Assert(false, "Index out of range.");
-                return;
+                int count = steeringBehavioursCount;
+                (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours;
+                if (unchecked((uint)count) > (uint)array.Length)
+                {
+                    Debug.Assert(false, "Index out of range.");
+                    return;
+                }
+
+                for (int i = 0; i < count; i++)
+                {
+                    (ISteeringBehaviour Behaviour, float Strength) behaviour = array[i];
+                    direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;
+                }
+
+                direction.y = 0;
+
+                if (direction.sqrMagnitude > 1)
+                    direction = direction.normalized;
             }
 
-            for (int i = 0; i < count; i++)
+            if (UpdateMovement)
             {
-                (ISteeringBehaviour Behaviour, float Strength) behaviour = array[i];
-                direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;
-            }
-
-            direction.y = 0;
-
-            if (direction.sqrMagnitude > 1)
-                direction = direction.normalized;
-
-            if (UpdateVelocity)
-            {
-                Vector3 targetVelocity = direction * linealSpeed;
+                Vector3 targetVelocity = (Brake ? Vector3.zero : direction) * linealSpeed;
                 Vector3 currentVelocity = rigidbody.velocity;
+                float acceleration;
                 if (targetVelocity.sqrMagnitude > currentVelocity.sqrMagnitude)
-                    rigidbody.velocity = Vector3.MoveTowards(currentVelocity, targetVelocity, linealAcceleration * Time.fixedDeltaTime);
+                    acceleration = linealAcceleration * Time.fixedDeltaTime;
                 else
-                    rigidbody.velocity = Vector3.MoveTowards(currentVelocity, targetVelocity, linearBrackingSpeed * Time.fixedDeltaTime);
+                    acceleration = linearBrackingSpeed * Time.fixedDeltaTime;
+                rigidbody.velocity = Vector3.MoveTowards(currentVelocity, targetVelocity, acceleration);
             }
 
-            if (UpdateRotation && direction != Vector3.zero)
-                rigidbody.rotation = Quaternion.RotateTowards(rigidbody.rotation, Quaternion.LookRotation(direction), angularSpeed * Time.fixedDeltaTime);
+            if (UpdateRotation)
+            {
+                float maxDegreesDelta = angularSpeed * Time.fixedDeltaTime;
+                Quaternion to;
+                if ((rigidbody.constraints & RigidbodyConstraints.FreezePosition) != RigidbodyConstraints.FreezePosition)
+                {
+                    Vector3 angularVelocity = rigidbody.angularVelocity;
+                    if (angularVelocity.x > 0 || angularVelocity.y > 0 || angularVelocity.z > 0)
+                    {
+                        Vector3 normalized = angularVelocity.normalized;
+                        float magnitude = angularVelocity.magnitude;
+                        if (magnitude > maxDegreesDelta)
+                        {
+                            rigidbody.angularVelocity = normalized * (magnitude - maxDegreesDelta);
+                            return;
+                        }
+                        else
+                        {
+                            rigidbody.angularVelocity = Vector3.zero;
+                            maxDegreesDelta -= magnitude;
+                        }
+                    }
+
+                    to = direction != Vector3.zero ? Quaternion.LookRotation(direction) : Quaternion.identity;
+                }
+                else if (direction != Vector3.zero)
+                    to = Quaternion.LookRotation(direction);
+                else
+                    return;
+                rigidbody.rotation = Quaternion.RotateTowards(rigidbody.rotation, to, maxDegreesDelta);
+            }
         }
 
         /// <summary>
