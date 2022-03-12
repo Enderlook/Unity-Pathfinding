@@ -165,7 +165,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Vector3 currentPosition = rigidbody.position;
             Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
             float squaredRadius = radius * radius;
-            int count = 0;
             foreach (Collider collider in span)
             {
                 // Check if collider belongs to the same entity which has the obstacle avoidance.
@@ -197,7 +196,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 if (sqrMagnitude >= squaredRadius)
                     continue;
 
-                count++;
                 Gizmos.DrawLine(currentPosition, position);
                 if (closestPoint != currentPosition)
                 {
