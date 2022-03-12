@@ -103,27 +103,36 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     current = current.parent;
                 } while (current != null);
 
-                Vector3 difference;
-                Vector3 position = collider.ClosestPointOnBounds(rigidbody.position);
+                Vector3 obstaclePosition = collider.ClosestPointOnBounds(rigidbody.position);
                 current = collider.transform;
                 do
                 {
                     if (current.TryGetComponent(out Rigidbody rigidbody_))
                     {
-                        position += rigidbody_.velocity * predictionTime;
-                        difference = position - predicedPosition;
-                        goto outside;
+                        Vector3 predictedObstaclePosition = obstaclePosition + (rigidbody_.velocity * predictionTime);
+                        Vector3 difference = predictedObstaclePosition - predicedPosition;
+
+                        float sqrMagnitude = difference.sqrMagnitude;
+                        if (sqrMagnitude < squaredRadius)
+                        {
+                            count++;
+                            total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
+                        }
+                        // Position of objects with rigidbody is calculated twice, once with prediction and the other without it.
+                        break;
                     }
                     current = current.parent;
                 } while (current != null);
-                difference = position - currentPosition;
-            outside:;
-                float sqrMagnitude = difference.sqrMagnitude;
-                if (sqrMagnitude >= squaredRadius)
-                    continue;
 
-                count++;
-                total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
+                {
+                    Vector3 difference = obstaclePosition - currentPosition;
+                    float sqrMagnitude = difference.sqrMagnitude;
+                    if (sqrMagnitude < squaredRadius)
+                    {
+                        count++;
+                        total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
+                    }
+                }
             }
 
             if (count == 0)
@@ -160,11 +169,12 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (amount == 0)
                 return;
 
-            Gizmos.color = Color.yellow;
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
             Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
             float squaredRadius = radius * radius;
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(predicedPosition, currentPosition);
             foreach (Collider collider in span)
             {
                 // Check if collider belongs to the same entity which has the obstacle avoidance.
@@ -176,31 +186,38 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     current = current.parent;
                 } while (current != null);
 
-                Vector3 difference;
-                Vector3 closestPoint = collider.ClosestPointOnBounds(rigidbody.position);
-                Vector3 position = closestPoint;
+                Vector3 obstaclePosition = collider.ClosestPointOnBounds(rigidbody.position);
                 current = collider.transform;
                 do
                 {
                     if (current.TryGetComponent(out Rigidbody rigidbody_))
                     {
-                        position += rigidbody_.velocity * predictionTime;
-                        difference = position - predicedPosition;
-                        goto outside;
+                        Vector3 predictedObstaclePosition = obstaclePosition + (rigidbody_.velocity * predictionTime);
+                        Vector3 difference = predictedObstaclePosition - predicedPosition;
+
+                        float sqrMagnitude = difference.sqrMagnitude;
+                        if (sqrMagnitude < squaredRadius)
+                        {
+                            Gizmos.color = Color.red;
+                            Gizmos.DrawLine(predictedObstaclePosition, predicedPosition);
+
+                            Gizmos.color = Color.yellow;
+                            Gizmos.DrawLine(predictedObstaclePosition, obstaclePosition);
+                        }
+                        // Position of objects with rigidbody is calculated twice, once with prediction and the other without it.
+                        break;
                     }
                     current = current.parent;
                 } while (current != null);
-                difference = position - currentPosition;
-            outside:;
-                float sqrMagnitude = difference.sqrMagnitude;
-                if (sqrMagnitude >= squaredRadius)
-                    continue;
 
-                Gizmos.DrawLine(currentPosition, position);
-                if (closestPoint != currentPosition)
                 {
-                    Gizmos.DrawLine(position, closestPoint);
-                    Gizmos.DrawLine(position, predicedPosition);
+                    Vector3 difference = obstaclePosition - currentPosition;
+                    float sqrMagnitude = difference.sqrMagnitude;
+                    if (sqrMagnitude < squaredRadius)
+                    {
+                        Gizmos.color = Color.red;
+                        Gizmos.DrawLine(obstaclePosition, currentPosition);
+                    }
                 }
             }
         }
