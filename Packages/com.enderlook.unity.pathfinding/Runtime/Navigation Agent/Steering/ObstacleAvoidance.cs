@@ -34,6 +34,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
+        [Header("Prediction")]
         [SerializeField, Min(0), Tooltip("Determines the prediction time used for moving obstacles to avoid their futures positions.")]
         private float predictionTime;
         public float PredictionTime
