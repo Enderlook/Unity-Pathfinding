@@ -245,7 +245,10 @@ namespace Enderlook.Unity.Pathfinding
             if (initialSteeringBehaviours is SteeringBehaviour[] behaviours_)
             {
                 foreach (SteeringBehaviour behaviour in behaviours_)
+                {
                     direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;
+                    behaviour.Behaviour.DrawGizmos();
+                }
             }
             else
             {
@@ -261,6 +264,7 @@ namespace Enderlook.Unity.Pathfinding
                 {
                     (ISteeringBehaviour Behaviour, float Strength) behaviour = array[i];
                     direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;
+                    behaviour.Behaviour.DrawGizmos();
                 }
             }
 

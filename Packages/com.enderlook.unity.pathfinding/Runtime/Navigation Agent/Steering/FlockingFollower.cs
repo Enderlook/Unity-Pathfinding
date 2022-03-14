@@ -217,7 +217,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
 #if UNITY_EDITOR
-        private void OnDrawGizmosSelected()
+        void ISteeringBehaviour.DrawGizmos()
         {
             if (!Application.isPlaying)
                 return;
@@ -240,14 +240,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Gizmos.DrawLine(Rigidbody.position, q);*/
 
             Vector3 direction = GetDirection();
-            Gizmos.color = Color.white;
             Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + (direction * 3));
+            Gizmos.color = Color.gray;
 
             RawPooledList<Vector3>.Enumerator enumerator = PathFollower.previousEnumerator;
             if (enumerator.IsDefault)
                 return;
 
-            Gizmos.color = Color.blue;
+            Gizmos.color = Color.black;
             Vector3 start;
             Vector3 end = transform.position;
             while (enumerator.MoveNext())

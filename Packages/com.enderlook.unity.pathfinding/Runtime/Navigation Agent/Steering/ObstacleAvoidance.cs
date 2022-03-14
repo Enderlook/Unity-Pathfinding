@@ -203,8 +203,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
 #if UNITY_EDITOR
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void OnDrawGizmosSelected()
+        void ISteeringBehaviour.DrawGizmos()
         {
             if (rigidbody == null)
                 rigidbody = GetComponent<Rigidbody>();
@@ -280,7 +279,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                             Gizmos.color = Color.yellow;
                             Gizmos.DrawLine(predictedObstaclePosition, predicedPosition);
 
-                            Gizmos.color = Color.green;
+                            Gizmos.color = Color.cyan;
                             Gizmos.DrawRay(predicedPosition, a * difference);
 
                             // 3)

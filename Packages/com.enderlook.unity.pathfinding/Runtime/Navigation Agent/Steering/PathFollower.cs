@@ -212,22 +212,21 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         private static void ThrowInvalidOperationException_DoesNotHavePath() => throw new InvalidOperationException("Doesn't have a path.");
 
 #if UNITY_EDITOR
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
-        private void OnDrawGizmosSelected()
+        void ISteeringBehaviour.DrawGizmos()
         {
             if (!Application.isPlaying)
                 return;
 
             Vector3 direction = GetDirection();
-            Gizmos.color = Color.cyan;
             Vector3 position = rigidbody.position;
+            Gizmos.color = Color.gray;
             Gizmos.DrawLine(position, position + (direction * 3));
 
             RawPooledList<Vector3>.Enumerator enumerator = previousEnumerator;
             if (enumerator.IsDefault)
                 return;
 
-            Gizmos.color = Color.blue;
+            Gizmos.color = Color.black;
             Vector3 start;
             Vector3 end = transform.position;
             while (enumerator.MoveNext())

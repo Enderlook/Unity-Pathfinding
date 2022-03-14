@@ -12,5 +12,12 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// </summary>
         /// <returns>Direction to follow.</returns>
         Vector3 GetDirection();
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Draw gizmos of this steering behaviour.
+        /// </summary>
+        void DrawGizmos();
+#endif
     }
 }
