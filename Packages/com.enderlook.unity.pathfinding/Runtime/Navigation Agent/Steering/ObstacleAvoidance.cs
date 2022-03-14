@@ -57,6 +57,19 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
+        [SerializeField, Min(0), ShowIf(nameof(predictionTime), 0, ComparisonMode.NotEqual), Tooltip("Determines the strengh multiplied of predicted position of moving obstacles.")]
+        private float predictionStrength = 1;
+
+        public float PredictionStrength
+        {
+            get => predictionStrength;
+            set
+            {
+                if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
+                predictionStrength = value;
+            }
+        }
+
         private new Rigidbody rigidbody;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -137,7 +150,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         if (sqrMagnitude < squaredRadius)
                         {
                             count += 2;
-                            float a = (radius - Mathf.Sqrt(sqrMagnitude)) / radius;
+                            float a = (radius - Mathf.Sqrt(sqrMagnitude)) / radius * predictionStrength;
 
                             // 2)
                             total -= a * difference;
