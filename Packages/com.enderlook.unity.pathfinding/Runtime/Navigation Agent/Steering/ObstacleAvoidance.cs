@@ -109,17 +109,43 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 {
                     if (current.TryGetComponent(out Rigidbody rigidbody_))
                     {
-                        Vector3 predictedObstaclePosition = obstaclePosition + (rigidbody_.velocity * predictionTime);
+                        // Position of objects with rigidbody is calculated multiple times:
+                        // 1) Direction of avoidance without taking into account velocity of objects.
+                        // 2) Direction of avoidance taking into account velocity of objects.
+                        // 3) Direction of avoidance taking into account velocity of objects and rotating 90 degrees clockwise,
+                        // this is required in order to avoid obstacles that move towards the creature and
+                        // the predicted position is after the creature.
+                        // Step 2) and 3) are only executed if the obstacle is moving.
+
+                        Vector3 currentDifference = obstaclePosition - currentPosition;
+                        float currentSqrMagnitude = currentDifference.sqrMagnitude;
+                        if (currentSqrMagnitude < squaredRadius)
+                        {
+                            // 1)
+                            count++;
+                            total -= (radius - Mathf.Sqrt(currentSqrMagnitude)) / radius * currentDifference;
+                        }
+
+                        Vector3 velocity = rigidbody_.velocity;
+                        if (velocity.x == 0 && velocity.y == 0 && velocity.z == 0)
+                            goto next;
+
+                        Vector3 predictedObstaclePosition = obstaclePosition + (velocity * predictionTime);
                         Vector3 difference = predictedObstaclePosition - predicedPosition;
 
                         float sqrMagnitude = difference.sqrMagnitude;
                         if (sqrMagnitude < squaredRadius)
                         {
-                            count++;
-                            total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
+                            count += 2;
+                            float a = (radius - Mathf.Sqrt(sqrMagnitude)) / radius;
+
+                            // 2)
+                            total -= a * difference;
+
+                            // 3)
+                            total -= a * new Vector3(difference.z, difference.y, -difference.x);
                         }
-                        // Position of objects with rigidbody is calculated twice, once with prediction and the other without it.
-                        break;
+                        goto next;
                     }
                     current = current.parent;
                 } while (current != null);
@@ -133,6 +159,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
                     }
                 }
+
+            next:;
             }
 
             if (count == 0)
