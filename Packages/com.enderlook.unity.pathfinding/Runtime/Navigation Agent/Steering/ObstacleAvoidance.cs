@@ -72,6 +72,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
         private new Rigidbody rigidbody;
+        private float clockwiseRotationCheck;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => rigidbody = GetComponent<Rigidbody>();
@@ -99,6 +100,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
             if (amount == 0)
                 return Vector3.zero;
+
+            float fixedTime = Time.fixedTime;
+            if (fixedTime - Mathf.Abs(clockwiseRotationCheck) > 1)
+            {
+                // Determines if rotates clockwise or counterclockwise.
+                fixedTime *= UnityEngine.Random.value > .5 ? 1 : -1;
+                clockwiseRotationCheck = fixedTime;
+            }
 
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
@@ -145,19 +154,24 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                             goto next;
 
                         Vector3 predictedObstaclePosition = obstaclePosition + (velocity * predictionTime);
-                        Vector3 difference = predictedObstaclePosition - predicedPosition;
+                        Vector3 predictedDifference = predictedObstaclePosition - predicedPosition;
 
-                        float sqrMagnitude = difference.sqrMagnitude;
+                        float sqrMagnitude = predictedDifference.sqrMagnitude;
                         if (sqrMagnitude < squaredRadius)
                         {
                             count += 2;
                             float a = (radius - Mathf.Sqrt(sqrMagnitude)) / radius * predictionStrength;
 
                             // 2)
-                            total -= a * difference;
+                            total -= a * predictedDifference;
 
                             // 3)
-                            total -= a * new Vector3(difference.z, difference.y, -difference.x);
+                            Vector3 rotated;
+                            if (fixedTime > 0)
+                                rotated = new Vector3(predictedDifference.z, predictedDifference.y, -predictedDifference.x);
+                            else
+                                rotated = new Vector3(-predictedDifference.z, predictedDifference.y, predictedDifference.x);
+                            total -= a * rotated;
                         }
                         goto next;
                     }
@@ -211,6 +225,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (amount == 0)
                 return;
 
+            float fixedTime = Time.fixedTime;
+            if (fixedTime - Mathf.Abs(clockwiseRotationCheck) > 1)
+            {
+                // Determines if rotates clockwise or counterclockwise.
+                fixedTime *= UnityEngine.Random.value > .5 ? 1 : -1;
+                clockwiseRotationCheck = fixedTime;
+            }
+
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
             Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
@@ -234,20 +256,44 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 {
                     if (current.TryGetComponent(out Rigidbody rigidbody_))
                     {
-                        Vector3 predictedObstaclePosition = obstaclePosition + (rigidbody_.velocity * predictionTime);
+                        Vector3 currentDifference = obstaclePosition - currentPosition;
+                        float currentSqrMagnitude = currentDifference.sqrMagnitude;
+                        if (currentSqrMagnitude < squaredRadius)
+                        {
+                            Gizmos.color = Color.red;
+                            Gizmos.DrawLine(obstaclePosition, currentPosition);
+                        }
+
+                        Vector3 velocity = rigidbody_.velocity;
+                        if (velocity.x == 0 && velocity.y == 0 && velocity.z == 0)
+                            goto next;
+
+                        Vector3 predictedObstaclePosition = obstaclePosition + (velocity * predictionTime);
                         Vector3 difference = predictedObstaclePosition - predicedPosition;
 
                         float sqrMagnitude = difference.sqrMagnitude;
                         if (sqrMagnitude < squaredRadius)
                         {
-                            Gizmos.color = Color.red;
+                            float a = (radius - Mathf.Sqrt(sqrMagnitude)) / radius * predictionStrength;
+
+                            // 2)
+                            Gizmos.color = Color.yellow;
                             Gizmos.DrawLine(predictedObstaclePosition, predicedPosition);
 
-                            Gizmos.color = Color.yellow;
-                            Gizmos.DrawLine(predictedObstaclePosition, obstaclePosition);
+                            Gizmos.color = Color.green;
+                            Gizmos.DrawRay(predicedPosition, a * difference);
+
+                            // 3)
+                            Vector3 rotated;
+                            if (fixedTime > 0)
+                                rotated = new Vector3(difference.z, difference.y, -difference.x);
+                            else
+                                rotated = new Vector3(-difference.z, difference.y, difference.x);
+
+                            Gizmos.color = Color.blue;
+                            Gizmos.DrawRay(predicedPosition, a * rotated);
                         }
-                        // Position of objects with rigidbody is calculated twice, once with prediction and the other without it.
-                        break;
+                        goto next;
                     }
                     current = current.parent;
                 } while (current != null);
@@ -261,6 +307,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         Gizmos.DrawLine(obstaclePosition, currentPosition);
                     }
                 }
+
+            next:;
             }
         }
 #endif
