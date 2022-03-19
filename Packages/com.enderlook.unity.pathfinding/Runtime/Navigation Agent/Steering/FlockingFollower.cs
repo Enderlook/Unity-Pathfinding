@@ -4,7 +4,6 @@ using Enderlook.Unity.Pathfinding.Utils;
 using System;
 
 using UnityEngine;
-using Enderlook.Unity.Toolset.Attributes;
 
 namespace Enderlook.Unity.Pathfinding.Steerings
 {
@@ -100,10 +99,15 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [field: Header("Leader Searcher")]
-        [field: IsProperty, SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight." +
+        [Header("Leader Searcher")]
+        [SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight." +
             "\nThis component must not be registered into the Navigation Agent Rigidbody.")]
-        public PathFollower PathFollower { get; set; }
+        private PathFollower pathFollower;
+        public PathFollower PathFollower
+        {
+            get => pathFollower;
+            set => pathFollower = value;
+        }
 
         [SerializeField, Tooltip("Determines the strength of path.")]
         private float pathStrength;
@@ -116,8 +120,13 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [field: IsProperty, SerializeField, Tooltip("Determines which layers blocks the vision of the agent when looking for the leader.")]
-        public LayerMask BlockVisionLayers { get; private set; }
+        [SerializeField, Tooltip("Determines which layers blocks the vision of the agent when looking for the leader.")]
+        private LayerMask blockVisionLayers;
+        public LayerMask BlockVisionLayers
+        {
+            get => blockVisionLayers;
+            set => blockVisionLayers = value;
+        }
 
         internal Rigidbody Rigidbody { get; private set; }
         private float cooldown = maxCooldown;

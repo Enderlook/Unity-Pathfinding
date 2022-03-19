@@ -22,7 +22,12 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        [field: IsProperty, SerializeField, Tooltip("Factor that multiplies the effect of the behaviour in the agent.")]
-        public float Strength { get; private set; }
+        [SerializeField, Tooltip("Factor that multiplies the effect of the behaviour in the agent.")]
+        private float strength;
+        public float Strength
+        {
+            get => strength;
+            set => strength = value;
+        }
     }
 }
