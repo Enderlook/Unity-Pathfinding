@@ -18,7 +18,6 @@ namespace Enderlook.Unity.Pathfinding
 
         private Vector3[] followersPositions = Array.Empty<Vector3>();
 
-        // We take advantage of Unity single threading to temporarily store in the same array the closest entites to the requested and so reduce allocations.
         private RawPooledList<EntityInfo> followersInRange = RawPooledList<EntityInfo>.Create();
 
         internal Rigidbody Rigidbody { get; private set; }
@@ -62,6 +61,8 @@ namespace Enderlook.Unity.Pathfinding
 
         internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range)
         {
+            // Note: The result of this method becomes undefined on the next method call or next fixed frame.
+
             if (lastUpdate != fixedUpdateCount)
                 GetEntitiesInRange_Slow();
 
