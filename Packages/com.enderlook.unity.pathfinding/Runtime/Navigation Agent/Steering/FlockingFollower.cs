@@ -13,8 +13,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
     {
         [Header("Flocking")]
         [SerializeField, Tooltip("Determines which leader will it follow.")]
-        public FlockingLeader flockingLeader;
-        private FlockingLeader FlockingLeader {
+        private FlockingLeader flockingLeader;
+        public FlockingLeader FlockingLeader {
             get => flockingLeader;
             set
             {
