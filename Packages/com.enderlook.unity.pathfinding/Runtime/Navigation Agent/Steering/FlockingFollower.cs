@@ -101,7 +101,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
         [field: Header("Leader Searcher")]
-        [field: IsProperty, SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight.")]
+        [field: IsProperty, SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight." +
+            "\nThis component must not be registered into the Navigation Agent Rigidbody.")]
         public PathFollower PathFollower { get; set; }
 
         [SerializeField, Tooltip("Determines the strength of path.")]
