@@ -18,7 +18,7 @@ namespace Enderlook.Unity.Pathfinding
         private SteeringBehaviour[] initialSteeringBehaviours;
 
         [Header("Movement Configuration")]
-        [SerializeField, Min(0), Tooltip("Determines the maximum speed of the agent.")]
+        [SerializeField, Min(0), Tooltip("Determines the maximum speed of the agent in m/s.")]
         private float linealSpeed;
         public float LinealSpeed {
             get => linealSpeed;
@@ -29,7 +29,7 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the acceleration of the lineal speed.")]
+        [SerializeField, Min(0), Tooltip("Determines the acceleration of the lineal speed in m/s^2.")]
         private float linealAcceleration;
         public float LinealAcceleration {
             get => linealAcceleration;
@@ -40,7 +40,7 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the deacceleration of the lineal speed during braking.")]
+        [SerializeField, Min(0), Tooltip("Determines the deacceleration of the lineal speed during braking in m/s^2.")]
         private float linearBrackingSpeed;
         public float LinearBrackingSpeed {
             get => linearBrackingSpeed;
@@ -51,7 +51,7 @@ namespace Enderlook.Unity.Pathfinding
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the turning speed.")]
+        [SerializeField, Min(0), Tooltip("Determines the turning speed deg/s and angular deacceleration in deg/s^2.")]
         private float angularSpeed;
         public float AngularSpeed {
             get => angularSpeed;
