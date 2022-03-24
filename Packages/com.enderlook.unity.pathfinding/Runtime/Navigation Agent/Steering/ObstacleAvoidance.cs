@@ -213,6 +213,10 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (predictionTime != 0)
                 overlapRadius += predictionRadius;
 
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(rigidbody.position, overlapRadius);
+            Gizmos.DrawWireSphere(rigidbody.position, radius);
+
             int amount = Physics.OverlapSphereNonAlloc(rigidbody.position, overlapRadius, colliders, Layers);
             if (amount == colliders.Length)
             {
@@ -235,7 +239,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
             Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
+            Vector3 total = Vector3.zero;
             float squaredRadius = radius * radius;
+            int count = 0;
             Gizmos.color = Color.green;
             Gizmos.DrawLine(predicedPosition, currentPosition);
             foreach (Collider collider in span)
@@ -259,6 +265,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         float currentSqrMagnitude = currentDifference.sqrMagnitude;
                         if (currentSqrMagnitude < squaredRadius)
                         {
+                            count++;
+                            total -= (radius - Mathf.Sqrt(currentSqrMagnitude)) / radius * currentDifference;
+
                             Gizmos.color = Color.red;
                             Gizmos.DrawLine(obstaclePosition, currentPosition);
                         }
@@ -268,26 +277,30 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                             goto next;
 
                         Vector3 predictedObstaclePosition = obstaclePosition + (velocity * predictionTime);
-                        Vector3 difference = predictedObstaclePosition - predicedPosition;
+                        Vector3 predictedDifference = predictedObstaclePosition - predicedPosition;
 
-                        float sqrMagnitude = difference.sqrMagnitude;
+                        float sqrMagnitude = predictedDifference.sqrMagnitude;
                         if (sqrMagnitude < squaredRadius)
                         {
+                            count += 2;
                             float a = (radius - Mathf.Sqrt(sqrMagnitude)) / radius * predictionStrength;
 
                             // 2)
+                            total -= a * predictedDifference;
+
                             Gizmos.color = Color.yellow;
                             Gizmos.DrawLine(predictedObstaclePosition, predicedPosition);
 
                             Gizmos.color = Color.cyan;
-                            Gizmos.DrawRay(predicedPosition, a * difference);
+                            Gizmos.DrawRay(predicedPosition, a * predictedDifference);
 
                             // 3)
                             Vector3 rotated;
                             if (fixedTime > 0)
-                                rotated = new Vector3(difference.z, difference.y, -difference.x);
+                                rotated = new Vector3(predictedDifference.z, predictedDifference.y, -predictedDifference.x);
                             else
-                                rotated = new Vector3(-difference.z, difference.y, difference.x);
+                                rotated = new Vector3(-predictedDifference.z, predictedDifference.y, predictedDifference.x);
+                            total -= a * rotated;
 
                             Gizmos.color = Color.blue;
                             Gizmos.DrawRay(predicedPosition, a * rotated);
@@ -302,6 +315,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     float sqrMagnitude = difference.sqrMagnitude;
                     if (sqrMagnitude < squaredRadius)
                     {
+                        count++;
+                        total -= (radius - Mathf.Sqrt(sqrMagnitude)) / radius * difference;
+
                         Gizmos.color = Color.red;
                         Gizmos.DrawLine(obstaclePosition, currentPosition);
                     }
@@ -309,6 +325,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
             next:;
             }
+
+            total /= count;
+
+            if (total.sqrMagnitude > 1)
+                total = total.normalized;
+
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawLine(currentPosition, currentPosition + (total * 3));
         }
 #endif
     }
