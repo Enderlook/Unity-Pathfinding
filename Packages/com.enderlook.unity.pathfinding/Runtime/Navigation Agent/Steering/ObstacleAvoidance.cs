@@ -81,9 +81,12 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         Vector3 ISteeringBehaviour.GetDirection()
         {
 #if UNITY_EDITOR
-            if (rigidbody == null)
-                rigidbody = GetComponent<Rigidbody>();
+
+            if (this.rigidbody == null)
+                this.rigidbody = GetComponent<Rigidbody>();
 #endif
+
+            Rigidbody rigidbody = this.rigidbody;
 
             float radius = Radius;
             float overlapRadius = radius;
@@ -109,6 +112,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 clockwiseRotationCheck = fixedTime;
             }
 
+            Transform transform = this.transform;
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
             Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
@@ -205,8 +209,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 #if UNITY_EDITOR
         void ISteeringBehaviour.DrawGizmos()
         {
+            Rigidbody rigidbody = this.rigidbody;
             if (rigidbody == null)
-                rigidbody = GetComponent<Rigidbody>();
+                rigidbody = this.rigidbody = GetComponent<Rigidbody>();
 
             float radius = Radius;
             float overlapRadius = radius;
@@ -236,6 +241,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 clockwiseRotationCheck = fixedTime;
             }
 
+            Transform transform = this.transform;
             Span<Collider> span = colliders.AsSpan(0, amount);
             Vector3 currentPosition = rigidbody.position;
             Vector3 predicedPosition = rigidbody.position + (rigidbody.velocity * predictionTime);
