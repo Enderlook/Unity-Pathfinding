@@ -122,7 +122,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 do
                 {
                     if (current == transform)
-                        continue;
+                        goto next;
                     current = current.parent;
                 } while (current != null);
 
@@ -251,7 +251,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 do
                 {
                     if (current == transform)
-                        continue;
+                        goto next;
                     current = current.parent;
                 } while (current != null);
 
