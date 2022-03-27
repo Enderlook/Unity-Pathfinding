@@ -128,9 +128,20 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             set => blockVisionLayers = value;
         }
 
+        [SerializeField, Tooltip("Determines cooldown used for recalculating path to the leader.")]
+        private float pathRecalculationCooldown = 4;
+        public float PathRecalculationCooldown
+        {
+            get => pathRecalculationCooldown;
+            set
+            {
+                if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
+                pathRecalculationCooldown = value;
+            }
+        }
+
         internal Rigidbody Rigidbody { get; private set; }
-        private float cooldown = maxCooldown;
-        private const float maxCooldown = 4;
+        private float cooldown;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => Rigidbody = GetComponent<Rigidbody>();
@@ -210,7 +221,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         cooldown -= Time.fixedDeltaTime;
                         if (cooldown < 0)
                         {
-                            cooldown = maxCooldown;
+                            cooldown = PathRecalculationCooldown;
                             if (!PathFollower.IsCalculatingPath && Vector3.Distance(PathFollower.NextPosition, Rigidbody.position) > PathFollower.StoppingDistance * 2)
                                 PathFollower.SetDestination(leaderPosition);
                         }
