@@ -3,6 +3,7 @@ using Enderlook.Unity.Pathfinding.Steerings;
 using Enderlook.Unity.Threading;
 
 using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -16,7 +17,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private RawPooledList<Rigidbody> followers = RawPooledList<Rigidbody>.Create();
 
-        private Vector3[] followersPositions = Array.Empty<Vector3>();
+        private Vector3[] followersPositions = ArrayPool<Vector3>.Shared.Rent(0);
 
         private RawPooledList<EntityInfo> followersInRange = RawPooledList<EntityInfo>.Create();
 
@@ -91,12 +92,16 @@ namespace Enderlook.Unity.Pathfinding
         private void GetEntitiesInRange_Slow()
         {
             lastUpdate = fixedUpdateCount;
-            if (followersPositions.Length < followers.Count)
+            Vector3[] array = followersPositions;
+            if (array.Length < followers.Count)
+            {
                 // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
-                followersPositions = new Vector3[followers.Capacity];
+                ArrayPool<Vector3>.Shared.Return(array);
+                followersPositions = array = ArrayPool<Vector3>.Shared.Rent(followers.Capacity);
+            }
 
             for (int i = 0; i < followers.Count; i++)
-                followersPositions[i] = followers[i].position;
+                array[i] = followers[i].position;
         }
     }
 }
