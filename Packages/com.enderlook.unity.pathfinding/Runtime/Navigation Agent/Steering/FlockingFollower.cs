@@ -26,8 +26,11 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
                 if (value != null)
                 {
-                    subscribedToLeader = true;
-                    value.AddFollower(this);
+                    if (isActiveAndEnabled)
+                    {
+                        subscribedToLeader = true;
+                        value.AddFollower(this);
+                    }
                 }
                 else
                     subscribedToLeader = false;
