@@ -17,17 +17,19 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             get => flockingLeader;
             set
             {
-                if (subscribedToLeader && flockingLeader is FlockingLeader leader)
-                {
-                    subscribedToLeader = false;
+                FlockingLeader leader = flockingLeader;
+                if (subscribedToLeader && leader != null)
                     leader.RemoveFollower(this);
-                }
+
                 flockingLeader = value;
-                if (value is FlockingLeader leader_)
+
+                if (value != null)
                 {
                     subscribedToLeader = true;
-                    leader_.AddFollower(this);
+                    value.AddFollower(this);
                 }
+                else
+                    subscribedToLeader = false;
             }
         }
 
