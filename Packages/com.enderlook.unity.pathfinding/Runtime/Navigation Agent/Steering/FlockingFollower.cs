@@ -177,7 +177,15 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         {
             FlockingLeader flockingLeader = FlockingLeader;
 
-            if (flockingLeader == null || !flockingLeader.isActiveAndEnabled)
+            if (flockingLeader == null)
+            {
+#if !UNITY_EDITOR
+                FlockingLeader = null; // Remove fake Unity null.
+#endif
+                return Vector3.zero;
+            }
+
+            if (!flockingLeader.isActiveAndEnabled)
                 return Vector3.zero;
 
             Rigidbody rigidbody = Rigidbody;
