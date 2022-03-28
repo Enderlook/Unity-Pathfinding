@@ -19,10 +19,15 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             set
             {
                 FlockingLeader leader = flockingLeader;
+
+                if (leader == value)
+                    return;
+
+                next = 0;
+                flockingLeader = value;
+
                 if (subscribedToLeader && leader != null)
                     leader.RemoveFollower(this);
-
-                flockingLeader = value;
 
                 if (value != null)
                 {
@@ -147,7 +152,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
         internal Rigidbody Rigidbody { get; private set; }
-        private float cooldown;
+        private float next;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => Rigidbody = GetComponent<Rigidbody>();
@@ -237,10 +242,10 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
                     if (pathFollower.HasPath)
                     {
-                        cooldown -= Time.fixedDeltaTime;
-                        if (cooldown < 0)
+                        float time = Time.fixedTime;
+                        if (next < time)
                         {
-                            cooldown = PathRecalculationCooldown;
+                            next = time + PathRecalculationCooldown;
                             if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.NextPosition, rigidbody.position) > pathFollower.StoppingDistance * 2)
                                 pathFollower.SetDestination(leaderPosition);
                         }
