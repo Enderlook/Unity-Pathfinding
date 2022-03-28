@@ -16,6 +16,7 @@ namespace Enderlook.Unity.Pathfinding
         private static int fixedUpdateCount;
 
         private RawPooledList<Rigidbody> followers = RawPooledList<Rigidbody>.Create();
+        private RawPooledList<Rigidbody> toRemove = RawPooledList<Rigidbody>.Create();
 
         private Vector3[] followersPositions = ArrayPool<Vector3>.Shared.Rent(0);
 
@@ -43,6 +44,7 @@ namespace Enderlook.Unity.Pathfinding
         {
             followers.Clear();
             followers.Dispose();
+            toRemove.Dispose();
             followersInRange.Dispose();
             ArrayPool<Vector3>.Shared.Return(followersPositions);
             followersPositions = null;
@@ -61,6 +63,12 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void AddFollower_Slow(FlockingFollower follower)
         {
+            if (toRemove.Count > 0)
+            {
+                Remove();
+                AddFollower(follower);
+            }
+
             // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
             Vector3[] newFollowersPositions = new Vector3[followers.Capacity];
             Array.Copy(followersPositions, newFollowersPositions, followersPositions.Length);
@@ -68,7 +76,7 @@ namespace Enderlook.Unity.Pathfinding
             followersPositions[followers.Count - 1] = follower.Rigidbody.position;
         }
 
-        internal void RemoveFollower(FlockingFollower follower) => followers.Remove(follower.Rigidbody);
+        internal void RemoveFollower(FlockingFollower follower) => toRemove.Add(follower.Rigidbody);
 
         internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range)
         {
@@ -79,7 +87,8 @@ namespace Enderlook.Unity.Pathfinding
 
             followersInRange.Clear();
             Vector3 currentPosition = rigibody.position;
-            for (int i = 0; i < followers.Count; i++)
+            Span<Rigidbody> followers = this.followers.AsSpan();
+            for (int i = 0; i < followers.Length; i++)
                 GetEntitiesInRange_Check(followersPositions[i], followers[i].transform, range, currentPosition);
 
             GetEntitiesInRange_Check(Rigidbody.position, transform, range, currentPosition);
@@ -101,17 +110,63 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void GetEntitiesInRange_Slow()
         {
+            if (toRemove.Count > 0)
+                Remove();
+
             lastUpdate = fixedUpdateCount;
             Vector3[] array = followersPositions;
-            if (array.Length < followers.Count)
+            Span<Rigidbody> followers = this.followers.AsSpan();
+            if (array.Length < followers.Length)
             {
                 // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
                 ArrayPool<Vector3>.Shared.Return(array);
-                followersPositions = array = ArrayPool<Vector3>.Shared.Rent(followers.Capacity);
+                followersPositions = array = ArrayPool<Vector3>.Shared.Rent(this.followers.Capacity);
             }
 
-            for (int i = 0; i < followers.Count; i++)
+            for (int i = 0; i < followers.Length; i++)
                 array[i] = followers[i].position;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void Remove()
+        {
+            // This reduces time complexity of multiple removes by batching them.
+
+            Span<Rigidbody> toRemove = this.toRemove.AsSpan();
+            int toRemoveCount = toRemove.Length;
+            if (toRemoveCount == 1)
+            {
+                this.followers.Remove(toRemove[0]);
+                this.toRemove.Clear();
+                return;
+            }
+
+            Span<Rigidbody> followers = this.followers.AsSpan();
+            int followersCount = followers.Length;
+            for (int i = 0; i < followersCount; i++)
+            {
+                Rigidbody element = followers[i];
+                for (int k = 0; k < toRemoveCount; k++)
+                {
+                    if (element == toRemove[k])
+                    {
+                        followers[i] = followers[--followersCount];
+                        if (toRemoveCount > 1)
+                        {
+                            toRemove[k] = toRemove[--toRemoveCount];
+                            goto continue_;
+                        }
+                        else
+                            goto double_break;
+                    }
+                }
+            continue_:;
+            }
+
+        double_break:
+            followers.Slice(followersCount).Clear();
+            this.followers = RawPooledList<Rigidbody>.From(this.followers.UnderlyingArray, followersCount);
+            this.toRemove.Clear();
         }
     }
 }
