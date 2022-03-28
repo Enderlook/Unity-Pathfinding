@@ -11,7 +11,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
     public sealed class FlockingFollower : MonoBehaviour, ISteeringBehaviour
     {
         [Header("Flocking")]
-        [SerializeField, Tooltip("Determines which leader will it follow.")]
+        [SerializeField, Tooltip("Determines which leader will it follow.\n" +
+            "If leader is null, not active or disabled, this steering behaviour will return zero.")]
         private FlockingLeader flockingLeader;
         public FlockingLeader FlockingLeader {
             get => flockingLeader;
@@ -173,7 +174,11 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         {
             FlockingLeader flockingLeader = FlockingLeader;
 
-            Vector3 direction = Rigidbody.position - flockingLeader.Rigidbody.position;
+            if (flockingLeader == null || !flockingLeader.isActiveAndEnabled)
+                return Vector3.zero;
+
+            Rigidbody rigidbody = Rigidbody;
+            Vector3 direction = rigidbody.position - flockingLeader.Rigidbody.position;
             if (direction.magnitude < leaderStoppingDistance)
                 return direction.normalized;
 
