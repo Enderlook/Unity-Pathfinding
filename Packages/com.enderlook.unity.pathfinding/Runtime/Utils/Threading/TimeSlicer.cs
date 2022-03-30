@@ -656,6 +656,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
 #endif
                 if (IsCompleted)
                     continuation();
+                Debug.Assert(UnityThread.IsMainThread); // Required to manipulate TimeSlicer.yieldContinuation without locking
                 Debug.Assert(timeSlicer.yieldContinuation is null);
                 timeSlicer.yieldContinuation = continuation;
             }
