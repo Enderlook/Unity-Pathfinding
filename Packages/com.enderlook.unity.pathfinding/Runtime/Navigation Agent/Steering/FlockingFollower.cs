@@ -110,6 +110,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
+        [SerializeField, Tooltip("Determines which layers blocks the vision of the agent when looking for the leader or members of the flock.")]
+        private LayerMask blockVisionLayers;
+        public LayerMask BlockVisionLayers
+        {
+            get => blockVisionLayers;
+            set => blockVisionLayers = value;
+        }
+
         [Header("Leader Searcher")]
         [SerializeField, Tooltip("Configuration of the path used in case the leader is out of sight." +
             "\nThis component must not be registered into the Navigation Agent Rigidbody.")]
@@ -129,14 +137,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
                 pathStrength = value;
             }
-        }
-
-        [SerializeField, Tooltip("Determines which layers blocks the vision of the agent when looking for the leader.")]
-        private LayerMask blockVisionLayers;
-        public LayerMask BlockVisionLayers
-        {
-            get => blockVisionLayers;
-            set => blockVisionLayers = value;
         }
 
         [SerializeField, Tooltip("Determines cooldown used for recalculating path to the leader.")]
@@ -198,7 +198,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (direction.magnitude < leaderStoppingDistance)
                 return direction.normalized;
 
-            Span<EntityInfo> entities = flockingLeader.GetEntitiesInRange(rigidbody, flockingRange);
+            Span<EntityInfo> entities = flockingLeader.GetEntitiesInRange(rigidbody, flockingRange, blockVisionLayers);
 
             Vector3 separation = Vector3.zero;
             Vector3 alineation = Vector3.zero;

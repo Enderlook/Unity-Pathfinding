@@ -78,7 +78,7 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void RemoveFollower(FlockingFollower follower) => toRemove.Add(follower.Rigidbody);
 
-        internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range)
+        internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range, LayerMask blockVisionLayers)
         {
             // Note: The result of this method becomes undefined on the next method call or next fixed frame.
 
@@ -89,21 +89,21 @@ namespace Enderlook.Unity.Pathfinding
             Vector3 currentPosition = rigibody.position;
             Span<Rigidbody> followers = this.followers.AsSpan();
             for (int i = 0; i < followers.Length; i++)
-                GetEntitiesInRange_Check(followersPositions[i], followers[i].transform, range, currentPosition);
+                GetEntitiesInRange_Check(followersPositions[i], followers[i].transform, range, currentPosition, blockVisionLayers);
 
-            GetEntitiesInRange_Check(Rigidbody.position, transform, range, currentPosition);
+            GetEntitiesInRange_Check(Rigidbody.position, transform, range, currentPosition, blockVisionLayers);
 
             return followersInRange.AsSpan();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void GetEntitiesInRange_Check(Vector3 position, Transform transform, float range, Vector3 currentPosition)
+        private void GetEntitiesInRange_Check(Vector3 position, Transform transform, float range, Vector3 currentPosition, LayerMask blockVisionLayers)
         {
             Vector3 rigidbodyMinusEntity = currentPosition - position;
             float distance = rigidbodyMinusEntity.magnitude;
             float distanceFactor = (range - distance) / range;
             Vector3 forwardFactor = transform.forward * distanceFactor;
-            if (distance <= range)
+            if (distance <= range && !Physics.Linecast(currentPosition, position, blockVisionLayers))
                 followersInRange.Add(new EntityInfo(position, forwardFactor, rigidbodyMinusEntity, distance, distanceFactor));
         }
 
