@@ -11,11 +11,6 @@
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled#com.enderlook.collections.pooled/v0.2.0"
         },
         {
-            "name": "com.enderlook.collections.pooled.low_level",
-            "hash": "c6fa8d24a42593efbf95bbbf173f32d8f7aec288",
-            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled.low_level#com.enderlook.collections.pooled.low_level/v0.1.0"
-        },
-        {
             "name": "com.enderlook.net_compatibility",
             "hash": "57b2cc84fef6bb673788a0bae9072c845c12978c",
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.net_compatibility#com.enderlook.net_compatibility/v0.6.2"
