@@ -194,7 +194,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 return Vector3.zero;
 
             Rigidbody rigidbody = Rigidbody;
-            Vector3 direction = rigidbody.position - flockingLeader.Rigidbody.position;
+            Vector3 position = rigidbody.position;
+            Vector3 leaderPosition = flockingLeader.Rigidbody.position;
+            Vector3 direction = position - leaderPosition;
             if (direction.magnitude < leaderStoppingDistance)
                 return direction.normalized;
 
@@ -216,46 +218,56 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
             separation = separation.normalized;
             alineation = alineation.normalized;
-            cohesion = ((cohesion / entities.Length) - rigidbody.position).normalized;
+            cohesion = ((cohesion / entities.Length) - position).normalized;
 
-            Vector3 leader = (FlockingLeader.Rigidbody.position - rigidbody.position).normalized * leaderWeight;
+            Vector3 leader = (leaderPosition - position).normalized * leaderWeight;
 
             PathFollower pathFollower = PathFollower;
+            // Check if we can use pathfinding.
             if (pathFollower.NavigationSurface != null)
             {
-                bool isNear = !Physics.Linecast(rigidbody.position, flockingLeader.Rigidbody.position, BlockVisionLayers)
-                    && (Vector3.Distance(rigidbody.position, flockingLeader.Rigidbody.position) <= flockingRange);
-                if (!isNear)
+                // Check if leader is inside flocking range.
+                if (Vector3.Distance(position, leaderPosition) <= flockingRange)
+                    goto skipPathfinding;
+
+                // Check if there are no obtacles between follower and leader.
+                if (!Physics.Linecast(position, leaderPosition, BlockVisionLayers))
+                    goto skipPathfinding;
+
+                if (pathFollower.IsCalculatingPath)
                 {
-                    Vector3 leaderPosition = flockingLeader.Rigidbody.position;
-
-                    if (!pathFollower.IsCalculatingPath)
-                    {
-                        if (pathFollower.HasPath)
-                        {
-                            if (Vector3.Distance(pathFollower.Destination, leaderPosition) > pathFollower.StoppingDistance)
-                                pathFollower.SetDestination(leaderPosition);
-                        }
-                        else
-                            pathFollower.SetDestination(leaderPosition);
-                    }
-
                     if (pathFollower.HasPath)
-                    {
-                        float time = Time.fixedTime;
-                        if (next < time)
-                        {
-                            next = time + PathRecalculationCooldown;
-                            if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.NextPosition, rigidbody.position) > pathFollower.StoppingDistance * 2)
-                                pathFollower.SetDestination(leaderPosition);
-                        }
-
-                        Vector3 path = pathFollower.GetDirection() * pathStrength;
-                        return (((separation + alineation + cohesion).normalized * .2f) + path).normalized;
-                    }
+                        goto hasPath;
+                    goto skipPathfinding;
                 }
+                else if (pathFollower.HasPath)
+                {
+                    // Check if distance from current path's destination to current leader's position is outside the allowed magin error.
+                    if (Vector3.Distance(pathFollower.Destination, leaderPosition) > pathFollower.StoppingDistance)
+                        pathFollower.SetDestination(leaderPosition);
+                    goto hasPath;
+                }
+                else
+                    goto hasNoPath;
+
+            hasPath:
+                float time = Time.fixedTime;
+                if (next < time)
+                {
+                    next = time + PathRecalculationCooldown;
+                    if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.NextPosition, position) > pathFollower.StoppingDistance * 2)
+                        pathFollower.SetDestination(leaderPosition);
+                }
+
+                Vector3 path = pathFollower.GetDirection() * pathStrength;
+                return (((separation + alineation + cohesion).normalized * .2f) + path).normalized;
+
+            hasNoPath:;
+                pathFollower.SetDestination(leaderPosition);
+                next = Time.fixedTime + PathRecalculationCooldown;
             }
 
+            skipPathfinding:
             {
                 return (separation + alineation + cohesion + leader).normalized;
             }
