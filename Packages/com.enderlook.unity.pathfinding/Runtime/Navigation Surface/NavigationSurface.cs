@@ -176,7 +176,7 @@ namespace Enderlook.Unity.Pathfinding
                     timeSlicer.RunSynchronously();
 
                 return timeSlicer.AsTask();
-                              
+
                 async ValueTask Work()
                 {
                     float voxelSize = this.voxelSize;
