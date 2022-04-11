@@ -119,7 +119,7 @@ namespace Enderlook.Unity.Pathfinding
             async ValueTask Local<THasHeuristic, THasLineOfSightNode, THasLineOfSightCoord>()
             {
                 /* Types of algorithms:
-                 * | Algoritmh            | THasHeuristic | THasLineOfSightNode | THasLineOfSightCoord |
+                 * | Algorithm            | THasHeuristic | THasLineOfSightNode | THasLineOfSightCoord |
                  * | Dijkstra             | No            | No                  | No                   |
                  * | A*                   | Yes           | No                  | No                   |
                  * | Dijkstra (any angle) | No            | Yes                 | No                   |
