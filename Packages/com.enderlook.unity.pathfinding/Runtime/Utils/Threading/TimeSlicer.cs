@@ -143,7 +143,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <summary>
         /// Determines if execution can continue or has been cancelled.
         /// </summary>
-        private bool canContinue;
+        private bool canContinue = true;
 
         /// <summary>
         /// If <see cref="PreferMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
