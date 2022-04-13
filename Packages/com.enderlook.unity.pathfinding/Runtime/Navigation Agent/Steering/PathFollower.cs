@@ -41,7 +41,20 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        public bool HasPath => !EqualityComparer<RawPooledList<Vector3>.Enumerator>.Default.Equals(enumerator, default);
+        public bool HasPath
+        {
+            get {
+                Path<Vector3> path_ = path;
+                if (isPending && path_.IsCompleted)
+                {
+                    isPending = false;
+                    SetPath(path_);
+                    path_.SendToPool();
+                    path = null;
+                }
+                return !EqualityComparer<RawPooledList<Vector3>.Enumerator>.Default.Equals(enumerator, default);
+            }
+        }
 
         public bool IsCalculatingPath => !(path?.IsCompleted ?? true);
 
@@ -169,13 +182,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
         internal Vector3 GetDirection()
         {
-            if (isPending && path.IsCompleted)
-            {
-                isPending = false;
-                SetPath(path);
-                path.SendToPool();
-            }
-
             if (!HasPath)
                 return Vector3.zero;
 
