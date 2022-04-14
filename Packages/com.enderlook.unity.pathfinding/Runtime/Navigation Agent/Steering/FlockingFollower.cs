@@ -256,7 +256,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 if (next < time)
                 {
                     next = time + PathRecalculationCooldown;
-                    if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.NextPosition, position) > pathFollower.StoppingDistance * 2)
+                    if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.Destination, position) > pathFollower.StoppingDistance * 2)
                         pathFollower.SetDestination(leaderPosition);
                 }
 
