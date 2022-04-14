@@ -66,7 +66,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the separation strength.")]
+        [SerializeField, Min(0), Tooltip("Determines strength to move away from other entities that this entity its too close too.")]
         private float separationWeight;
         public float SeparationWeight {
             get => separationWeight;
@@ -77,7 +77,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the leader strength.")]
+        [SerializeField, Min(0), Tooltip("Determines strength to follow the leader.")]
         private float leaderWeight;
         public float LeaderWeight {
             get => leaderWeight;
@@ -88,7 +88,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the cohesion strength.")]
+        [SerializeField, Min(0), Tooltip("Determines the strength to move nearer to other entities that this entity is near but not near enough to.")]
         private float cohesionWeight;
         public float CohesionWeight {
             get => cohesionWeight;
@@ -99,7 +99,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the alineation strength.")]
+        [SerializeField, Min(0), Tooltip("Determines the strength to change the direction to be closer to its neighbours.")]
         private float alineationWeight;
         public float AlineationWeight {
             get => alineationWeight;
