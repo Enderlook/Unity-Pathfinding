@@ -226,13 +226,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             // Check if we can use pathfinding.
             if (pathFollower.NavigationSurface != null)
             {
-                // Check if leader is inside flocking range.
-                if (Vector3.Distance(position, leaderPosition) <= flockingRange)
+                // Check if leader is inside flocking range and there are no obtacles between follower and leader.
+                if (Vector3.Distance(position, leaderPosition) <= flockingRange
+                    && !Physics.Linecast(position, leaderPosition, BlockVisionLayers))
+                {
+                    PathFollower.Cancel();
+                    PathFollower.Clear();
                     goto skipPathfinding;
-
-                // Check if there are no obtacles between follower and leader.
-                if (!Physics.Linecast(position, leaderPosition, BlockVisionLayers))
-                    goto skipPathfinding;
+                }
 
                 if (pathFollower.IsCalculatingPath)
                 {
