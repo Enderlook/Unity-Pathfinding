@@ -143,7 +143,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         public void SetPath(Path<Vector3> path) => SetPath(path.AsSpan);
 
         /// <summary>
-        /// Clears current path.
+        /// Clears current path.<br/>
+        /// To clear path being calculated and current path, execute <see cref="Cancel"/> followed by <see cref="Clear"/>.
         /// </summary>
         public void Clear()
         {
@@ -154,7 +155,33 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
         /// <summary>
-        /// Set the target destination of this agent.
+        /// Cancels the path that is currently being calculated, if any.<br/>
+        /// To clear path being calculated and current path, execute <see cref="Cancel"/> followed by <see cref="Clear"/>.
+        /// </summary>
+        /// <returns><see langword="true"/> if there was a path calculation. <see langword="false"/> if not path was being calculated.</returns>
+        public bool Cancel()
+        {
+            Path<Vector3> path_ = path;
+            if (isPending)
+            {
+                isPending = false;
+                path_.SendToPool();
+                path = null;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Set the target destination of this agent.<br/>
+        /// If a previous destination was being calcualted, it's canceled.<br/>
+        /// To prevent moving using the old path while the new path is being calculated do:<br/>
+        /// <list type="bullet">
+        /// <item>Execute <see cref="Cancel"/> to remove any possible path that is being calculated.</item>
+        /// <item>Then execute <see cref="Clear"/> to remove current path.</item>
+        /// <item>Finally execute this method to set the new path.</item>
+        /// </list>
+        /// This method cancels paths that are being calculated when it's called, however we still need to call <see cref="Cancel"/> because path may be calculated asynchronously and so it may finish between the call <see cref="Clear"/> and <see cref="SetDestination(Vector3, bool)"/>.
         /// </summary>
         /// <param name="destination">Destination to follow.</param>
         /// <param name="synchronous">If <see langword="true"/>, path calculation will be forced to execute immediately.</param>
