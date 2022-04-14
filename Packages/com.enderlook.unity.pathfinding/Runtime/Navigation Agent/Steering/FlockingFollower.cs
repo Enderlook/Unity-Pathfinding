@@ -66,7 +66,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the seperation strength.")]
+        [SerializeField, Min(0), Tooltip("Determines the separation strength.")]
         private float separationWeight;
         public float SeparationWeight {
             get => separationWeight;
