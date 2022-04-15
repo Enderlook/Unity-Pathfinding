@@ -3,6 +3,7 @@ using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
@@ -41,23 +42,51 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
+        [SerializeField, Min(0), Tooltip("Determines the minimal distance from a point in path to consider it as reached and go for the next point.")]
+        private float nextPointDistance;
+        public float NextPointDistance {
+            get => nextPointDistance;
+            set
+            {
+                if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
+                nextPointDistance = value;
+            }
+        }
+
+        [SerializeField, Tooltip("Determines if the follower should attempt to acquire a new path if the existing path becomes invalid.")]
+        private bool autoRepath = true;
+        public bool AutoRepath {
+            get => autoRepath;
+            set => autoRepath = value;
+        }
+
+        /// <summary>
+        /// Whenever it contains a path.
+        /// </summary>
         public bool HasPath
         {
             get {
                 Path<Vector3> path_ = path;
-                if (isPending && path_.IsCompleted)
+                if (path_?.IsCompleted ?? false)
                 {
-                    isPending = false;
+                    path = null;
                     SetPath(path_);
                     path_.SendToPool();
-                    path = null;
+                    isRecalculatingPath = false;
                 }
-                return !EqualityComparer<RawPooledList<Vector3>.Enumerator>.Default.Equals(enumerator, default);
+                return !enumerator.IsDefault;
             }
         }
 
+        /// <summary>
+        /// Whenever a path is being calculated at this moment.
+        /// </summary>
         public bool IsCalculatingPath => !(path?.IsCompleted ?? true);
 
+        /// <summary>
+        /// Current point that this follower want to reach from its path.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when <see cref="HasPath"/> is <see langword="false"/>.</exception>
         public Vector3 NextPosition {
             get {
                 if (!HasPath)
@@ -66,6 +95,10 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
+        /// <summary>
+        /// Destination of this follower's path.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown when <see cref="HasPath"/> is <see langword="false"/>.</exception>
         public Vector3 Destination
         {
             get
@@ -82,30 +115,37 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         private RawPooledList<Vector3>.Enumerator enumerator;
 #if UNITY_EDITOR
         internal RawPooledList<Vector3>.Enumerator previousEnumerator;
-        private bool isPending;
 #endif
+        private bool isRecalculatingPath;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => rigidbody = GetComponent<Rigidbody>();
 
         /// <summary>
-        /// Set the path to follow.
+        /// Set the path to follow.<br/>
+        /// This method cancel any other path that is being calculated, if any.
         /// </summary>
         /// <param name="path">Path to follow.</param>
         public void SetPath(Span<Vector3> path)
         {
+            Cancel();
             if (innerPath.IsDefault)
                 innerPath = RawPooledList<Vector3>.Create();
             innerPath.Clear();
             innerPath.AddRange(path);
             if (innerPath.Count > 0)
             {
-                enumerator = innerPath.GetEnumerator();
-                if (!enumerator.MoveNext())
-                    enumerator = default;
+                RawPooledList<Vector3>.Enumerator enumerator_ = innerPath.GetEnumerator();
+                if (enumerator_.MoveNext())
+                {
+                    enumerator = enumerator_;
+                    // Compute path to remove closed nodes to current position.
+                    GetDirection<Toggle.No>();
+                    goto end;
+                }
             }
-            else
-                enumerator = default;
+            enumerator = default;
+        end:
 #if UNITY_EDITOR
             previousEnumerator = enumerator;
 #endif
@@ -113,23 +153,30 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
         /// <summary>
         /// Set the path to follow.<br/>
-        /// The enumerator must not be endless.
+        /// The enumerator must not be endless.<br/>
+        /// This method cancel any other path that is being calculated, if any.
         /// </summary>
         /// <param name="path">Path to follow.</param>
         public void SetPath(IEnumerable<Vector3> path)
         {
+            Cancel();
             if (innerPath.IsDefault)
                 innerPath = RawPooledList<Vector3>.Create();
             innerPath.Clear();
             innerPath.AddRange(path);
             if (innerPath.Count > 0)
             {
-                enumerator = innerPath.GetEnumerator();
-                if (!enumerator.MoveNext())
-                    enumerator = default;
+                RawPooledList<Vector3>.Enumerator enumerator_ = innerPath.GetEnumerator();
+                if (enumerator_.MoveNext())
+                {
+                    enumerator = enumerator_;
+                    // Compute path to remove close points to current position.
+                    GetDirection<Toggle.No>();
+                    goto end;
+                }
             }
-            else
-                enumerator = default;
+            enumerator = default;
+        end:
 #if UNITY_EDITOR
             previousEnumerator = enumerator;
 #endif
@@ -137,7 +184,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
         /// <summary>
         /// Set the path to follow.<br/>
-        /// This method does not take ownership of the <paramref name="path"/> instance.
+        /// This method does not take ownership of the <paramref name="path"/> instance.<br/>
+        /// This method cancel any other path that is being calculated, if any.
         /// </summary>
         /// <param name="path">Path to follow.</param>
         public void SetPath(Path<Vector3> path) => SetPath(path.AsSpan);
@@ -162,11 +210,11 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         public bool Cancel()
         {
             Path<Vector3> path_ = path;
-            if (isPending)
+            if (!(path is null))
             {
-                isPending = false;
                 path_.SendToPool();
                 path = null;
+                isRecalculatingPath = false;
                 return true;
             }
             return false;
@@ -187,52 +235,90 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <param name="synchronous">If <see langword="true"/>, path calculation will be forced to execute immediately.</param>
         public void SetDestination(Vector3 destination, bool synchronous = false)
         {
-            if (!(path is null))
+            Path<Vector3> path_ = path;
+            if (!(path_ is null))
             {
-                if (path.IsCompleted)
+                if (path_.IsCompleted)
                     goto next;
                 else
                     path.SendToPool();
             }
-            path = Path<Vector3>.Rent();
+            path_ = Path<Vector3>.Rent();
 
             next:
-            NavigationSurface.CalculatePath(path, rigidbody.position, destination, synchronous);
-            if (path.IsCompleted)
-                SetPath(path);
+            NavigationSurface.CalculatePath(path_, rigidbody.position, destination, synchronous);
+            if (path_.IsCompleted)
+            {
+                path = null;
+                SetPath(path_);
+            }
             else
-                isPending = true;
+                path = path_;
         }
 
         /// <inheritdoc cref="ISteeringBehaviour.GetDirection()"/>
-        Vector3 ISteeringBehaviour.GetDirection() => GetDirection();
+        Vector3 ISteeringBehaviour.GetDirection() => GetDirection<Toggle.Yes>();
 
-        internal Vector3 GetDirection()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Vector3 GetDirection() => GetDirection<Toggle.Yes>();
+
+        private Vector3 GetDirection<TAllowRepath>()
         {
+            Vector3 direction;
             if (!HasPath)
                 return Vector3.zero;
 
-            start:
-            Vector3 current = enumerator.Current;
+            NavigationSurface navigationSurface = NavigationSurface;
+#if UNITY_EDITOR
+            RawPooledList<Vector3>.Enumerator enumerator_ = enumerator;
+#endif
+            RawPooledList<Vector3>.Enumerator previousEnumerator_ = previousEnumerator;
             Vector3 position = rigidbody.position;
+        start:
+            Vector3 current = enumerator_.Current;
             current.y = position.y;
 
-            Vector3 direction = current - position;
+            if (!navigationSurface.HasLineOfSight(current, position))
+            {
+                if (Toggle.IsToggled<TAllowRepath>() && !IsCalculatingPath)
+                {
+                    isRecalculatingPath = true;
+                    SetDestination(Destination);
+                }
+            }
+            else if (Toggle.IsToggled<TAllowRepath>() && isRecalculatingPath)
+                Cancel();
+
+            direction = current - position;
             float distance = direction.magnitude;
-            if (distance <= stoppingDistance)
+            RawPooledList<Vector3>.Enumerator enumerator__ = enumerator_;
+            bool hasNext = enumerator_.MoveNext();
+            if (distance <= (hasNext ? nextPointDistance : stoppingDistance))
             {
 #if UNITY_EDITOR
-                previousEnumerator = enumerator;
+                previousEnumerator_ = enumerator__;
 #endif
-                if (!enumerator.MoveNext())
+                if (!hasNext)
                 {
-                    enumerator = default;
-                    return Vector3.zero;
+                    enumerator_ = default;
+#if UNITY_EDITOR
+                    previousEnumerator_ = default;
+#endif
                 }
-                goto start;
+                else
+                    goto start;
+            }
+            else
+            {
+                direction = direction.normalized;
+                enumerator_ = enumerator__;
             }
 
-            return direction.normalized;
+            enumerator = enumerator_;
+#if UNITY_EDITOR
+            previousEnumerator = previousEnumerator_;
+#endif
+            return direction;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -250,7 +336,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (!Application.isPlaying)
                 return;
 
-            Vector3 direction = GetDirection();
+            Vector3 direction = GetDirection<Toggle.Yes>();
             Vector3 position = rigidbody.position;
             Gizmos.color = Color.gray;
             Gizmos.DrawLine(position, position + (direction * 3));

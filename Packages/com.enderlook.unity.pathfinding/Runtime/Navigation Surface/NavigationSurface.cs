@@ -431,13 +431,17 @@ namespace Enderlook.Unity.Pathfinding
 
         bool IGraphLineOfSight<int>.RequiresUnityThread => true;
 
-        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool HasLineOfSight(Vector3 from, Vector3 to)
             => !Physics.Linecast(from, to, includeLayers);
+
+        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to)
+            => HasLineOfSight(from, to);
 
         bool IGraphLineOfSight<int>.HasLineOfSight(int from, int to)
         {
             IGraphLocation<int, Vector3> graphLocation = this;
-            return !Physics.Linecast(graphLocation.ToPosition(from), graphLocation.ToPosition(to), includeLayers);
+            return HasLineOfSight(graphLocation.ToPosition(from), graphLocation.ToPosition(to));
         }
 
         internal struct NodesEnumerator : IEnumerator<int>
