@@ -196,31 +196,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Rigidbody rigidbody = Rigidbody;
             Vector3 position = rigidbody.position;
             Vector3 leaderPosition = flockingLeader.Rigidbody.position;
-            Vector3 direction = position - leaderPosition;
-            if (direction.magnitude < leaderStoppingDistance)
-                return direction.normalized;
-
-            Span<EntityInfo> entities = flockingLeader.GetEntitiesInRange(rigidbody, flockingRange, blockVisionLayers);
-
-            Vector3 separation = Vector3.zero;
-            Vector3 alineation = Vector3.zero;
-            Vector3 cohesion = Vector3.zero;
-            for (int i = 0; i < entities.Length; i++)
-            {
-                EntityInfo entity = entities[i];
-
-                float multiplier = flockingRange - entity.Distance;
-                separation += entity.RigidbodyMinusEntity.normalized * multiplier;
-
-                alineation += entity.ForwardFactor;
-
-                cohesion += entity.Position;
-            }
-            separation = separation.normalized;
-            alineation = alineation.normalized;
-            cohesion = ((cohesion / entities.Length) - position).normalized;
-
-            Vector3 leader = (leaderPosition - position).normalized * leaderWeight;
+            bool includesPath;
+            Vector3 finalDirection;
 
             PathFollower pathFollower = PathFollower;
             // Check if we can use pathfinding.
@@ -251,7 +228,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 else
                     goto hasNoPath;
 
-            hasPath:
+                hasPath:
                 float time = Time.fixedTime;
                 if (next < time)
                 {
@@ -259,19 +236,55 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.Destination, position) > pathFollower.StoppingDistance * 2)
                         pathFollower.SetDestination(leaderPosition);
                 }
-
-                Vector3 path = pathFollower.GetDirection() * pathStrength;
-                return (((separation + alineation + cohesion).normalized * .2f) + path).normalized;
+                finalDirection = pathFollower.GetDirection() * pathStrength;
+                includesPath = true;
+                goto calculate;
 
             hasNoPath:;
                 pathFollower.SetDestination(leaderPosition);
                 next = Time.fixedTime + PathRecalculationCooldown;
             }
 
-            skipPathfinding:
+        skipPathfinding:
+            finalDirection = default;
+            includesPath = false;
+
+        calculate:
             {
-                return (separation + alineation + cohesion + leader).normalized;
+                Vector3 direction = position - leaderPosition;
+                if (direction.magnitude < leaderStoppingDistance)
+                    return direction.normalized;
+
+                Span<EntityInfo> entities = flockingLeader.GetEntitiesInRange(rigidbody, flockingRange, blockVisionLayers);
+
+                Vector3 separation = Vector3.zero;
+                Vector3 alineation = Vector3.zero;
+                Vector3 cohesion = Vector3.zero;
+                for (int i = 0; i < entities.Length; i++)
+                {
+                    EntityInfo entity = entities[i];
+
+                    float multiplier = flockingRange - entity.Distance;
+                    separation += entity.RigidbodyMinusEntity.normalized * multiplier;
+
+                    alineation += entity.ForwardFactor;
+
+                    cohesion += entity.Position;
+                }
+                separation = separation.normalized;
+                alineation = alineation.normalized;
+                cohesion = ((cohesion / entities.Length) - position).normalized;
+
+                Vector3 leader = (leaderPosition - position).normalized * leaderWeight;
+
+                Vector3 total = separation + alineation + cohesion + leader;
+
+                if (!includesPath)
+                    finalDirection = total;
+                else
+                    finalDirection += total.normalized * .2f;
             }
+            return finalDirection.normalized;
         }
 
 #if UNITY_EDITOR
