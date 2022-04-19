@@ -113,9 +113,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         private Path<Vector3> path;
         private RawPooledList<Vector3> innerPath;
         private RawPooledList<Vector3>.Enumerator enumerator;
-#if UNITY_EDITOR
-        internal RawPooledList<Vector3>.Enumerator previousEnumerator;
-#endif
         private bool isRecalculatingPath;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -141,14 +138,10 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     enumerator = enumerator_;
                     // Compute path to remove closed nodes to current position.
                     GetDirection<Toggle.No>();
-                    goto end;
+                    return;
                 }
             }
             enumerator = default;
-        end:
-#if UNITY_EDITOR
-            previousEnumerator = enumerator;
-#endif
         }
 
         /// <summary>
@@ -172,14 +165,10 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     enumerator = enumerator_;
                     // Compute path to remove close points to current position.
                     GetDirection<Toggle.No>();
-                    goto end;
+                    return;
                 }
             }
             enumerator = default;
-        end:
-#if UNITY_EDITOR
-            previousEnumerator = enumerator;
-#endif
         }
 
         /// <summary>
@@ -194,13 +183,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// Clears current path.<br/>
         /// To clear path being calculated and current path, execute <see cref="Cancel"/> followed by <see cref="Clear"/>.
         /// </summary>
-        public void Clear()
-        {
-            enumerator = default;
-#if UNITY_EDITOR
-            previousEnumerator = default;
-#endif
-        }
+        public void Clear() => enumerator = default;
 
         /// <summary>
         /// Cancels the path that is currently being calculated, if any.<br/>
@@ -269,10 +252,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 return Vector3.zero;
 
             NavigationSurface navigationSurface = NavigationSurface;
-#if UNITY_EDITOR
             RawPooledList<Vector3>.Enumerator enumerator_ = enumerator;
-#endif
-            RawPooledList<Vector3>.Enumerator previousEnumerator_ = previousEnumerator;
             Vector3 position = rigidbody.position;
         start:
             Vector3 current = enumerator_.Current;
@@ -295,16 +275,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             bool hasNext = enumerator_.MoveNext();
             if (distance <= (hasNext ? nextPointDistance : stoppingDistance))
             {
-#if UNITY_EDITOR
-                previousEnumerator_ = enumerator__;
-#endif
                 if (!hasNext)
-                {
                     enumerator_ = default;
-#if UNITY_EDITOR
-                    previousEnumerator_ = default;
-#endif
-                }
                 else
                     goto start;
             }
@@ -315,9 +287,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
 
             enumerator = enumerator_;
-#if UNITY_EDITOR
-            previousEnumerator = previousEnumerator_;
-#endif
             return direction;
         }
 
@@ -341,7 +310,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Gizmos.color = Color.gray;
             Gizmos.DrawLine(position, position + (direction * 3));
 
-            RawPooledList<Vector3>.Enumerator enumerator = previousEnumerator;
+            RawPooledList<Vector3>.Enumerator enumerator = this.enumerator;
             if (enumerator.IsDefault)
                 return;
 
