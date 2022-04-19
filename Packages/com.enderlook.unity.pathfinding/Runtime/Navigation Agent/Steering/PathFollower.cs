@@ -317,13 +317,13 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Gizmos.color = Color.black;
             Vector3 start;
             Vector3 end = transform.position;
-            while (enumerator.MoveNext())
+            do
             {
                 Gizmos.DrawWireCube(end, Vector3.one * .1f);
                 start = end;
                 end = enumerator.Current;
                 Gizmos.DrawLine(start, end);
-            }
+            } while (enumerator.MoveNext());
             Gizmos.DrawWireCube(end, Vector3.one * .1f);
         }
 #endif
