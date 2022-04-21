@@ -1,5 +1,4 @@
-﻿using Enderlook.Collections.Pooled.LowLevel;
-using Enderlook.Unity.Pathfinding.Utils;
+﻿using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
 
