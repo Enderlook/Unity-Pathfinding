@@ -73,7 +73,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     path = null;
                     SetPath(path_);
                     path_.SendToPool();
-                    isRecalculatingPath = false;
 
                     if (queuedDestinationToSet is Vector3 queuedDestination)
                     {
@@ -104,7 +103,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         path = null;
                         SetPath(path_);
                         path_.SendToPool();
-                        isRecalculatingPath = false;
 
                         if (queuedDestinationToSet is Vector3 queuedDestination)
                         {
@@ -149,7 +147,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         private Path<Vector3> path;
         private RawPooledList<Vector3> innerPath;
         private RawPooledList<Vector3>.Enumerator enumerator;
-        private bool isRecalculatingPath;
         private Vector3? queuedDestinationToSet;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -235,7 +232,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             {
                 path_.SendToPool();
                 path = null;
-                isRecalculatingPath = false;
                 return true;
             }
             return false;
@@ -307,13 +303,10 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
             if (!navigationSurface.HasLineOfSight(current, position))
             {
-                if (Toggle.IsToggled<TAllowRepath>() && !IsCalculatingPath)
-                {
-                    isRecalculatingPath = true;
-                    SetDestination(Destination);
-                }
+                if (Toggle.IsToggled<TAllowRepath>())
+                    EnqueueDestination(Destination);
             }
-            else if (Toggle.IsToggled<TAllowRepath>() && isRecalculatingPath)
+            else if (Toggle.IsToggled<TAllowRepath>())
                 Cancel();
 
             direction = current - position;
