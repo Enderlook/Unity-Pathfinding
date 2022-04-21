@@ -22,7 +22,6 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 if (leader == value)
                     return;
 
-                next = 0;
                 flockingLeader = value;
 
                 if (subscribedToLeader && leader != null)
@@ -138,20 +137,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Tooltip("Determines cooldown used for recalculating path to the leader.")]
-        private float pathRecalculationCooldown = 4;
-        public float PathRecalculationCooldown
-        {
-            get => pathRecalculationCooldown;
-            set
-            {
-                if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
-                pathRecalculationCooldown = value;
-            }
-        }
-
         internal Rigidbody Rigidbody { get; private set; }
-        private float next;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => Rigidbody = GetComponent<Rigidbody>();
@@ -228,20 +214,15 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     goto hasNoPath;
 
                 hasPath:
-                float time = Time.fixedTime;
-                if (next < time)
-                {
-                    next = time + PathRecalculationCooldown;
-                    if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.Destination, position) > pathFollower.StoppingDistance * 2)
-                        pathFollower.SetDestination(leaderPosition);
-                }
+                if (!pathFollower.IsCalculatingPath && Vector3.Distance(pathFollower.Destination, position) > pathFollower.StoppingDistance * 2)
+                    pathFollower.SetDestination(leaderPosition);
                 finalDirection = pathFollower.GetDirection() * pathStrength;
                 includesPath = true;
                 goto calculate;
 
-            hasNoPath:;
-                pathFollower.SetDestination(leaderPosition);
-                next = Time.fixedTime + PathRecalculationCooldown;
+            hasNoPath:
+                if (!pathFollower.IsCalculatingPath)
+                    pathFollower.SetDestination(leaderPosition);
             }
 
         skipPathfinding:
