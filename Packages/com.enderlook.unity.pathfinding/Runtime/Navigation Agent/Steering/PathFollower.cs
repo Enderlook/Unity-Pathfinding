@@ -66,6 +66,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         public bool HasPath
         {
             get {
+            start:
                 Path<Vector3> path_ = path;
                 if (path_?.IsCompleted ?? false)
                 {
@@ -73,6 +74,14 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     SetPath(path_);
                     path_.SendToPool();
                     isRecalculatingPath = false;
+
+                    if (queuedDestinationToSet is Vector3 queuedDestination)
+                    {
+                        queuedDestinationToSet = null;
+                        SetDestination(queuedDestination);
+                        // We could remove this, but this is safer in case we make SetDestinationi synchronous by default.
+                        goto start;
+                    }
                 }
                 return !enumerator.IsDefault;
             }
@@ -81,7 +90,34 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <summary>
         /// Whenever a path is being calculated at this moment.
         /// </summary>
-        public bool IsCalculatingPath => !(path?.IsCompleted ?? true);
+        public bool IsCalculatingPath
+        {
+            get {
+            start:
+                Path<Vector3> path_ = path;
+                if (!(path_ is null))
+                {
+                    if (!path_.IsCompleted)
+                        return true;
+                    else
+                    {
+                        path = null;
+                        SetPath(path_);
+                        path_.SendToPool();
+                        isRecalculatingPath = false;
+
+                        if (queuedDestinationToSet is Vector3 queuedDestination)
+                        {
+                            queuedDestinationToSet = null;
+                            SetDestination(queuedDestination);
+                            // We could return true, but this is safer in case we make SetDestination synchronous by default.
+                            goto start;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
 
         /// <summary>
         /// Current point that this follower want to reach from its path.
@@ -114,6 +150,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         private RawPooledList<Vector3> innerPath;
         private RawPooledList<Vector3>.Enumerator enumerator;
         private bool isRecalculatingPath;
+        private Vector3? queuedDestinationToSet;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => rigidbody = GetComponent<Rigidbody>();
@@ -192,6 +229,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <returns><see langword="true"/> if there was a path calculation. <see langword="false"/> if not path was being calculated.</returns>
         public bool Cancel()
         {
+            queuedDestinationToSet = null;
             Path<Vector3> path_ = path;
             if (!(path is null))
             {
@@ -218,6 +256,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <param name="synchronous">If <see langword="true"/>, path calculation will be forced to execute immediately.</param>
         public void SetDestination(Vector3 destination, bool synchronous = false)
         {
+            queuedDestinationToSet = null;
+
             Path<Vector3> path_ = path;
             if (!(path_ is null))
             {
@@ -237,6 +277,13 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
             else
                 path = path_;
+        }
+
+        internal void EnqueueDestination(Vector3 destination)
+        {
+            if (!IsCalculatingPath)
+                SetDestination(destination);
+            queuedDestinationToSet = destination;
         }
 
         /// <inheritdoc cref="ISteeringBehaviour.GetDirection()"/>
