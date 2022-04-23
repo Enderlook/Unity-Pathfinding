@@ -129,6 +129,8 @@ namespace Enderlook.Unity.Pathfinding
 
             if (!timeSlicer.IsCompleted) ThrowNavigationInProgress();
 
+            timeSlicer.Reset();
+
 #if UNITY_EDITOR
             bool useMultithreading = timeSlicer.PreferMultithreading;
             if (isEditor)
