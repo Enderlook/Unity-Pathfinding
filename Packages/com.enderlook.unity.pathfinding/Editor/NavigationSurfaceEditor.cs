@@ -40,34 +40,32 @@ namespace Enderlook.Unity.Pathfinding
                         progressBar.value = 0;
                         progressBar.style.display = DisplayStyle.Flex;
 
-                        Task.Run(async () =>
+                        ValueTask task = default;
+                        Action onSchedule = null;
+                        onSchedule = () =>
                         {
-                            ValueTask task = navigationSurface.BuildNavigation(true);
-                            EditorApplication.CallbackFunction onUpdate = UpdateBar;
-                            EditorApplication.update += onUpdate;
-                            Action onSchedule = null;
-                            onSchedule = () =>
+                            if (task.IsCompleted)
                             {
-                                if (task.IsCompleted)
-                                    return;
-
-                                UpdateBar();
-                                root.schedule.Execute(onSchedule);
-                            };
-                            UnityThread.RunNow(onSchedule);
-                            await task;
-                            EditorApplication.update -= onUpdate;
-                        }).ContinueWith(e =>
-                        {
-                            build.SetEnabled(true);
-                            UnityThread.RunNow(() =>
-                            {
-                                // Executed on the Unity thread because the progress bar requires to call an internal Unity API.
+                                build.SetEnabled(true);
                                 progressBar.value = 0;
                                 progressBar.style.display = DisplayStyle.None;
-                            });
-                            if (e.IsFaulted)
-                                Debug.LogException(e.Exception);
+                                if (task.IsFaulted)
+                                    Debug.LogException(task.AsTask().Exception);
+                                return;
+                            }
+
+                            UpdateBar();
+                            root.schedule.Execute(onSchedule);
+                        };
+
+                        Task.Run(async () =>
+                        {
+                            task = navigationSurface.BuildNavigation(true);
+                            UnityThread.RunNow(onSchedule);
+                            EditorApplication.CallbackFunction onUpdate = UpdateBar;
+                            EditorApplication.update += onUpdate;
+                            await task;
+                            EditorApplication.update -= onUpdate;
                         });
 
                         void UpdateBar() => progressBar.value = navigationSurface.Progress() * 100;
