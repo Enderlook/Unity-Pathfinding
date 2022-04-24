@@ -340,6 +340,7 @@ namespace Enderlook.Unity.Pathfinding
             catch (Exception e)
             {
                 Debug.LogException(e);
+                options.TimeSlicer.RequestCancellation(); // Just to be sure.
                 options = new NavigationGenerationOptions();
                 throw;
             }
