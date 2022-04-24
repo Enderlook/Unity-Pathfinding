@@ -41,17 +41,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 Task.Factory.StartNew(async () =>
                 {
                     while (true)
-                    {
-                        TimeSlicer timeSlicer = tasksToCompleteCollection.Take();
-                        ValueTask task;
-                        timeSlicer.Lock();
-                        {
-                            task = timeSlicer.task;
-                            timeSlicer.task = default;
-                        }
-                        timeSlicer.Unlock();
-                        await task;
-                    }
+                        await tasksToCompleteCollection.Take().GetTaskLock();
                 }, TaskCreationOptions.LongRunning).Unwrap();
             }
 
@@ -91,17 +81,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     StaticUnlock();
 
                     for (int i = 0; i < list.Count; i++)
-                    {
-                        TimeSlicer timeSlicer = list[i];
-                        ValueTask task;
-                        timeSlicer.Lock();
-                        {
-                            task = timeSlicer.task;
-                            timeSlicer.task = default;
-                        }
-                        timeSlicer.Unlock();
-                        task.GetAwaiter().GetResult();
-                    }
+                        list[i].GetTaskLock().GetAwaiter().GetResult();
 
                     list.Dispose();
                 }
@@ -112,43 +92,29 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// Determines at which time the next yield must be done.
         /// </summary>
         private float nextYield = float.PositiveInfinity;
+
+        /// <summary>
+        /// Whenever it should use time slice.
+        /// </summary>
+        public bool ShouldUseTimeSlice => nextYield != float.PositiveInfinity && UnityThread.IsMainThread;
+
         /// <summary>
         /// Determines the execution time allowed per yield when executing in the Unity thread.
         /// </summary>
         private float executionTimeSlice = float.PositiveInfinity;
+
         /// <summary>
         /// Stores the original value of <see cref="executionTimeSlice"/> while method <see cref="RunSynchronously"/> is being executed.<br/>
         /// Use <see cref="float.NaN"/> is no value is stored.
         /// </summary>
         private float oldExecutionTimeSlice = float.NaN;
+
+        private bool IsRunningSynchroniously => !float.IsNaN(oldExecutionTimeSlice);
+
         /// <summary>
         /// Whenever it shoud use multithreading when possible.
         /// </summary>
         public bool PreferMultithreading { get; set; } = Info.SupportMultithreading;
-
-        private TimeSlicer parent;
-        private RawPooledList<TimeSlicer> children = RawPooledList<TimeSlicer>.Create();
-
-        /// <summary>
-        /// Stores continuation produced by <see cref="YieldAwait"/> and <see cref="ParentAwait"/>.
-        /// </summary>
-        /// <remarks>We not use interlocking primitives to read this field because we always do it from the Unity thread.</remarks>
-        private Action yieldContinuation;
-
-        private ValueTask task;
-
-        private short version;
-        private int @lock;
-
-        /// <summary>
-        /// Determines if execution can continue or has been cancelled.
-        /// </summary>
-        private bool canContinue = true;
-
-        /// <summary>
-        /// Determines if slicer was marked as completed.
-        /// </summary>
-        private bool markedAsCompleted;
 
         /// <summary>
         /// If <see cref="PreferMultithreading"/> is <see langword="false"/>, the execution is sliced in multiple frames where this value determines the amount of seconds executed on each frame.<br/>
@@ -179,12 +145,42 @@ namespace Enderlook.Unity.Pathfinding.Utils
         }
 
         /// <summary>
-        /// Whenever it should use time slice.
+        /// Stores continuation produced by <see cref="YieldAwait"/> and <see cref="ParentAwait"/>.
         /// </summary>
-        public bool ShouldUseTimeSlice => nextYield != float.PositiveInfinity && UnityThread.IsMainThread;
+        /// <remarks>We not use interlocking primitives to read this field because we always do it from the Unity thread.</remarks>
+        private Action yieldContinuation;
+
+        private TimeSlicer parent;
+        private RawPooledList<TimeSlicer> children = RawPooledList<TimeSlicer>.Create();
+
+        private ValueTask task;
+
+        private ValueTask GetTaskLock()
+        {
+            ValueTask task;
+            Lock();
+            {
+                task = this.task;
+                this.task = default;
+            }
+            Unlock();
+            return task;
+        }
+
+        private short version;
+        private int @lock;
+
+        private LifeCycle lifeCycle;
+
+        private bool CanContinue => lifeCycle != LifeCycle.CanNotContinue;
 
         /// <summary>
-        /// Whenever the underlying task is completed.
+        /// Whenever cancellation was requested by user.
+        /// </summary>
+        public bool IsCancellationRequested => !CanContinue;
+
+        /// <summary>
+        /// Whenever the underlying task is completed or <see langword="default"/>.
         /// </summary>
         public bool IsCompleted
         {
@@ -193,14 +189,12 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 bool isCompleted;
                 Lock();
                 {
+                    // If the slicer is empty, the default task would return completed.
                     isCompleted = task.IsCompleted;
                 }
                 Unlock();
-#if DEBUG
-                if (isCompleted)
-                    // Don't assert if markedAsCompleted is true because for newly created instances is false.
-                    Debug.Assert(yieldContinuation is null);
-#endif
+                // Don't assert if markedAsCompleted is true because for newly created instances is false.
+                Debug.Assert(!isCompleted || yieldContinuation is null);
                 return isCompleted;
             }
         }
@@ -208,23 +202,13 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private bool IsCompletedLockless
         {
             get
-            {
+            {   // If the slicer is empty, the default task would return completed.
                 bool isCompleted = task.IsCompleted;
-#if DEBUG
-                if (isCompleted)
-                    // Don't assert if markedAsCompleted is true because for newly created instances is false.
-                    Debug.Assert(yieldContinuation is null);
-#endif
+                // Don't assert if markedAsCompleted is true because for newly created instances is false.
+                Debug.Assert(!isCompleted || yieldContinuation is null);
                 return isCompleted;
             }
         }
-
-        /// <summary>
-        /// Whenever cancellation was requested by user.
-        /// </summary>
-        public bool IsCancellationRequested => !canContinue;
-
-        private bool IsRunningSynchroniously => !float.IsNaN(oldExecutionTimeSlice);
 
         /// <summary>
         /// Set the associated task of this <see cref="TimeSlicer"/>.
@@ -232,12 +216,11 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <param name="task">Task to associate.</param>
         public void SetTask(ValueTask task)
         {
-            if (task.IsCompleted)
-                return;
-
             Lock();
             {
                 this.task = task;
+                Debug.Assert(lifeCycle == LifeCycle.Empty);
+                lifeCycle = LifeCycle.TaskSetted;
             }
             Unlock();
         }
@@ -248,7 +231,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// <param name="parent">Parent <see cref="TimeSlicer"/>.</param>
         public void SetParent(TimeSlicer parent)
         {
-            Debug.Assert(!markedAsCompleted);
+            Debug.Assert(lifeCycle == LifeCycle.Empty);
             Debug.Assert(yieldContinuation is null);
             if (parent.IsCompleted)
                 return;
@@ -285,8 +268,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 children.Clear();
                 yieldContinuation = null;
                 task = default;
-                canContinue = true;
-                markedAsCompleted = false;
+                lifeCycle = LifeCycle.Empty;
             }
             Unlock();
         }
@@ -301,7 +283,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// Request cancellation of this <see cref="TimeSlicer"/>.<br/>
         /// To cancell immediately, follow the call with <see cref="RunSynchronously"/>.
         /// </summary>
-        public void RequestCancellation() => canContinue = false;
+        public void RequestCancellation() => lifeCycle = LifeCycle.CanNotContinue;
 
         /// <summary>
         /// Forces <see cref="TimeSlicer"/> to run synchronously.
@@ -324,7 +306,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     if (!(continuation is null))
                         break;
 
-                    if (markedAsCompleted)
+                    if (lifeCycle == LifeCycle.MarkedAsCompleted)
                     {
                         Debug.Assert(yieldContinuation is null);
                         // Don't assert if task is completed because it may not, we await that at the end of this method.
@@ -339,7 +321,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     Unlock();
                     if (break_)
                     {
-                        Debug.Assert(markedAsCompleted);
+                        Debug.Assert(lifeCycle == LifeCycle.MarkedAsCompleted);
                         Debug.Assert(yieldContinuation is null);
                         goto end;
                     }
@@ -354,35 +336,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     UnityThread.RunNow(runSynchronously, (this, continuation));
 
                 end:
-                // Read comments from MarksAsCompleted to understand this conditional.
-                if (Info.SupportMultithreading)
-                {
-                    sleepFor = 0;
-                    while (true)
-                    {
-                        bool break_;
-                        Lock();
-                        {
-                            break_ = task.IsCompleted;
-                        }
-                        Unlock();
-                        if (break_)
-                            break;
-                        Thread.Sleep(sleepFor);
-                        sleepFor = Math.Min(sleepFor + 10, 100);
-                    }
-                }
-                else
-                {
-                    ValueTask task_;
-                    Lock();
-                    {
-                        task_ = task;
-                        task = default;
-                    }
-                    Unlock();
-                    task_.GetAwaiter().GetResult();
-                }
+                // TODO: Research why awaiting here the inner tasks results in a deadlock. We should await here.
 
                 executionTimeSlice = oldExecutionTimeSlice;
                 oldExecutionTimeSlice = float.NaN;
@@ -393,7 +347,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         private void RunSynchronouslyBody(Action continuation)
         {
             Debug.Assert(!(continuation is null));
-            Debug.Assert(!markedAsCompleted);
+            Debug.Assert(lifeCycle == LifeCycle.TaskSetted || lifeCycle == LifeCycle.CanNotContinue);
 #if DEBUG
             Lock();
             {
@@ -408,7 +362,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 continuation = PopYieldContinuationOrNullThreadSafe();
                 if (continuation is null)
                 {
-                    if (markedAsCompleted)
+                    if (lifeCycle == LifeCycle.MarkedAsCompleted)
                     {
                         Debug.Assert(yieldContinuation is null);
                         // Don't assert if task is completed because it may not, we await that in the caller method.
@@ -443,6 +397,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         public void MarkAsCompleted()
         {
+            Debug.Assert(lifeCycle == LifeCycle.TaskSetted || lifeCycle == LifeCycle.CanNotContinue);
             Debug.Assert(yieldContinuation is null);
 
             RawPooledList<TimeSlicer> children;
@@ -476,7 +431,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 }
             }
 
-            markedAsCompleted = true;
+            lifeCycle = LifeCycle.MarkedAsCompleted;
 
             foreach (TimeSlicer child in children)
             {
@@ -626,7 +581,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         bool IWatchdog<YieldAwait, YieldAwait>.CanContinue(out YieldAwait awaitable)
         {
             awaitable = Yield();
-            return canContinue;
+            return CanContinue;
         }
 
         private static void ThrowArgumentException_InvalidToken()
@@ -634,6 +589,14 @@ namespace Enderlook.Unity.Pathfinding.Utils
 
         private static void ThrowArgumentNullException_Continuation()
             => throw new ArgumentNullException("continuation");
+
+        private enum LifeCycle
+        {
+            Empty,
+            TaskSetted,
+            MarkedAsCompleted,
+            CanNotContinue,
+        }
 
         public readonly struct YieldAwait : IAwaitable<YieldAwait>, IAwaiter, INotifyCompletion
         {
