@@ -50,8 +50,9 @@ namespace Enderlook.Unity.Pathfinding
         private int navigationLock;
         private CompactOpenHeightField compactOpenHeightField;
         private int[] spanToColumn;
-
-        internal bool HasNavigation => !(options is null) && options.Progress == 1;
+#if UNITY_EDITOR
+        private bool hasNavigation;
+#endif
 
 #if UNITY_EDITOR
         private static readonly Func<(bool IsEditor, NavigationSurface Instance), Task> buildNavigationFunc = async e =>
@@ -83,7 +84,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private void OnDrawGizmosSelected()
         {
-            if (HasNavigation)
+            if (hasNavigation)
             {
                 Lock();
                 compactOpenHeightField.DrawGizmos(options.VoxelizationParameters, false, true, false);
@@ -333,6 +334,9 @@ namespace Enderlook.Unity.Pathfinding
                 options.PopTask();
                 Debug.Assert(options.Progress == 1);
                 options.TimeSlicer.MarkAsCompleted();
+#if UNITY_EDITOR
+                hasNavigation = true;
+#endif
 
                 void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException("Must be greater than 0.", nameof(voxelSize));
                 void ThrowCollectInformationNotChosen() => throw new ArgumentException("Can't be default", nameof(collectInformation));
