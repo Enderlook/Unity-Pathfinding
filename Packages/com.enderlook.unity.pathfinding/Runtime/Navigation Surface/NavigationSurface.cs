@@ -46,28 +46,30 @@ namespace Enderlook.Unity.Pathfinding
         private int pathfindingExecutionTimeSlice = 1000 / 60;
 
         private NavigationGenerationOptions options;
+        private NavigationGenerationOptions inProgress;
 
         private int navigationLock;
         private CompactOpenHeightField compactOpenHeightField;
-        private int[] spanToColumn;
 #if UNITY_EDITOR
+        private int[] spanToColumn;
         private bool hasNavigation;
+        internal float Progress() => inProgress?.Progress ?? 0;
 #endif
 
 #if UNITY_EDITOR
-        private static readonly Func<(bool IsEditor, NavigationSurface Instance), Task> buildNavigationFunc = async e =>
+        private static readonly Func<(NavigationSurface Instance, NavigationGenerationOptions Options, bool IsEditor), Task> buildNavigationFunc = async e =>
         {
-            TimeSlicer timeSlicer = e.Instance.options.TimeSlicer;
-            ValueTask task = e.Instance.BuildNavigationInner(e.IsEditor);
+            TimeSlicer timeSlicer = e.Options.TimeSlicer;
+            ValueTask task = e.Instance.BuildNavigationInner(e.Options, e.IsEditor);
             if (timeSlicer.ExecutionTimeSlice == 0)
                 timeSlicer.RunSynchronously();
             await task;
         };
 #else
-        private static readonly Func<NavigationSurface, Task> buildNavigationFunc = async e =>
+        private static readonly Func<(NavigationSurface Instance, NavigationGenerationOptions Options), Task> buildNavigationFunc = async e =>
         {
-            TimeSlicer timeSlicer = e.options.TimeSlicer;
-            ValueTask task = e.BuildNavigationInner();
+            TimeSlicer timeSlicer = e.Options.TimeSlicer;
+            ValueTask task = e.Instance.BuildNavigationInner();
             if (timeSlicer.ExecutionTimeSlice == 0)
                 timeSlicer.RunSynchronously();
             await task;
@@ -84,17 +86,13 @@ namespace Enderlook.Unity.Pathfinding
 
         private void OnDrawGizmosSelected()
         {
-            if (hasNavigation)
+            if (hasNavigation && !(options is null))
             {
                 Lock();
                 compactOpenHeightField.DrawGizmos(options.VoxelizationParameters, false, true, false);
                 Unlock();
             }
         }
-
-#if UNITY_EDITOR
-        internal float Progress() => options.Progress;
-#endif
 
         internal ValueTask CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination, bool synchronous = false)
         {
@@ -105,7 +103,7 @@ namespace Enderlook.Unity.Pathfinding
             Unlock();
 
             TimeSlicer timeSlicer = path.Start();
-            timeSlicer.SetParent(options.TimeSlicer);
+            timeSlicer.SetParent((options ?? inProgress).TimeSlicer);
             timeSlicer.ExecutionTimeSlice = synchronous ? 0 : pathfindingExecutionTimeSlice;
             timeSlicer.SetTask(Work());
 
@@ -137,8 +135,7 @@ namespace Enderlook.Unity.Pathfinding
 #endif
             )
         {
-            if (options is null)
-                options = new NavigationGenerationOptions();
+            NavigationGenerationOptions options = NavigationGenerationOptions.Rent();
 
             TimeSlicer timeSlicer = options.TimeSlicer;
 
@@ -154,19 +151,17 @@ namespace Enderlook.Unity.Pathfinding
 
             if (timeSlicer.PreferMultithreading)
             {
-                Task<Task> task = Task.Factory.StartNew(buildNavigationFunc,
+                Task<Task> task = Task.Factory.StartNew(buildNavigationFunc, (this, options,
 #if UNITY_EDITOR
-                    (isEditor, this)
-#else
-                    this
+                    isEditor
 #endif
-                );
+                ));
 
                 timeSlicer.SetTask(new ValueTask(task.Unwrap()));
             }
             else
             {
-                ValueTask task = BuildNavigationInner(
+                ValueTask task = BuildNavigationInner(options,
 #if UNITY_EDITOR
                     isEditor
 #endif
@@ -186,7 +181,7 @@ namespace Enderlook.Unity.Pathfinding
             return timeSlicer.AsTask();
         }
 
-        private async ValueTask BuildNavigationInner(
+        private async ValueTask BuildNavigationInner(NavigationGenerationOptions options,
 #if UNITY_EDITOR
             bool isEditor
 #endif
@@ -194,6 +189,8 @@ namespace Enderlook.Unity.Pathfinding
         {
             try
             {
+                inProgress = options;
+                Debug.Assert(!(options is null));
                 TimeSlicer timeSlicer = options.TimeSlicer;
 
                 float voxelSize = this.voxelSize;
@@ -322,6 +319,10 @@ namespace Enderlook.Unity.Pathfinding
 
                     Lock();
                     {
+                        // TODO: Return to pool NavigationMeshOptions.
+                        // However, in order to do that, it's necessary to guarante that no other asynchronous task is using it...'
+                        this.options = options;
+                        inProgress = null;
                         this.compactOpenHeightField = compactOpenHeightField;
                         if (this.spanToColumn != null)
                             ArrayPool<int>.Shared.Return(this.spanToColumn);
@@ -335,8 +336,8 @@ namespace Enderlook.Unity.Pathfinding
                 Debug.Assert(options.Progress == 1);
                 options.TimeSlicer.MarkAsCompleted();
 #if UNITY_EDITOR
-                hasNavigation = true;
 #endif
+                hasNavigation = true;
 
                 void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException("Must be greater than 0.", nameof(voxelSize));
                 void ThrowCollectInformationNotChosen() => throw new ArgumentException("Can't be default", nameof(collectInformation));

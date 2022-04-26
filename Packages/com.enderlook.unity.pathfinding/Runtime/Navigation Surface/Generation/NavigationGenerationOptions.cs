@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System.Runtime.CompilerServices;
@@ -139,6 +140,25 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     return pecentage + (currentStep / (float)currentSteps * factor);
                 }
             }
+        }
+
+        public static NavigationGenerationOptions Rent() => ObjectPool<NavigationGenerationOptions>.Shared.Rent();
+
+        public void Return()
+        {
+            stepLock = 0;
+            tasks.Clear();
+            currentStep = 0;
+            currentSteps = 0;
+            VoxelizationParameters = default;
+            TimeSlicer.Reset();
+            maximumTraversableStep = 1;
+            minimumTraversableHeight = 1;
+            distanceBlurThreshold = 1;
+            agentSize = 0;
+            minimumRegionSurface = 2;
+            regionBorderThickness = 0;
+            ObjectPool<NavigationGenerationOptions>.Shared.Return(this);
         }
 
         public void SetVoxelizationParameters(float voxelSize, Vector3 min, Vector3 max)
