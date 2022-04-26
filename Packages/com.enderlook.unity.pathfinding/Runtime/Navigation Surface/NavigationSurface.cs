@@ -89,18 +89,28 @@ namespace Enderlook.Unity.Pathfinding
             if (hasNavigation && !(options is null))
             {
                 Lock();
-                compactOpenHeightField.DrawGizmos(options.VoxelizationParameters, false, true, false);
-                Unlock();
+                try
+                {
+                    compactOpenHeightField.DrawGizmos(options.VoxelizationParameters, false, true, false);
+                }
+                finally
+                {
+                    Unlock();
+                }
             }
         }
 
         internal ValueTask CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination, bool synchronous = false)
         {
             Lock();
+            try
             {
                 Awake();
             }
-            Unlock();
+            finally
+            {
+                Unlock();
+            }
 
             TimeSlicer timeSlicer = path.Start();
             timeSlicer.SetParent((options ?? inProgress).TimeSlicer);
@@ -318,6 +328,7 @@ namespace Enderlook.Unity.Pathfinding
                     options.StepTask();
 
                     Lock();
+                    try
                     {
                         // TODO: Return to pool NavigationMeshOptions.
                         // However, in order to do that, it's necessary to guarante that no other asynchronous task is using it...'
@@ -328,7 +339,10 @@ namespace Enderlook.Unity.Pathfinding
                             ArrayPool<int>.Shared.Return(this.spanToColumn);
                         this.spanToColumn = spanToColumn;
                     }
-                    Unlock();
+                    finally
+                    {
+                        Unlock();
+                    }
 
                     voxelizer.Dispose();
                 }
