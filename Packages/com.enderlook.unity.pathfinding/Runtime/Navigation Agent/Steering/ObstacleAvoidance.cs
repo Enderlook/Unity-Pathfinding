@@ -58,7 +58,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
-        [SerializeField, Min(0), ShowIf(nameof(predictionTime), 0, ComparisonMode.NotEqual), Tooltip("Determines the strengh multiplied of predicted position of moving obstacles.")]
+        [SerializeField, Min(0), ShowIf(nameof(predictionTime), 0, ComparisonMode.NotEqual), Tooltip("Determines the strength multiplied of predicted position of moving obstacles.")]
         private float predictionStrength = 1;
 
         public float PredictionStrength
