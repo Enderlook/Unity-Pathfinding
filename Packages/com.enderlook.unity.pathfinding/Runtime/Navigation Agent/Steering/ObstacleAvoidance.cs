@@ -139,7 +139,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         // Position of objects with rigidbody is calculated multiple times:
                         // 1) Direction of avoidance without taking into account velocity of objects.
                         // 2) Direction of avoidance taking into account velocity of objects.
-                        // 3) Direction of avoidance taking into account velocity of objects and rotating 90 degrees clockwise,
+                        // 3) Direction of avoidance taking into account velocity of objects and rotating 90 degrees clockwise or counter-clockwise,
                         // this is required in order to avoid obstacles that move towards the creature and
                         // the predicted position is after the creature.
                         // Step 2) and 3) are only executed if the obstacle is moving.
