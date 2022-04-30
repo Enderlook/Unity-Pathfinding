@@ -78,7 +78,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     {
                         queuedDestinationToSet = null;
                         SetDestination(queuedDestination);
-                        // We could remove this, but this is safer in case we make SetDestinationi synchronous by default.
+                        // We could remove this, but this is safer in case we make SetDestination synchronous by default.
                         goto start;
                     }
                 }
