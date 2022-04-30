@@ -109,7 +109,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         private float oldExecutionTimeSlice = float.NaN;
 
-        private bool IsRunningSynchroniously => !float.IsNaN(oldExecutionTimeSlice);
+        private bool IsRunningSynchronously => !float.IsNaN(oldExecutionTimeSlice);
 
         /// <summary>
         /// Whenever it shoud use multithreading when possible.
@@ -785,7 +785,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     continuation();
                 timeSlicer.SetYieldContinuation(continuation);
                 // Early check to prevent unnecesary storage of timer.
-                if (!timeSlicer.IsRunningSynchroniously)
+                if (!timeSlicer.IsRunningSynchronously)
                 {
                     StaticLock();
                     {
