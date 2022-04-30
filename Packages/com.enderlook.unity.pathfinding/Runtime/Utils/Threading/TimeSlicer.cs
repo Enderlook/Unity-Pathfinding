@@ -109,6 +109,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         private float oldExecutionTimeSlice = float.NaN;
 
+        /// <summary>
+        /// Determines if method <see cref="RunSynchronously"/> is being executed.
+        /// </summary>
         private bool IsRunningSynchronously => !float.IsNaN(oldExecutionTimeSlice);
 
         /// <summary>
