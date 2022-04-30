@@ -337,7 +337,7 @@ namespace Enderlook.Unity.Pathfinding
                     try
                     {
                         // TODO: Return to pool NavigationMeshOptions.
-                        // However, in order to do that, it's necessary to guarante that no other asynchronous task is using it...'
+                        // However, in order to do that, it's necessary to guarante that no other asynchronous task is using it...
                         this.options = options;
                         inProgress = null;
                         this.compactOpenHeightField = compactOpenHeightField;
