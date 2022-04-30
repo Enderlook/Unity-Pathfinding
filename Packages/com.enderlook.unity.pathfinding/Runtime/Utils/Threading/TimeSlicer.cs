@@ -42,7 +42,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 {
                     while (true)
                         await tasksToCompleteCollection.Take().GetTaskLock();
-                }, TaskCreationOptions.LongRunning).Unwrap();
+                }, TaskCreationOptions.LongRunning);
             }
 
             void Work()

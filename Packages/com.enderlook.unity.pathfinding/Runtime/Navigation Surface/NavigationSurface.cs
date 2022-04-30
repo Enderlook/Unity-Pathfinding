@@ -141,7 +141,7 @@ namespace Enderlook.Unity.Pathfinding
                 if (synchronous || !timeSlicer.PreferMultithreading)
                     await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(this, position, path, searcher, timeSlicer);
                 else
-                    await Task.Factory.StartNew(calculatePath, (this, position, path, searcher, timeSlicer)).Unwrap();
+                    await await Task.Factory.StartNew(calculatePath, (this, position, path, searcher, timeSlicer));
             }
         }
 
