@@ -16,7 +16,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
     /// <summary>
     /// A time slicer system that allow to yield over multiple frames.
     /// </summary>
-    public sealed class TimeSlicer : IValueTaskSource, IWatchdog<TimeSlicer.YieldAwait, TimeSlicer.YieldAwait>, IThreadingPreference<TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>
+    internal sealed class TimeSlicer : IValueTaskSource, IWatchdog<TimeSlicer.YieldAwait, TimeSlicer.YieldAwait>, IThreadingPreference<TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>
     {
         private static readonly Action<(TimeSlicer timeSlicer, Action continuation)> runSynchronously = self => self.timeSlicer.RunSynchronouslyBody(self.continuation);
 
