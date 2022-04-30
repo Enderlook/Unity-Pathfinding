@@ -208,7 +208,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     // Check if distance from current path's destination to current leader's position is outside the allowed magin error.
                     float stoppingDistance = pathFollower.StoppingDistance;
                     if ((pathFollower.Destination - leaderPosition).sqrMagnitude > stoppingDistance * stoppingDistance)
-                        pathFollower.EnqueueDestination(leaderPosition);
+                        pathFollower.EnqueueDestination(leaderPosition, true);
                     goto hasPath;
                 }
                 else
@@ -218,7 +218,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 {
                     float stoppingDistance = pathFollower.StoppingDistance;
                     if ((pathFollower.Destination - position).sqrMagnitude > stoppingDistance * stoppingDistance * 2)
-                        pathFollower.EnqueueDestination(leaderPosition);
+                        pathFollower.EnqueueDestination(leaderPosition, true);
                 }
 
                 finalDirection = pathFollower.GetDirection() * pathStrength;
@@ -227,7 +227,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
             hasNoPath:
                 if (!pathFollower.IsCalculatingPath)
-                    pathFollower.EnqueueDestination(leaderPosition);
+                    pathFollower.EnqueueDestination(leaderPosition, true);
             }
 
         skipPathfinding:

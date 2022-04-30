@@ -70,14 +70,18 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 Path<Vector3> path_ = path;
                 if (path_?.IsCompleted ?? false)
                 {
+                    // Store parameter because SetPath() calls Cancel(), which clears this flag.
+                    QueueMode queue_ = queue;
+
                     path = null;
                     SetPath(path_);
                     path_.SendToPool();
 
-                    if (queuedDestinationToSet is Vector3 queuedDestination)
+                    if ((queue_ & QueueMode.Queued) != 0)
                     {
-                        queuedDestinationToSet = null;
-                        SetDestination(queuedDestination);
+                        SetDestination(queuedDestinationToSet);
+                        // Store after because SetDestination() clears this flag.
+                        queue = (queue_ & QueueMode.InProgressPriority) == 0 ? QueueMode.Queued : QueueMode.Queued | QueueMode.QueuedPriority;
                         // We could remove this, but this is safer in case we make SetDestination synchronous by default.
                         goto start;
                     }
@@ -100,15 +104,19 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                         return true;
                     else
                     {
+                        // Store parameter because SetPath() calls Cancel(), which clears this flag.
+                        QueueMode queue_ = queue;
+
                         path = null;
                         SetPath(path_);
                         path_.SendToPool();
 
-                        if (queuedDestinationToSet is Vector3 queuedDestination)
+                        if ((queue_ & QueueMode.Queued) != 0)
                         {
-                            queuedDestinationToSet = null;
-                            SetDestination(queuedDestination);
-                            // We could return true, but this is safer in case we make SetDestination synchronous by default.
+                            SetDestination(queuedDestinationToSet);
+                            // Store after because SetDestination() clears this flag.
+                            queue = (queue_ & QueueMode.InProgressPriority) == 0 ? QueueMode.Queued : QueueMode.Queued | QueueMode.QueuedPriority;
+                            // We could remove this, but this is safer in case we make SetDestination synchronous by default.
                             goto start;
                         }
                     }
@@ -147,7 +155,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         private Path<Vector3> path;
         private RawPooledList<Vector3> innerPath;
         private RawPooledList<Vector3>.Enumerator enumerator;
-        private Vector3? queuedDestinationToSet;
+        private Vector3 queuedDestinationToSet;
+        private QueueMode queue;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake() => rigidbody = GetComponent<Rigidbody>();
@@ -226,7 +235,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <returns><see langword="true"/> if there was a path calculation. <see langword="false"/> if not path was being calculated.</returns>
         public bool Cancel()
         {
-            queuedDestinationToSet = null;
+            queue = QueueMode.Nothing;
             Path<Vector3> path_ = path;
             if (!(path is null))
             {
@@ -252,13 +261,17 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         /// <param name="synchronous">If <see langword="true"/>, path calculation will be forced to execute immediately.</param>
         public void SetDestination(Vector3 destination, bool synchronous = false)
         {
-            queuedDestinationToSet = null;
+            queue = QueueMode.Nothing;
 
             Path<Vector3> path_ = path;
             if (!(path_ is null))
             {
                 if (path_.IsCompleted)
+                {
+                    if (!synchronous)
+                        SetPath(path_);
                     goto next;
+                }
                 else
                     path.SendToPool();
             }
@@ -275,11 +288,77 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 path = path_;
         }
 
-        internal void EnqueueDestination(Vector3 destination)
+        internal void EnqueueDestination(Vector3 destination, bool priority)
         {
-            if (!IsCalculatingPath)
-                SetDestination(destination);
-            queuedDestinationToSet = destination;
+            QueueMode newQueue;
+            Path<Vector3> path_ = path;
+            if (!(path_ is null))
+            {
+                if (path_.IsCompleted)
+                {
+                    // Don't send path to pool as SetDestination can reuse the instance.
+                    // Don't use SetPath(path_) as SetDestination will already do it.
+
+                    if (priority)
+                        // Note: We are ignoring previously queued destination on purpose.
+                        newQueue = QueueMode.InProgress | QueueMode.InProgressPriority;
+                    else
+                    {
+                        if ((queue & QueueMode.InProgressPriority) != 0)
+                        {
+                            destination = queuedDestinationToSet;
+                            newQueue = QueueMode.InProgress | QueueMode.InProgressPriority;
+                        }
+                        else
+                            // Note: We are ignoring previously queued destination on purpose.
+                            newQueue = QueueMode.InProgress;
+                    }
+                }
+                else
+                {
+                    QueueMode queue_ = queue;
+                    if (priority)
+                    {
+                        if ((queue_ & QueueMode.InProgress) != 0)
+                        {
+                            if ((queue_ & QueueMode.InProgressPriority) != 0)
+                            {
+                                queuedDestinationToSet = destination;
+                                queue = queue_ | QueueMode.Queued | QueueMode.QueuedPriority;
+                                goto end;
+                            }
+                            else
+                                // Note: We are ignoring previously queued destination on purpose.
+                                newQueue = QueueMode.InProgress | QueueMode.InProgressPriority;
+                        }
+                        else
+                        {
+                            queuedDestinationToSet = destination;
+                            queue = queue_ | QueueMode.Queued | QueueMode.QueuedPriority;
+                            goto end;
+                        }
+                    }
+                    else
+                    {
+                        if ((queue_ & QueueMode.QueuedPriority) == 0)
+                        {
+                            queuedDestinationToSet = destination;
+                            queue = queue_ | QueueMode.Queued;
+                        }
+                        goto end;
+                    }
+                }
+            }
+            else
+            {
+                Debug.Assert((queue & QueueMode.Queued) == 0);
+                newQueue = priority ? QueueMode.InProgress | QueueMode.InProgressPriority : QueueMode.InProgress;
+            }
+
+            SetDestination(destination);
+            // Store after because SetDestination() clears this flag.
+            queue = newQueue;
+        end:;
         }
 
         /// <inheritdoc cref="ISteeringBehaviour.GetDirection()"/>
@@ -304,9 +383,29 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             if (Toggle.IsToggled<TAllowRepath>())
             {
                 if (!navigationSurface.HasLineOfSight(current, position))
-                    EnqueueDestination(Destination);
+                    EnqueueDestination(Destination, false);
                 else
-                    Cancel();
+                {
+                    QueueMode queue_ = queue;
+                    if (queue_ != QueueMode.Nothing)
+                    {
+                        if ((queue_ & QueueMode.Queued) != 0 && (queue_ & QueueMode.QueuedPriority) == 0)
+                            queue_ &= ~QueueMode.Queued;
+                        if ((queue_ & QueueMode.InProgress) != 0 && (queue_ & QueueMode.InProgressPriority) == 0)
+                        {
+                            queue_ &= ~QueueMode.InProgress;
+                            Path<Vector3> path_ = path;
+                            if (!(path_ is null))
+                            {
+                                path = null;
+                                if (path_.IsCompleted)
+                                    SetPath(path_);
+                                path_.SendToPool();
+                            }
+                        }
+                        queue = queue_;
+                    }
+                }
             }
 
             direction = current - position;
@@ -338,6 +437,16 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         }
 
         private static void ThrowInvalidOperationException_DoesNotHavePath() => throw new InvalidOperationException("Doesn't have a path.");
+
+        [Flags]
+        private enum QueueMode : byte
+        {
+            Nothing = 0,
+            Queued = 1 << 1,
+            InProgress = 1 << 2,
+            QueuedPriority = 1 << 3,
+            InProgressPriority = 1 << 4,
+        }
 
 #if UNITY_EDITOR
         void ISteeringBehaviour.DrawGizmos()
