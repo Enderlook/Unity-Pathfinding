@@ -301,13 +301,13 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Vector3 current = enumerator_.Current;
             current.y = position.y;
 
-            if (!navigationSurface.HasLineOfSight(current, position))
+            if (Toggle.IsToggled<TAllowRepath>())
             {
-                if (Toggle.IsToggled<TAllowRepath>())
+                if (!navigationSurface.HasLineOfSight(current, position))
                     EnqueueDestination(Destination);
+                else
+                    Cancel();
             }
-            else if (Toggle.IsToggled<TAllowRepath>())
-                Cancel();
 
             direction = current - position;
             float distance = direction.magnitude;
