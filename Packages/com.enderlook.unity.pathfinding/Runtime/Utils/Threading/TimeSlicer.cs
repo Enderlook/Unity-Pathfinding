@@ -293,14 +293,14 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         public void RunSynchronously()
         {
+            oldExecutionTimeSlice = executionTimeSlice;
+            executionTimeSlice = float.PositiveInfinity;
+            nextYield = float.PositiveInfinity;
+
             parent?.RunSynchronously();
 
             if (!task.IsCompleted)
             {
-                oldExecutionTimeSlice = executionTimeSlice;
-                executionTimeSlice = float.PositiveInfinity;
-                nextYield = float.PositiveInfinity;
-
                 Action continuation;
                 int sleepFor = 0;
                 while (true)
@@ -337,14 +337,14 @@ namespace Enderlook.Unity.Pathfinding.Utils
                     RunSynchronouslyBody(continuation);
                 else
                     UnityThread.RunNow(runSynchronously, (this, continuation));
-
-                end:
-                // TODO: Research why awaiting here the inner tasks results in a deadlock. We should await here.
-
-                executionTimeSlice = oldExecutionTimeSlice;
-                oldExecutionTimeSlice = float.NaN;
-                nextYield = 0;
             }
+
+        end:
+            // TODO: Research why awaiting here the inner tasks results in a deadlock. We should await here.
+
+            executionTimeSlice = oldExecutionTimeSlice;
+            oldExecutionTimeSlice = float.NaN;
+            nextYield = 0;
         }
 
         private void RunSynchronouslyBody(Action continuation)
