@@ -76,6 +76,9 @@ namespace Enderlook.Unity.Pathfinding
         };
 #endif
 
+        private static readonly Func<(NavigationSurface graph, Vector3 from, Path<Vector3> path, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher, TimeSlicer timeSlicer), Task> calculatePath =
+            async e => await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(e.graph, e.from, e.path, e.searcher, e.timeSlicer);
+
         private void Awake()
         {
             if (!(options is null))
@@ -135,7 +138,10 @@ namespace Enderlook.Unity.Pathfinding
                     return;
                 }
 
-                await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(this, path, position, searcher, timeSlicer);
+                if (synchronous || !timeSlicer.PreferMultithreading)
+                    await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(this, position, path, searcher, timeSlicer);
+                else
+                    await Task.Factory.StartNew(calculatePath, (this, position, path, searcher, timeSlicer)).Unwrap();
             }
         }
 

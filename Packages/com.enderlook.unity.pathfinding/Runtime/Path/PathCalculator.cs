@@ -17,60 +17,6 @@ namespace Enderlook.Unity.Pathfinding
     internal static class PathCalculator
     {
         public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(
-            TGraph graph, TPath path, TCoord from, TSearcher searcher, TWatchdog watchdog)
-            where TNodes : IEnumerator<TNode>
-            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
-            where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : class, IPathFeedable<TCoord>, IEnumerable<TCoord>
-            where TSearcher : ISearcherSatisfy<TNode>
-            where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
-            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
-            where TWatchdogAwaiter : IAwaiter
-            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
-            where TThreadingAwaiter : IAwaiter
-        {
-            if (watchdog.PreferMultithreading)
-                return new Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, path, from, searcher, watchdog).Process();
-            else
-                return CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, from, path, searcher, watchdog);
-        }
-
-        private readonly struct Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>
-            where TNodes : IEnumerator<TNode>
-            where TGraph : class, IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>
-            where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
-            where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
-            where TSearcher : ISearcherSatisfy<TNode> where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
-            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
-            where TWatchdogAwaiter : IAwaiter
-            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
-            where TThreadingAwaiter : IAwaiter
-        {
-            private static readonly Func<Calculator<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>, Task> action = e => e.InternalProcess().AsTask();
-
-            private readonly TGraph graph;
-            private readonly TPath path;
-            private readonly TCoord from;
-            private readonly TSearcher searcher;
-            private readonly TWatchdog watchdog;
-
-            public Calculator(TGraph graph, TPath path, TCoord from, TSearcher searcher, TWatchdog watchdog)
-            {
-                this.graph = graph;
-                this.path = path;
-                this.from = from;
-                this.searcher = searcher;
-                this.watchdog = watchdog;
-            }
-
-            public ValueTask Process()
-                => new ValueTask(Task.Factory.StartNew(action, this).Unwrap());
-
-            private async ValueTask InternalProcess()
-                => await CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, from, path, searcher, watchdog);
-        }
-
-        public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(
             TGraph graph, TCoord from, TPath path, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
             where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/

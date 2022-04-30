@@ -12,11 +12,6 @@ namespace Enderlook.Unity.Pathfinding
         where TAwaiter : IAwaiter
     {
         /// <summary>
-        /// Whenever it should prefer to use multithreading for the operation.
-        /// </summary>
-        bool PreferMultithreading { get; }
-
-        /// <summary>
         /// Continues execution in the Unity thread.
         /// </summary>
         /// <returns>Awaiter to continue execution in the Unity thread.</returns>
