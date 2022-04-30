@@ -87,6 +87,7 @@ namespace Enderlook.Unity.Pathfinding
             BuildNavigation();
         }
 
+#if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
             if (hasNavigation && !(options is null))
@@ -102,6 +103,7 @@ namespace Enderlook.Unity.Pathfinding
                 }
             }
         }
+#endif
 
         internal ValueTask CalculatePath(Path<Vector3> path, Vector3 position, Vector3 destination, bool synchronous = false)
         {
@@ -356,8 +358,8 @@ namespace Enderlook.Unity.Pathfinding
                 Debug.Assert(options.Progress == 1);
                 options.TimeSlicer.MarkAsCompleted();
 #if UNITY_EDITOR
-#endif
                 hasNavigation = true;
+#endif
 
                 void ThrowVoxelSizeMustBeGreaterThanZero() => throw new ArgumentException("Must be greater than 0.", nameof(voxelSize));
                 void ThrowCollectInformationNotChosen() => throw new ArgumentException("Can't be default", nameof(collectInformation));
