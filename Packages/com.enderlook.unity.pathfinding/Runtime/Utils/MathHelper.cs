@@ -1,10 +1,5 @@
-﻿using System;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 
-using Enderlook.Collections.Pooled.LowLevel; 
-using Enderlook.Unity.Pathfinding.Utils;
-
-using Debug = UnityEngine.Debug;
 using UVector3 = UnityEngine.Vector3;
 using NVector3 = System.Numerics.Vector3;
 
@@ -20,19 +15,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe static int IndexesTo<T>(ref T start, ref T end)
-        {
-            if (IntPtr.Size == 4)
-            {
-                int currentPointer = ((IntPtr)Unsafe.AsPointer(ref end)).ToInt32();
-                int startPointer = ((IntPtr)Unsafe.AsPointer(ref start)).ToInt32();
-                return (currentPointer - startPointer) / Unsafe.SizeOf<T>();
-            }
-            else
-            {
-                long currentPointer = ((IntPtr)Unsafe.AsPointer(ref end)).ToInt64();
-                long startPointer = ((IntPtr)Unsafe.AsPointer(ref start)).ToInt64();
-                return (int)((currentPointer - startPointer) / Unsafe.SizeOf<T>());
-            }
-        }
+            => (int)(Unsafe.ByteOffset(ref start, ref end).ToInt64() / Unsafe.SizeOf<T>());
     }
 }
