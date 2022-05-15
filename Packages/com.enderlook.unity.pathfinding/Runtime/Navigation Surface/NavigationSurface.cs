@@ -1,4 +1,5 @@
-﻿using Enderlook.Threading;
+﻿using Enderlook.Collections.Spatial;
+using Enderlook.Threading;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
@@ -12,6 +13,8 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using UnityEngine;
+
+using NVector3 = System.Numerics.Vector3;
 
 namespace Enderlook.Unity.Pathfinding
 {
@@ -50,6 +53,7 @@ namespace Enderlook.Unity.Pathfinding
 
         private int navigationLock;
         private CompactOpenHeightField compactOpenHeightField;
+        private KDTreeVector3<int> tree;
 #if UNITY_EDITOR
         private int[] spanToColumn;
         private bool hasNavigation;
@@ -229,7 +233,7 @@ namespace Enderlook.Unity.Pathfinding
                 options.MaximumTraversableStep = maximumTraversableStep;
                 options.MinimumTraversableHeight = minimumTraversableHeight;
 
-                options.PushTask(4, "Generate Navigation Mesh");
+                options.PushTask(5, "Generate Navigation Mesh");
                 {
                     Voxelizer voxelizer = new Voxelizer(options, voxelSize, includeLayers);
 
@@ -295,6 +299,54 @@ namespace Enderlook.Unity.Pathfinding
 
                     heightField.Dispose();
 
+                    KDTreeVector3<int> tree = new KDTreeVector3<int>();
+                    options.PushTask(compactOpenHeightField.Columns.Length, "Building Spatial Tree");
+                    {
+                        int i = 0;
+                        int width = options.VoxelizationParameters.Width;
+                        int depth = options.VoxelizationParameters.Depth;
+
+
+                        if (timeSlicer.ShouldUseTimeSlice)
+                        {
+                            for (int x = 0; x < width; x++)
+                            {
+                                for (int z = 0; z < depth; z++)
+                                {
+                                    CompactOpenHeightField.HeightColumn heightColumn = compactOpenHeightField.Columns[i++];
+                                    for (int j = heightColumn.First; j <= heightColumn.Last; j++)
+                                    {
+                                        int floor = compactOpenHeightField.Spans[j].Floor;
+                                        if (floor != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                                            tree.Add(new NVector3(x, floor, z), j);
+                                    }
+                                    options.StepTask();
+                                    await timeSlicer.Yield();
+                                }
+                            }
+                        }
+                        else
+                        {
+
+                            for (int x = 0; x < width; x++)
+                            {
+                                for (int z = 0; z < depth; z++)
+                                {
+                                    CompactOpenHeightField.HeightColumn heightColumn = compactOpenHeightField.Columns[i++];
+                                    for (int j = heightColumn.First; j <= heightColumn.Last; j++)
+                                    {
+                                        int floor = compactOpenHeightField.Spans[j].Floor;
+                                        if (floor != CompactOpenHeightField.HeightSpan.NULL_SIDE)
+                                            tree.Add(new NVector3(x, floor, z), j);
+                                    }
+                                    options.StepTask();
+                                }
+                            }
+                        }
+                    }
+                    options.PopTask();
+                    options.StepTask();
+
                     int[] spanToColumn;
                     options.PushTask(compactOpenHeightField.Columns.Length, "Building Lookup Table");
                     {
@@ -346,6 +398,8 @@ namespace Enderlook.Unity.Pathfinding
                         if (this.spanToColumn != null)
                             ArrayPool<int>.Shared.Return(this.spanToColumn);
                         this.spanToColumn = spanToColumn;
+                        // TODO: We could pool the KD tree.
+                        this.tree = tree;
                     }
                     finally
                     {
@@ -385,7 +439,9 @@ namespace Enderlook.Unity.Pathfinding
         bool IGraphLocation<int, Vector3>.TryFindNodeTo(Vector3 position, out int node)
         {
             VoxelizationParameters parameters = options.VoxelizationParameters;
-            Vector3 indexes_ = (position - parameters.Min) / parameters.VoxelSize;
+            Vector3 localPosition = position - parameters.Min;
+            float voxelSize = parameters.VoxelSize;
+            Vector3 indexes_ = localPosition / voxelSize;
             if (indexes_.x < 0 || indexes_.y < 0 || indexes_.z < 0)
                 goto fail;
 
@@ -397,46 +453,30 @@ namespace Enderlook.Unity.Pathfinding
 
             // TODO: This is very error-prone.
 
+            float errorTolerance = voxelSize * voxelSize;
             for (int i = column.First; i < column.Last; i++)
             {
                 ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Spans[i];
                 if (span.Floor >= indexes.y)
                 {
-                    node = i;
-                    return true;
+                    float squaredDistance = ((localPosition - new Vector3(indexes.x, span.Floor, indexes.z)) * voxelSize).sqrMagnitude;
+                    if (squaredDistance < errorTolerance)
+                    {
+                        node = i;
+                        return true;
+                    }
                 }
             }
 
         fail:
             // Node could not be found, so look for closer one.
-            // TODO: This could be improved with spatial indexing.
-            node = default;
-            Vector3 offset = parameters.OffsetAtFloor;
-            float minSquaredDistance = float.PositiveInfinity;
-            int j = 0;
-            for (int x = 0; x < parameters.Width; x++)
+            if (tree.TryFindNearestNeighbour(localPosition.ToNumerics(), out NVector3 closest, out node))
             {
-                for (int z = 0; z < parameters.Depth; z++)
-                {
-                    Vector2 position_ = new Vector2(x, z) * parameters.VoxelSize;
-                    column = compactOpenHeightField.Columns[j++];
-                    for (int k = column.First; k < column.Last; k++)
-                    {
-                        ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Spans[k];
-                        Vector3 position__ = new Vector3(position_.x, parameters.VoxelSize * span.Floor, position_.y);
-                        Vector3 center = offset + position__;
-                        float squaredDistance = (position - center).sqrMagnitude;
-                        if (squaredDistance < minSquaredDistance)
-                        {
-                            minSquaredDistance = squaredDistance;
-                            node = k;
-                        }
-                    }
-                }
+                // We only take the node as valid if we are somewhat close to it.
+                return (closest.ToUnity() - localPosition).sqrMagnitude < voxelSize * voxelSize * 2;
             }
 
-            // We only take the node as valid if we are somewhat close to it.
-            return minSquaredDistance < parameters.VoxelSize * 2;
+            return false;
         }
 
         Vector3 IGraphLocation<int, Vector3>.ToPosition(int node)
