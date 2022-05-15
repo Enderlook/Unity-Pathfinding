@@ -299,10 +299,10 @@ namespace Enderlook.Unity.Pathfinding
                     options.PushTask(compactOpenHeightField.Columns.Length, "Building Lookup Table");
                     {
                         spanToColumn = ArrayPool<int>.Shared.Rent(compactOpenHeightField.Spans.Length);
-                        VoxelizationParameters parameters = options.VoxelizationParameters;
+                        int columnsCount = options.VoxelizationParameters.ColumnsCount;
                         if (timeSlicer.PreferMultithreading)
                         {
-                            Parallel.For(0, parameters.ColumnsCount, i =>
+                            Parallel.For(0, columnsCount, i =>
                             {
                                 CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
                                 column.Span<int>(spanToColumn).Fill(i);
@@ -313,7 +313,7 @@ namespace Enderlook.Unity.Pathfinding
                         {
                             if (timeSlicer.ShouldUseTimeSlice)
                             {
-                                for (int i = 0; i < parameters.ColumnsCount; i++)
+                                for (int i = 0; i < columnsCount; i++)
                                 {
                                     CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
                                     column.Span<int>(spanToColumn).Fill(i);
@@ -323,7 +323,7 @@ namespace Enderlook.Unity.Pathfinding
                             }
                             else
                             {
-                                for (int i = 0; i < parameters.ColumnsCount; i++)
+                                for (int i = 0; i < columnsCount; i++)
                                 {
                                     CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[i];
                                     column.Span<int>(spanToColumn).Fill(i);
