@@ -1,4 +1,4 @@
-﻿using Enderlook.Unity.Pathfinding;
+﻿using Enderlook.Unity.Pathfinding.Steerings;
 
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,7 +7,9 @@ using UnityEngine.UIElements;
 public class GameManager : MonoBehaviour
 {
     [SerializeField]
-    private NavigationAgent agent;
+    private PathFollower agent;
+    [SerializeField]
+    private PathFollower agent2;
 
     [SerializeField]
     private Transform target;
@@ -25,7 +27,10 @@ public class GameManager : MonoBehaviour
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit) && hit.collider == plane)
-                agent.SetDestinationSync(hit.point);
+            {
+                agent.SetDestination(hit.point);
+                agent2.SetDestination(hit.point);
+            }
         }
     }
 
