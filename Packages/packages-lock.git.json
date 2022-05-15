@@ -104,6 +104,16 @@
             "name": "com.enderlook.utils",
             "hash": "33fc5ce35bceea30f10f754ae7752995b8dec10b",
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.utils#com.enderlook.utils/v0.1.0"
+        },
+        {
+            "name": "com.enderlook.mathematics",
+            "hash": "7051edcd9fa9e08e86c829db491716086111eb73",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.mathematics#com.enderlook.mathematics/v0.2.0"
+        },
+        {
+            "name": "com.enderlook.collections.spatial",
+            "hash": "7099a87db9b4788310e8aa7fc0649c2c7363b3e3",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.spatial#com.enderlook.collections.spatial/v0.1.0"
         }
     ]
 }
