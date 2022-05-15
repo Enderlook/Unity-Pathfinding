@@ -114,6 +114,11 @@
             "name": "com.enderlook.collections.spatial",
             "hash": "7099a87db9b4788310e8aa7fc0649c2c7363b3e3",
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.spatial#com.enderlook.collections.spatial/v0.1.0"
+        },
+        {
+            "name": "com.enderlook.state_machine",
+            "hash": "f3c4fa91880fea437d293eb20fc23c61dce0983a",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.state_machine#com.enderlook.state_machine/v0.4.0"
         }
     ]
 }

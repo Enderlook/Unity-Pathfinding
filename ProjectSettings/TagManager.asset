@@ -16,10 +16,10 @@ TagManager:
   - PostProcessing
   - Obstacles
   - Ground
-  - Entities
-  - 
-  - 
-  - 
+  - FactionACreature
+  - FactionBCreature
+  - FactionABullet
+  - FactionBBullet
   - 
   - 
   - 

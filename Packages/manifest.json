@@ -47,7 +47,8 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
+    "com.unity.modules.xr": "1.0.0",
+	"com.enderlook.state_machine": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.state_machine#com.enderlook.state_machine/v0.4.0"
   },
   "lock": {
     "com.coffee.git-dependency-resolver": {
