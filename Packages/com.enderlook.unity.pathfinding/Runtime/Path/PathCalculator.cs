@@ -4,8 +4,6 @@ using Enderlook.Unity.Pathfinding.Utils;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-using Enderlook.Threading;
-using System;
 using Enderlook.Unity.Threading;
 using UnityEngine;
 
