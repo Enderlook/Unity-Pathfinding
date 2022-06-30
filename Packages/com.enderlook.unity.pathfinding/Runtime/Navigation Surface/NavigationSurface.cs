@@ -1,4 +1,5 @@
 ﻿using Enderlook.Collections.Spatial;
+using Enderlook.Pools;
 using Enderlook.Threading;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
@@ -19,7 +20,7 @@ using NVector3 = System.Numerics.Vector3;
 namespace Enderlook.Unity.Pathfinding
 {
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Surface"), DefaultExecutionOrder(ExecutionOrder.NavigationSurface)]
-    public sealed class NavigationSurface : MonoBehaviour, IGraphLocation<int, Vector3>, IGraphHeuristic<int>, IGraphIntrinsic<int, NavigationSurface.NodesEnumerator>, IGraphLineOfSight<Vector3>, IGraphLineOfSight<int>
+    public sealed class NavigationSurface : MonoBehaviour
     {
         [Header("Baking Basic")]
         [SerializeField, Tooltip("Determine objects that are collected to generate navigation data.")]
@@ -80,8 +81,13 @@ namespace Enderlook.Unity.Pathfinding
         };
 #endif
 
-        private static readonly Func<(NavigationSurface graph, Vector3 from, Path<Vector3> path, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher, TimeSlicer timeSlicer), Task> calculatePath =
-            async e => await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(e.graph, e.from, e.path, e.searcher, e.timeSlicer);
+        private static readonly Func<(Wrapper graph, Vector3 from, Path<Vector3> path, SearcherToLocationWithHeuristic<Wrapper, Vector3, int> searcher, TimeSlicer timeSlicer), Task> calculatePath =
+            async e =>
+            {
+                PathBuilder<int, Vector3> builder = PathBuilder<int, Vector3>.Rent();
+                await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, Wrapper, PathBuilder<int, Vector3>, Path<Vector3>.Feedable, SearcherToLocationWithHeuristic<Wrapper, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(e.graph, builder, e.from, new Path<Vector3>.Feedable(e.path), e.searcher, e.timeSlicer);
+                builder.Return();
+            };
 
         private void Awake()
         {
@@ -138,16 +144,20 @@ namespace Enderlook.Unity.Pathfinding
             {
                 await timeSlicer.WaitForParentCompletion();
 
-                if (!SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>.TryFrom(this, destination, out SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int> searcher))
+                if (!SearcherToLocationWithHeuristic<Wrapper, Vector3, int>.TryFrom(new Wrapper(this), destination, out SearcherToLocationWithHeuristic<Wrapper, Vector3, int> searcher))
                 {
                     path.ManualSetNotFound();
                     return;
                 }
 
                 if (synchronous || !timeSlicer.PreferMultithreading)
-                    await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, NavigationSurface, PathBuilder<int, Vector3>, Path<Vector3>, SearcherToLocationWithHeuristic<NavigationSurface, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(this, position, path, searcher, timeSlicer);
+                {
+                    PathBuilder<int, Vector3> builder = PathBuilder<int, Vector3>.Rent();
+                    await PathCalculator.CalculatePath<Vector3, int, NodesEnumerator, Wrapper, PathBuilder<int, Vector3>, Path<Vector3>.Feedable, SearcherToLocationWithHeuristic<Wrapper, Vector3, int>, TimeSlicer, TimeSlicer.YieldAwait, TimeSlicer.YieldAwait, TimeSlicer.ToUnityAwait, TimeSlicer.ToUnityAwait>(new Wrapper(this), builder, position, new Path<Vector3>.Feedable(path), searcher, timeSlicer);
+                    builder.Return();
+                }
                 else
-                    await await Task.Factory.StartNew(calculatePath, (this, position, path, searcher, timeSlicer));
+                    await await Task.Factory.StartNew(calculatePath, (new Wrapper(this), position, path, searcher, timeSlicer));
             }
         }
 
@@ -436,96 +446,9 @@ namespace Enderlook.Unity.Pathfinding
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Unlock() => navigationLock = 0;
 
-        bool IGraphLocation<int, Vector3>.TryFindNodeTo(Vector3 position, out int node)
-        {
-            VoxelizationParameters parameters = options.VoxelizationParameters;
-            Vector3 localPosition = position - parameters.Min;
-            float voxelSize = parameters.VoxelSize;
-            Vector3 indexes_ = localPosition / voxelSize;
-            if (indexes_.x < 0 || indexes_.y < 0 || indexes_.z < 0)
-                goto fail;
-
-            Vector3Int indexes = new Vector3Int(Mathf.FloorToInt(indexes_.x), Mathf.FloorToInt(indexes_.y), Mathf.FloorToInt(indexes_.z));
-            if (indexes.x >= parameters.Width || indexes.y >= parameters.Height || indexes.z >= parameters.Depth)
-                goto fail;
-
-            CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[parameters.GetIndex(indexes.x, indexes.z)];
-
-            // TODO: This is very error-prone.
-
-            float errorTolerance = voxelSize * voxelSize;
-            for (int i = column.First; i < column.Last; i++)
-            {
-                ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Spans[i];
-                if (span.Floor >= indexes.y)
-                {
-                    float squaredDistance = ((localPosition - new Vector3(indexes.x, span.Floor, indexes.z)) * voxelSize).sqrMagnitude;
-                    if (squaredDistance < errorTolerance)
-                    {
-                        node = i;
-                        return true;
-                    }
-                }
-            }
-
-        fail:
-            // Node could not be found, so look for closer one.
-            if (tree.TryFindNearestNeighbour(localPosition.ToNumerics(), out NVector3 closest, out node))
-            {
-                // We only take the node as valid if we are somewhat close to it.
-                return (closest.ToUnity() - localPosition).sqrMagnitude < voxelSize * voxelSize * 2;
-            }
-
-            return false;
-        }
-
-        Vector3 IGraphLocation<int, Vector3>.ToPosition(int node)
-        {
-            Debug.Assert(node >= 0 && node < compactOpenHeightField.Spans.Length);
-            int columnIndex = spanToColumn[node];
-            ref readonly CompactOpenHeightField.HeightColumn column = ref compactOpenHeightField.Columns[columnIndex];
-            Debug.Assert(node >= column.First && node < column.Last);
-            VoxelizationParameters parameters = options.VoxelizationParameters;
-            Vector2Int indexes = parameters.From2D(columnIndex);
-            int y = compactOpenHeightField.Spans[node].Floor;
-            Vector3 position = parameters.Min + (new Vector3(indexes.x, y, indexes.y) * parameters.VoxelSize);
-            //Debug.Assert(node == ((IGraphLocation<int, Vector3>)this).FindClosestNodeTo(position));
-            return position;
-        }
-
-        float IGraphHeuristic<int>.GetHeuristicCost(int from, int to)
-            => ((IGraphIntrinsic<int, NodesEnumerator>)this).GetCost(from, to);
-
-        NodesEnumerator IGraphIntrinsic<int, NodesEnumerator>.GetNeighbours(int node)
-        {
-            Debug.Assert(node >= 0 && node < compactOpenHeightField.Spans.Length);
-            return new NodesEnumerator(compactOpenHeightField.Spans[node]);
-        }
-
-        float IGraphIntrinsic<int, NodesEnumerator>.GetCost(int from, int to)
-        {
-            return Vector3.Distance(
-                ((IGraphLocation<int, Vector3>)this).ToPosition(from),
-                ((IGraphLocation<int, Vector3>)this).ToPosition(to)
-            );
-        }
-
-        bool IGraphLineOfSight<Vector3>.RequiresUnityThread => true;
-
-        bool IGraphLineOfSight<int>.RequiresUnityThread => true;
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool HasLineOfSight(Vector3 from, Vector3 to)
-            => !Physics.Linecast(from, to, includeLayers);
-
-        bool IGraphLineOfSight<Vector3>.HasLineOfSight(Vector3 from, Vector3 to)
-            => HasLineOfSight(from, to);
-
-        bool IGraphLineOfSight<int>.HasLineOfSight(int from, int to)
-        {
-            IGraphLocation<int, Vector3> graphLocation = this;
-            return HasLineOfSight(graphLocation.ToPosition(from), graphLocation.ToPosition(to));
-        }
+            => new Wrapper(this).HasLineOfSight(from, to);
 
         internal struct NodesEnumerator : IEnumerator<int>
         {
@@ -594,6 +517,102 @@ namespace Enderlook.Unity.Pathfinding
             }
 
             public void Dispose() { }
+        }
+
+        private readonly struct Wrapper : IGraphLocation<int, Vector3>, IGraphHeuristic<int>, IGraphIntrinsic<int, NodesEnumerator>, IGraphLineOfSight<Vector3>, IGraphLineOfSight<int>
+        {
+            // Value type wrapper forces JIT to specialize code in generics
+            // This replaces interface calls with direct inlineable calls.
+            private readonly NavigationSurface self;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Wrapper(NavigationSurface self) => this.self = self;
+
+            public bool TryFindNodeTo(Vector3 position, out int node)
+            {
+                VoxelizationParameters parameters = self.options.VoxelizationParameters;
+                Vector3 localPosition = position - parameters.Min;
+                float voxelSize = parameters.VoxelSize;
+                Vector3 indexes_ = localPosition / voxelSize;
+                if (indexes_.x < 0 || indexes_.y < 0 || indexes_.z < 0)
+                    goto fail;
+
+                Vector3Int indexes = new Vector3Int(Mathf.FloorToInt(indexes_.x), Mathf.FloorToInt(indexes_.y), Mathf.FloorToInt(indexes_.z));
+                if (indexes.x >= parameters.Width || indexes.y >= parameters.Height || indexes.z >= parameters.Depth)
+                    goto fail;
+
+                CompactOpenHeightField compactOpenHeightField = self.compactOpenHeightField;
+                CompactOpenHeightField.HeightColumn column = compactOpenHeightField.Columns[parameters.GetIndex(indexes.x, indexes.z)];
+
+                // TODO: This is very error-prone.
+
+                float errorTolerance = voxelSize * voxelSize;
+                for (int i = column.First; i < column.Last; i++)
+                {
+                    ref readonly CompactOpenHeightField.HeightSpan span = ref compactOpenHeightField.Spans[i];
+                    if (span.Floor >= indexes.y)
+                    {
+                        float squaredDistance = ((localPosition - new Vector3(indexes.x, span.Floor, indexes.z)) * voxelSize).sqrMagnitude;
+                        if (squaredDistance < errorTolerance)
+                        {
+                            node = i;
+                            return true;
+                        }
+                    }
+                }
+
+            fail:
+                // Node could not be found, so look for closer one.
+                if (self.tree.TryFindNearestNeighbour(localPosition.ToNumerics(), out NVector3 closest, out node))
+                {
+                    // We only take the node as valid if we are somewhat close to it.
+                    return (closest.ToUnity() - localPosition).sqrMagnitude < voxelSize * voxelSize * 2;
+                }
+
+                return false;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Vector3 ToPosition(int node)
+            {
+                Debug.Assert(node >= 0 && node < self.compactOpenHeightField.Spans.Length);
+                int columnIndex = self.spanToColumn[node];
+                ref readonly CompactOpenHeightField.HeightColumn column = ref self.compactOpenHeightField.Columns[columnIndex];
+                Debug.Assert(node >= column.First && node < column.Last);
+                VoxelizationParameters parameters = self.options.VoxelizationParameters;
+                Vector2Int indexes = parameters.From2D(columnIndex);
+                int y = self.compactOpenHeightField.Spans[node].Floor;
+                Vector3 position = parameters.Min + (new Vector3(indexes.x, y, indexes.y) * parameters.VoxelSize);
+                return position;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public float GetHeuristicCost(int from, int to) => GetCost(from, to);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public NodesEnumerator GetNeighbours(int node)
+            {
+                Debug.Assert(node >= 0 && node < self.compactOpenHeightField.Spans.Length);
+                return new NodesEnumerator(self.compactOpenHeightField.Spans[node]);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public float GetCost(int from, int to)
+                => Vector3.Distance(ToPosition(from), ToPosition(to));
+
+            public bool RequiresUnityThread
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => true;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool HasLineOfSight(Vector3 from, Vector3 to)
+                => !Physics.Linecast(from, to, self.includeLayers);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool HasLineOfSight(int from, int to)
+                => HasLineOfSight(ToPosition(from), ToPosition(to));
         }
 
         private static void ThrowNavigationInProgress() => throw new InvalidOperationException("Navigation generation is in progress.");

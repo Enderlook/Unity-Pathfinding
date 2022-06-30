@@ -1,5 +1,6 @@
 ﻿using Enderlook.Collections;
-using Enderlook.Collections.Pooled.LowLevel;
+using Enderlook.Collections.LowLevel;
+using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
 
@@ -17,27 +18,44 @@ namespace Enderlook.Unity.Pathfinding
     /// </summary>
     /// <typeparam name="TNode">Node type.</typeparam>
     /// <typeparam name="TCoord">Coordinate type.</typeparam>
-    internal sealed class PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, IDisposable
+    internal struct PathBuilder<TNode, TCoord> : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>
     {
-        private readonly HashSet<TNode> visited = new HashSet<TNode>();
-        private readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
-        private readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
-        private readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
-        private RawPooledList<TCoord> path = RawPooledList<TCoord>.Create();
+        // Value type wrapper forces JIT to specialize code in generics
+        // This replaces interface calls with direct inlineable calls.
 
-        private TCoord startPosition;
-        private TCoord endPosition;
-        private TNode endNode;
-        private TNode startNode;
+        private Container self;
 
-        private Status status;
+        private sealed class Container
+        {
+            public readonly HashSet<TNode> visited = new HashSet<TNode>();
+            public readonly BinaryHeapMin<TNode, float> toVisit = new BinaryHeapMin<TNode, float>();
+            public readonly Dictionary<TNode, float> costs = new Dictionary<TNode, float>();
+            public readonly Dictionary<TNode, TNode> edges = new Dictionary<TNode, TNode>();
+            public RawList<TCoord> path = RawList<TCoord>.Create();
+
+            public TCoord startPosition;
+            public TCoord endPosition;
+            public TNode endNode;
+            public TNode startNode;
+
+            public Status status;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private PathBuilder(Container self) => this.self = self;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static PathBuilder<TNode, TCoord> Rent() => new PathBuilder<TNode, TCoord>(ObjectPool<Container>.Shared.Rent());
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Return() => ObjectPool<Container>.Shared.Return(self);
 
         /// <summary>
         /// Determines if this builder has a path.
         /// </summary>
         public bool HasPath {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (status & Status.Found) == Status.Found;
+            get => (self.status & Status.Found) == Status.Found;
         }
 
         /// <summary>
@@ -45,7 +63,7 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         public bool IsPending {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (status & Status.Initialized) == Status.Initialized;
+            get => (self.status & Status.Initialized) == Status.Initialized;
         }
 
         /// <summary>
@@ -54,149 +72,116 @@ namespace Enderlook.Unity.Pathfinding
         /// </summary>
         public bool HasTimedout {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (status & Status.Timedout) == Status.Timedout;
+            get => (self.status & Status.Timedout) == Status.Timedout;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.EnqueueToVisit(TNode, float)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.EnqueueToVisit(TNode node, float priority)
         {
-            Debug.Assert(status == Status.Initialized);
-            toVisit.Enqueue(node, priority);
+            Debug.Assert(self.status == Status.Initialized);
+            self.toVisit.Enqueue(node, priority);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.FinalizeBuilderSession{TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter}(TGraph, CalculationResult, TWatchdog)"/>
         ValueTask IPathBuilder<TNode, TCoord>.FinalizeBuilderSession<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(TGraph graph, CalculationResult result, TWatchdog watchdog)
         {
-            if ((status & Status.Initialized) == 0) ThrowInvalidOperationException_IsNotInitialized();
+            if ((self.status & Status.Initialized) == 0) ThrowInvalidOperationException_IsNotInitialized();
 
             if (result == CalculationResult.PathFound)
             {
-                path.Clear();
+                self.path.Clear();
                 if (typeof(IGraphLineOfSight<TNode>).IsAssignableFrom(typeof(TGraph)))
                 {
                     if (typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph)))
-                        return Local<Toggle.Yes, Toggle.Yes>();
+                        return FinalizeBuilderSession_Local<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter, Toggle.Yes, Toggle.Yes>(graph, watchdog);
                     else
-                        return Local<Toggle.No, Toggle.Yes>();
+                        return FinalizeBuilderSession_Local<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter, Toggle.No, Toggle.Yes>(graph, watchdog);
                 }
                 else if (typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph)))
-                    return Local<Toggle.Yes, Toggle.No>();
+                    return FinalizeBuilderSession_Local<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter, Toggle.Yes, Toggle.No>(graph, watchdog);
                 else
-                    return Local<Toggle.No, Toggle.No>();
+                    return FinalizeBuilderSession_Local<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter, Toggle.No, Toggle.No>(graph, watchdog);
             }
             else if (result == CalculationResult.Timedout)
-                status = Status.Timedout;
+                self.status = Status.Timedout;
             else
-                status = Status.Finalized;
+                self.status = Status.Finalized;
 
             return new ValueTask();
+        }
 
-            async ValueTask Local<THasCoord, THasNode>()
+        private async ValueTask FinalizeBuilderSession_Local<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter, THasCoord, THasNode>(TGraph graph, TWatchdog watchdog)
+            where TGraph : IGraphLocation<TNode, TCoord>
+            where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
+            where TWatchdogAwaitable : IAwaitable<TWatchdogAwaiter>
+            where TWatchdogAwaiter : IAwaiter
+            where TThreadingAwaitable : IAwaitable<TThreadingAwaiter>
+            where TThreadingAwaiter : IAwaiter
+        {
+            EqualityComparer<TCoord> coordComparer = typeof(TCoord).IsValueType ? null : EqualityComparer<TCoord>.Default;
+
+            if (Toggle.IsToggled<THasCoord>() != typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph))
+                || Toggle.IsToggled<THasNode>() != typeof(IGraphLineOfSight<TNode>).IsAssignableFrom(typeof(TGraph)))
             {
-                EqualityComparer<TCoord> coordComparer = typeof(TCoord).IsValueType ? null : EqualityComparer<TCoord>.Default;
+                Debug.Assert(false);
+                return;
+            }
 
-                if (Toggle.IsToggled<THasCoord>() != typeof(IGraphLineOfSight<TCoord>).IsAssignableFrom(typeof(TGraph))
-                    || Toggle.IsToggled<THasNode>() != typeof(IGraphLineOfSight<TNode>).IsAssignableFrom(typeof(TGraph)))
+            if (Toggle.IsToggled<THasCoord>() || Toggle.IsToggled<THasNode>())
+            {
+                IGraphLineOfSight<TCoord> lineOfSightCoord = !Toggle.IsToggled<THasCoord>() || typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TCoord>)graph;
+                IGraphLineOfSight<TNode> lineOfSightNode = !Toggle.IsToggled<THasNode>() || typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TNode>)graph;
+
+                self.path.Add(self.endPosition);
+
+                bool requiresSwitch = false;
+                if (Toggle.IsToggled<THasCoord>() && !requiresSwitch)
+                    requiresSwitch = (typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).RequiresUnityThread;
+                if (Toggle.IsToggled<THasNode>() && !requiresSwitch)
+                    requiresSwitch = (typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TNode>)graph) : lineOfSightNode).RequiresUnityThread;
+                if (requiresSwitch && UnityThread.IsMainThread)
+                    requiresSwitch = false;
+                if (requiresSwitch)
+                    await watchdog.ToUnity();
+
+                TCoord previousCoord;
+                TCoord currentCoord = self.endPosition;
+                TCoord lastOptimizedCoord = currentCoord;
+
+                TNode previousNode = default; // default since compiler can't infer its assignment.
+                TNode currentNode = self.endNode;
+                TNode lastOptimizedNode = currentNode;
+                bool useNode = false;
+
+                TNode to = currentNode; // endNode
+                TCoord end2 = graph.ToPosition(to);
+                if (!(typeof(TCoord).IsValueType ?
+                    EqualityComparer<TCoord>.Default.Equals(currentCoord /* endPosition */, end2)
+                    : coordComparer.Equals(currentCoord /* endPosition */, end2)))
                 {
-                    Debug.Assert(false);
-                    return;
+                    previousCoord = currentCoord;
+                    currentCoord = end2;
+                    if (!Toggle.IsToggled<THasCoord>() || !(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
+                    {
+                        self.path.Add(previousCoord);
+                        lastOptimizedCoord = previousCoord;
+                        if (Toggle.IsToggled<THasNode>())
+                            useNode = true;
+                    }
                 }
 
-                if (Toggle.IsToggled<THasCoord>() || Toggle.IsToggled<THasNode>())
+#if DEBUG
+                self.visited.Clear();
+                self.visited.Add(to);
+#endif
+
+                if (!useNode)
                 {
-                    IGraphLineOfSight<TCoord> lineOfSightCoord = !Toggle.IsToggled<THasCoord>() || typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TCoord>)graph;
-                    IGraphLineOfSight<TNode> lineOfSightNode = !Toggle.IsToggled<THasNode>() || typeof(TGraph).IsValueType ? null : (IGraphLineOfSight<TNode>)graph;
-
-                    path.Add(endPosition);
-
-                    bool requiresSwitch = false;
-                    if (Toggle.IsToggled<THasCoord>() && !requiresSwitch)
-                        requiresSwitch = (typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).RequiresUnityThread;
-                    if (Toggle.IsToggled<THasNode>() && !requiresSwitch)
-                        requiresSwitch = (typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TNode>)graph) : lineOfSightNode).RequiresUnityThread;
-                    if (requiresSwitch && UnityThread.IsMainThread)
-                        requiresSwitch = false;
-                    if (requiresSwitch)
-                        await watchdog.ToUnity();
-
-                    TCoord previousCoord;
-                    TCoord currentCoord = endPosition;
-                    TCoord lastOptimizedCoord = currentCoord;
-
-                    TNode previousNode = default; // default since compiler can't infer its assignment.
-                    TNode currentNode = endNode;
-                    TNode lastOptimizedNode = currentNode;
-                    bool useNode = false;
-
-                    TNode to = endNode;
-                    TCoord end2 = graph.ToPosition(to);
-                    if (!(typeof(TCoord).IsValueType ?
-                        EqualityComparer<TCoord>.Default.Equals(endPosition, end2)
-                        : coordComparer.Equals(endPosition, end2)))
-                    {
-                        previousCoord = currentCoord;
-                        currentCoord = end2;
-                        if (!Toggle.IsToggled<THasCoord>() || !(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
-                        {
-                            path.Add(previousCoord);
-                            lastOptimizedCoord = previousCoord;
-                            if (Toggle.IsToggled<THasNode>())
-                                useNode = true;
-                        }
-                    }
-
-#if DEBUG
-                    visited.Clear();
-                    visited.Add(to);
-#endif
-
-                    if (!useNode)
-                    {
-                        while (edges.TryGetValue(to, out TNode from))
-                        {
-#if DEBUG
-                            if (!visited.Add(from))
-                            {
-                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
-                                break;
-                            }
-#endif
-                            to = from;
-
-                            previousCoord = currentCoord;
-                            currentCoord = graph.ToPosition(from);
-                            if (Toggle.IsToggled<THasNode>())
-                            {
-                                previousNode = currentNode;
-                                currentNode = from;
-                            }
-                            Debug.Assert(Toggle.IsToggled<THasCoord>());
-                            if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
-                            {
-                                path.Add(previousCoord);
-                                lastOptimizedCoord = previousCoord;
-                                if (Toggle.IsToggled<THasNode>())
-                                {
-                                    lastOptimizedNode = previousNode;
-                                    goto withNode;
-                                }
-                            }
-
-                            if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
-                                await awaitable;
-                            else
-                                goto timedout;
-                        }
-                        goto withoutNode;
-                    }
-
-                    withNode:
-                    bool hasPrevious = false;
-                    while (edges.TryGetValue(to, out TNode from))
+                    while (self.edges.TryGetValue(to, out TNode from))
                     {
 #if DEBUG
-                        if (!visited.Add(from))
+                        if (!self.visited.Add(from))
                         {
                             Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
                             break;
@@ -204,13 +189,23 @@ namespace Enderlook.Unity.Pathfinding
 #endif
                         to = from;
 
-                        hasPrevious = true;
-                        previousNode = currentNode;
-                        currentNode = from;
-                        if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TNode>)graph) : lineOfSightNode).HasLineOfSight(lastOptimizedNode, currentNode))
+                        previousCoord = currentCoord;
+                        currentCoord = graph.ToPosition(from);
+                        if (Toggle.IsToggled<THasNode>())
                         {
-                            path.Add(graph.ToPosition(previousNode));
-                            lastOptimizedNode = previousNode;
+                            previousNode = currentNode;
+                            currentNode = from;
+                        }
+                        Debug.Assert(Toggle.IsToggled<THasCoord>());
+                        if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
+                        {
+                            self.path.Add(previousCoord);
+                            lastOptimizedCoord = previousCoord;
+                            if (Toggle.IsToggled<THasNode>())
+                            {
+                                lastOptimizedNode = previousNode;
+                                goto withNode;
+                            }
                         }
 
                         if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
@@ -218,230 +213,256 @@ namespace Enderlook.Unity.Pathfinding
                         else
                             goto timedout;
                     }
+                    goto withoutNode;
+                }
 
-                    TCoord start2 = graph.ToPosition(startNode);
-                    if (!(typeof(TCoord).IsValueType ?
-                        EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1])
-                        : coordComparer.Equals(start2, path[path.Count - 1])))
+            withNode:
+                bool hasPrevious = false;
+                while (self.edges.TryGetValue(to, out TNode from))
+                {
+#if DEBUG
+                    if (!self.visited.Add(from))
                     {
-                        previousNode = currentNode;
-                        currentNode = startNode;
-                        if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TNode>)graph) : lineOfSightNode).HasLineOfSight(lastOptimizedNode, currentNode))
-                        {
-                            path.Add(graph.ToPosition(previousNode));
-                            lastOptimizedNode = previousNode;
-                        }
+                        Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
+                        break;
+                    }
+#endif
+                    to = from;
+
+                    hasPrevious = true;
+                    previousNode = currentNode;
+                    currentNode = from;
+                    if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TNode>)graph) : lineOfSightNode).HasLineOfSight(lastOptimizedNode, currentNode))
+                    {
+                        self.path.Add(graph.ToPosition(previousNode));
+                        lastOptimizedNode = previousNode;
                     }
 
-                    if (hasPrevious)
-                        previousCoord = graph.ToPosition(previousNode);
-                    currentCoord = graph.ToPosition(currentNode);
-                    lastOptimizedCoord = graph.ToPosition(lastOptimizedNode);
-                    goto end;
+                    if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
+                        await awaitable;
+                    else
+                        goto timedout;
+                }
 
-                    withoutNode:
-                    start2 = graph.ToPosition(startNode);
-                    if (!(typeof(TCoord).IsValueType ?
-                        EqualityComparer<TCoord>.Default.Equals(start2, path[path.Count - 1])
-                        : coordComparer.Equals(start2, path[path.Count - 1])))
+                TCoord start2 = graph.ToPosition(self.startNode);
+                if (!(typeof(TCoord).IsValueType ?
+                    EqualityComparer<TCoord>.Default.Equals(start2, self.path[self.path.Count - 1])
+                    : coordComparer.Equals(start2, self.path[self.path.Count - 1])))
+                {
+                    previousNode = currentNode;
+                    currentNode = self.startNode;
+                    if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TNode>)graph) : lineOfSightNode).HasLineOfSight(lastOptimizedNode, currentNode))
                     {
-                        previousCoord = currentCoord;
-                        currentCoord = start2;
-                        if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
-                        {
-                            path.Add(previousCoord);
-                            lastOptimizedCoord = previousCoord;
-                        }
+                        self.path.Add(graph.ToPosition(previousNode));
+                        lastOptimizedNode = previousNode;
                     }
+                }
 
-                    end:
-                    if (!(typeof(TCoord).IsValueType ?
-                        EqualityComparer<TCoord>.Default.Equals(startPosition, start2)
-                        : coordComparer.Equals(startPosition, startPosition)))
+                if (hasPrevious)
+                    previousCoord = graph.ToPosition(previousNode);
+                currentCoord = graph.ToPosition(currentNode);
+                lastOptimizedCoord = graph.ToPosition(lastOptimizedNode);
+                goto end;
+
+            withoutNode:
+                start2 = graph.ToPosition(self.startNode);
+                if (!(typeof(TCoord).IsValueType ?
+                    EqualityComparer<TCoord>.Default.Equals(start2, self.path[self.path.Count - 1])
+                    : coordComparer.Equals(start2, self.path[self.path.Count - 1])))
+                {
+                    previousCoord = currentCoord;
+                    currentCoord = start2;
+                    if (!(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
                     {
-                        previousCoord = currentCoord;
-                        currentCoord = startPosition;
-                        if (!Toggle.IsToggled<THasCoord>() || !(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
-                            path.Add(previousCoord);
+                        self.path.Add(previousCoord);
+                        lastOptimizedCoord = previousCoord;
                     }
+                }
 
-                    if (path.Count == 1)
-                        path.Add(endPosition);
+            end:
+                if (!(typeof(TCoord).IsValueType ?
+                    EqualityComparer<TCoord>.Default.Equals(self.startPosition, start2)
+                    : coordComparer.Equals(self.startPosition, self.startPosition)))
+                {
+                    previousCoord = currentCoord;
+                    currentCoord = self.startPosition;
+                    if (!Toggle.IsToggled<THasCoord>() || !(typeof(TGraph).IsValueType ? ((IGraphLineOfSight<TCoord>)graph) : lineOfSightCoord).HasLineOfSight(lastOptimizedCoord, currentCoord))
+                        self.path.Add(previousCoord);
+                }
 
-                    if (requiresSwitch)
-                        await Switch.ToBackground;
+                if (self.path.Count == 1)
+                    self.path.Add(self.endPosition);
 
-                    path.Reverse();
+                if (requiresSwitch)
+                    await Switch.ToBackground;
+
+                self.path.Reverse();
+            }
+            else
+            {
+                if (self.edges.Count == 0)
+                {
+                    self.path.Add(self.startPosition);
+
+                    TCoord start2 = graph.ToPosition(self.startNode);
+
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(self.startPosition, start2)
+                        : coordComparer.Equals(self.startPosition, start2)))
+                        self.path.Add(start2);
+
+                    TCoord end2 = graph.ToPosition(self.endNode);
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(self.endPosition, end2)
+                        : coordComparer.Equals(self.endPosition, end2)))
+                        self.path.Add(end2);
+
+                    self.path.Add(self.endPosition);
                 }
                 else
                 {
-                    if (edges.Count == 0)
-                    {
-                        path.Add(startPosition);
+                    self.path.Add(self.endPosition);
 
-                        TCoord start2 = graph.ToPosition(startNode);
-
-                        if (!(typeof(TCoord).IsValueType ?
-                            EqualityComparer<TCoord>.Default.Equals(startPosition, start2)
-                            : coordComparer.Equals(startPosition, start2)))
-                            path.Add(start2);
-
-                        TCoord end2 = graph.ToPosition(endNode);
-                        if (!(typeof(TCoord).IsValueType ?
-                            EqualityComparer<TCoord>.Default.Equals(endPosition, end2)
-                            : coordComparer.Equals(endPosition, end2)))
-                            path.Add(end2);
-
-                        path.Add(endPosition);
-                    }
-                    else
-                    {
-                        path.Add(endPosition);
-
-                        TNode to = endNode;
-                        TCoord end2 = graph.ToPosition(to);
-                        if (!(typeof(TCoord).IsValueType ?
-                            EqualityComparer<TCoord>.Default.Equals(endPosition, end2)
-                            : coordComparer.Equals(endPosition, end2)))
-                            path.Add(end2);
+                    TNode to = self.endNode;
+                    TCoord end2 = graph.ToPosition(to);
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(self.endPosition, end2)
+                        : coordComparer.Equals(self.endPosition, end2)))
+                        self.path.Add(end2);
 
 #if DEBUG
-                        visited.Clear();
-                        visited.Add(to);
+                    self.visited.Clear();
+                    self.visited.Add(to);
 #endif
 
-                        while (edges.TryGetValue(to, out TNode from))
+                    while (self.edges.TryGetValue(to, out TNode from))
+                    {
+#if DEBUG
+                        if (!self.visited.Add(from))
                         {
-#if DEBUG
-                            if (!visited.Add(from))
-                            {
-                                Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
-                                break;
-                            }
-#endif
-                            to = from;
-                            path.Add(graph.ToPosition(from));
-
-                            if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
-                                await awaitable;
-                            else
-                                goto timedout;
+                            Debug.LogError("Assertion failed. The calculated path has an endless loop. This assertion is only performed when flag DEBUG is enabled.");
+                            break;
                         }
+#endif
+                        to = from;
+                        self.path.Add(graph.ToPosition(from));
 
-                        TCoord start2 = graph.ToPosition(startNode);
-                        if (!(typeof(TCoord).IsValueType ?
-                            EqualityComparer<TCoord>.Default.Equals(path[path.Count - 1], start2)
-                            : coordComparer.Equals(path[path.Count - 1], start2)))
-                            path.Add(start2);
-
-                        if (!(typeof(TCoord).IsValueType ?
-                            EqualityComparer<TCoord>.Default.Equals(startPosition, start2)
-                            : coordComparer.Equals(startPosition, start2)))
-                            path.Add(startPosition);
-
-                        path.Reverse();
+                        if (watchdog.CanContinue(out TWatchdogAwaitable awaitable))
+                            await awaitable;
+                        else
+                            goto timedout;
                     }
+
+                    TCoord start2 = graph.ToPosition(self.startNode);
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(self.path[self.path.Count - 1], start2)
+                        : coordComparer.Equals(self.path[self.path.Count - 1], start2)))
+                        self.path.Add(start2);
+
+                    if (!(typeof(TCoord).IsValueType ?
+                        EqualityComparer<TCoord>.Default.Equals(self.startPosition, start2)
+                        : coordComparer.Equals(self.startPosition, start2)))
+                        self.path.Add(self.startPosition);
+
+                    self.path.Reverse();
                 }
-
-                // Finalize
-                status = Status.Found;
-                return;
-
-                timedout:
-                status = Status.Timedout;
             }
+
+            // Finalize
+            self.status = Status.Found;
+            return;
+
+        timedout:
+            self.status = Status.Timedout;
         }
 
         /// <inheritdoc cref="IPathFeeder{TInfo}.GetPathInfo"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ReadOnlySpan<TCoord> IPathFeeder<TCoord>.GetPathInfo()
         {
-            if ((status & Status.Finalized) == 0) ThrowInvalidOperationException_IsNotFinalized();
-            return path.AsSpan();
+            if ((self.status & Status.Finalized) == 0) ThrowInvalidOperationException_IsNotFinalized();
+            return self.path.AsSpan();
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.InitializeBuilderSession()"/>
         void IPathBuilder<TNode, TCoord>.InitializeBuilderSession()
         {
-            if ((status & Status.Initialized) != 0) ThrowInvalidOperationException_IsAlreadyInitialized();
+            if ((self.status & Status.Initialized) != 0) ThrowInvalidOperationException_IsAlreadyInitialized();
 
-            status = Status.Initialized;
+            self.status = Status.Initialized;
 
-            visited.Clear();
-            toVisit.Clear();
-            costs.Clear();
-            edges.Clear();
+            self.visited.Clear();
+            self.toVisit.Clear();
+            self.costs.Clear();
+            self.edges.Clear();
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetCost(TNode, float)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetCost(TNode to, float cost)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            costs[to] = cost;
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            self.costs[to] = cost;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetEdge(TNode, TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetEdge(TNode from, TNode to)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
+            Debug.Assert((self.status & Status.Initialized) != 0);
             Debug.Assert(!EqualityComparer<TNode>.Default.Equals(from, to));
-            edges[to] = from;
+            self.edges[to] = from;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetEnd(TCoord, TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetEnd(TCoord endPosition, TNode endNode)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            this.endNode = endNode;
-            this.endPosition = endPosition;
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            self.endNode = endNode;
+            self.endPosition = endPosition;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.SetStart(TCoord, TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IPathBuilder<TNode, TCoord>.SetStart(TCoord startPosition, TNode startNode)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            this.startNode = startNode;
-            this.startPosition = startPosition;
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            self.startNode = startNode;
+            self.startPosition = startPosition;
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.TryDequeueToVisit(out TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.TryDequeueToVisit(out TNode node)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            return toVisit.TryDequeue(out node, out _);
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            return self.toVisit.TryDequeue(out node, out _);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.TryGetCost(TNode, out float)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.TryGetCost(TNode to, out float cost)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            return costs.TryGetValue(to, out cost);
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            return self.costs.TryGetValue(to, out cost);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.TryGetEdge(TNode, out TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.TryGetEdge(TNode to, out TNode from)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            return edges.TryGetValue(to, out from);
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            return self.edges.TryGetValue(to, out from);
         }
 
         /// <inheritdoc cref="IPathBuilder{TNode, TCoord}.VisitIfWasNotVisited(TNode)"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         bool IPathBuilder<TNode, TCoord>.VisitIfWasNotVisited(TNode node)
         {
-            Debug.Assert((status & Status.Initialized) != 0);
-            return visited.Add(node);
+            Debug.Assert((self.status & Status.Initialized) != 0);
+            return self.visited.Add(node);
         }
-
-        /// <inheritdoc cref="IDisposable.Dispose"/>
-        public void Dispose() => path.Dispose();
 
         [Flags]
         private enum Status : byte
