@@ -1,11 +1,8 @@
-﻿using Enderlook.Pools;
-using Enderlook.Unity.Pathfinding.Utils;
+﻿using Enderlook.Unity.Pathfinding.Utils;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-using Enderlook.Threading;
-using System;
 using Enderlook.Unity.Threading;
 using UnityEngine;
 
@@ -17,10 +14,10 @@ namespace Enderlook.Unity.Pathfinding
     internal static class PathCalculator
     {
         public static ValueTask CalculatePath<TCoord, TNode, TNodes, TGraph, TBuilder, TPath, TSearcher, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(
-            TGraph graph, TCoord from, TPath path, TSearcher searcher, TWatchdog watchdog)
+            TGraph graph, TBuilder builder, TCoord from, TPath path, TSearcher searcher, TWatchdog watchdog)
             where TNodes : IEnumerator<TNode>
             where TGraph : IGraphIntrinsic<TNode, TNodes>, IGraphLocation<TNode, TCoord>/*, IGraphLineOfSight<TNode>, IGraphLineOfSight<TCoord>*/
-            where TBuilder : class, IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>, new()
+            where TBuilder : IPathBuilder<TNode, TCoord>, IPathFeeder<TCoord>
             where TPath : IPathFeedable<TCoord>, IEnumerable<TCoord>
             where TSearcher : ISearcherSatisfy<TNode>/*, ISearcherHeuristic<TNode>, ISearcherPosition<TCoord> */
             where TWatchdog : IWatchdog<TWatchdogAwaitable, TWatchdogAwaiter>, IThreadingPreference<TThreadingAwaitable, TThreadingAwaiter>
@@ -80,7 +77,6 @@ namespace Enderlook.Unity.Pathfinding
                 // the first and last positions which aren't taken into account for any-angle since they are not
                 // bound to any node.
 
-                TBuilder builder = ObjectPool<TBuilder>.Shared.Rent();
                 builder.InitializeBuilderSession();
 
                 TNode endNode;
@@ -243,7 +239,6 @@ namespace Enderlook.Unity.Pathfinding
                     await Switch.ToBackground;
                 await builder.FinalizeBuilderSession<TGraph, TWatchdog, TWatchdogAwaitable, TWatchdogAwaiter, TThreadingAwaitable, TThreadingAwaiter>(graph, result, watchdog);
                 builder.FeedPathTo<TBuilder, TPath, TCoord>(path);
-                ObjectPool<TBuilder>.Shared.Return(builder);
             }
         }
     }

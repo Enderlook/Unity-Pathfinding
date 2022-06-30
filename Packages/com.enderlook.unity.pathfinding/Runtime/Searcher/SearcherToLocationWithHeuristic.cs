@@ -29,7 +29,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         public static bool TryFrom<T>(T graph, TCoord destination, out SearcherToLocationWithHeuristic<TGraph, TCoord, TNode> searcher)
-            where T : class, TGraph, IGraphLocation<TNode, TCoord>
+            where T : TGraph, IGraphLocation<TNode, TCoord>
         {
             if (graph.TryFindNodeTo(destination, out TNode node))
             {

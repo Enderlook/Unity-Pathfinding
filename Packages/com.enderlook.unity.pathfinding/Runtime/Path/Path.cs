@@ -17,7 +17,7 @@ namespace Enderlook.Unity.Pathfinding
     /// Represents a path.
     /// </summary>
     /// <typeparam name="TInfo">Node or coordinate type.</typeparam>
-    public sealed class Path<TInfo> : IPathFeedable<TInfo>, IEnumerable<TInfo>, IDisposable
+    public sealed class Path<TInfo> : IEnumerable<TInfo>, IDisposable
     {
         private RawPooledList<TInfo> list = RawPooledList<TInfo>.Create();
         private int version;
@@ -122,24 +122,6 @@ namespace Enderlook.Unity.Pathfinding
             return timeSlicer;
         }
 
-        /// <inheritdoc cref="IPathFeedable{TInfo}.Feed{TFeeder}(TFeeder)"/>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IPathFeedable<TInfo>.Feed<TFeeder>(TFeeder feeder)
-        {
-            Debug.Assert(!timeSlicer.IsCompleted);
-            version++;
-            list.Clear();
-            // We don't check capacity for optimization because that is already done in AddRange.
-            list.AddRange(feeder.GetPathInfo());
-            if (feeder.HasPath)
-                status = Status.Found;
-            else if (feeder.HasTimedout)
-                status = Status.Timedout;
-            else
-                status = Status.None;
-            timeSlicer.MarkAsCompleted();
-        }
-
         /// <summary>
         /// Manually set that path was not found.
         /// </summary>
@@ -237,6 +219,40 @@ namespace Enderlook.Unity.Pathfinding
 
             private static void ThrowInvalidOperationException_PathWasModified()
                 => throw new InvalidOperationException("Path was modified; enumeration operation may not execute.");
+        }
+
+        internal readonly struct Feedable : IPathFeedable<TInfo>, IEnumerable<TInfo>
+        {
+            // Value type wrapper forces JIT to specialize code in generics
+            // This replaces interface calls with direct inlineable calls.
+            private readonly Path<TInfo> self;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Feedable(Path<TInfo> self) => this.self = self;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public IEnumerator<TInfo> GetEnumerator() => self.GetEnumerator();
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            IEnumerator IEnumerable.GetEnumerator() => self.GetEnumerator();
+
+            /// <inheritdoc cref="IPathFeedable{TInfo}.Feed{TFeeder}(TFeeder)"/>
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            void IPathFeedable<TInfo>.Feed<TFeeder>(TFeeder feeder)
+            {
+                Debug.Assert(!self.timeSlicer.IsCompleted);
+                self.version++;
+                self.list.Clear();
+                // We don't check capacity for optimization because that is already done in AddRange.
+                self.list.AddRange(feeder.GetPathInfo());
+                if (feeder.HasPath)
+                    self.status = Status.Found;
+                else if (feeder.HasTimedout)
+                    self.status = Status.Timedout;
+                else
+                    self.status = Status.None;
+                self.timeSlicer.MarkAsCompleted();
+            }
         }
 
         internal void SendToPool()
