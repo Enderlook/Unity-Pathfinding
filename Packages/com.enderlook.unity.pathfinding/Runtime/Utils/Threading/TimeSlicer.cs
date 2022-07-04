@@ -416,7 +416,7 @@ namespace Enderlook.Unity.Pathfinding.Utils
                 tasksToCompleteCollection.Add(this);
             else
             {
-                // If not we must check if we are in RunSynchronously emthod.
+                // If not we must check if we are in RunSynchronously method.
                 if (float.IsNaN(oldExecutionTimeSlice))
                 {
                     // Since we are not inside RunSynchronously, we need to queue the task completion in the main thread.
