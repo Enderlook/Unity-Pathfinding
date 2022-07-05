@@ -152,26 +152,41 @@ namespace Enderlook.Unity.Pathfinding.Generation
              *  }
              */
 
-#if DEBUG
-            Debug.Assert(voxels.Length > index + iback - z - 1
-                && index + iback - z - 1 == parameters.GetIndex(x, y, iback - 1));
-#endif
+            Debug.Assert(index + iback - z < voxels.Length
+                && index + iback - z + sizeof(int) / sizeof(bool) < destinations.Length);
+
+            int unroll = Toggle.IsToggled<TInterlock>() ? 4 : 16;
+            // TODO: The following commented codes gives error outside the editor (possible runtime bug?). Use it when that get fixed.
             ref VoxelInfo start = ref voxels[index];
             ref VoxelInfo voxel = ref start;
             ref bool destination = ref destinations[index];
-            int unroll = Toggle.IsToggled<TInterlock>() ? 4 : 16;
-            ref VoxelInfo end = ref Unsafe.Add(ref start, iback - z - unroll);
+            //ref VoxelInfo end = ref Unsafe.Add(ref voxel, iback - z - unroll);
 #if DEBUG
             int i = index;
+            int i_ = 0;
 #endif
+            int end = index + iback - z - unroll;
 
-            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            while (index < end)
+            //while (Unsafe.IsAddressLessThan(ref voxel, ref end_))
             {
+#if DEBUG
+                Debug.Assert(index == parameters.GetIndex(x, y, z + i_)
+                    && index + 1 == parameters.GetIndex(x, y, z + i_ + 1)
+                    && index +2 == parameters.GetIndex(x, y, z + i_ + 2)
+                    && index + 3== parameters.GetIndex(x, y, z + i_ + 3));
+#endif
                 voxel.Fill = true;
                 Unsafe.Add(ref voxel, 1).Fill = true;
                 Unsafe.Add(ref voxel, 2).Fill = true;
                 Unsafe.Add(ref voxel, 3).Fill = true;
-                if (!Toggle.IsToggled<TInterlock>())
+                if (Toggle.IsToggled<TInterlock>())
+                    // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
+                    // During the construction of this array we already reserved an additional space at the end to prevent
+                    // modifying undefined memory in case of setting the last used element of the voxel.
+                    // 0b00000001_00000001_00000001_00000001 is equal to is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, true, true, true }[0]);
+                    InterlockedOr(ref Unsafe.As<bool, int>(ref destination), 0b00000001_00000001_00000001_00000001);
+                else
                 {
                     Unsafe.Add(ref voxel, 4).Fill = true;
                     Unsafe.Add(ref voxel, 5).Fill = true;
@@ -185,64 +200,68 @@ namespace Enderlook.Unity.Pathfinding.Generation
                     Unsafe.Add(ref voxel, 13).Fill = true;
                     Unsafe.Add(ref voxel, 14).Fill = true;
                     Unsafe.Add(ref voxel, 15).Fill = true;
-
-                    unsafe {
-                        new Span<bool>(Unsafe.AsPointer(ref destination), unroll).Fill(true);
-                    }
+                    // 0b00000001 is equal to is equal to Unsafe.As<bool, int>(ref Unsafe.AsRef(true));
+                    Unsafe.InitBlock(ref Unsafe.As<bool, byte>(ref destination), 0b00000001, sizeof(bool) * (uint)unroll);
                 }
-                else
-                    // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
-                    // During the construction of this array we already reserved an additional space at the end to prevent
-                    // modifying undefined memory in case of setting the last used element of the voxel.
-                    // 0b00000001_00000001_00000001_00000001 is equal to is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, true, true, true }[0]);
-                    InterlockedOr(ref Unsafe.As<bool, int>(ref destination), 0b00000001_00000001_00000001_00000001);
 
-                voxel = ref Unsafe.Add(ref voxel, unroll);
-                destination = ref Unsafe.Add(ref destination, unroll);
+                index += unroll;
 #if DEBUG
                 i += unroll;
+                i_ += unroll;
 #endif
 
                 if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
                 {
                     int offset = MathHelper.IndexesTo(ref start, ref voxel);
-                    index += offset;
+                    //index += offset;
                     z += offset;
 #if DEBUG
                     Debug.Assert(i == index);
 #endif
                     return true;
                 }
+
+                voxel = ref Unsafe.Add(ref voxel, unroll);
+                destination = ref Unsafe.Add(ref destination, unroll);
             }
 
-            end = ref Unsafe.Add(ref end, unroll);
-            while (Unsafe.IsAddressLessThan(ref voxel, ref end))
+            //end = ref Unsafe.Add(ref end, unroll);
+            end += unroll;
+            while (index < end)
             {
+#if DEBUG
+                Debug.Assert(index == parameters.GetIndex(x, y, z + i_));
+#endif
                 voxel.Fill = true;
-                voxel = ref Unsafe.Add(ref voxel, 1);
                 if (Toggle.IsToggled<TInterlock>())
                     // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.
                     // During the construction of this array we already reserved an additional space at the end to prevent
                     // modifying undefined memory in case of setting the last used element of the voxel.
                     // 0b00000000_00000000_00000000_00000001 is equal to Unsafe.As<bool, int>(ref stackalloc bool[sizeof(int) / sizeof(bool)] { true, false, false, false }[0]);
-                    InterlockedOr(ref Unsafe.As<bool, int>(ref destination), 0b00000000_00000000_00000000_00000001);
+                    InterlockedOr(ref Unsafe.As<bool, int>(ref destination), 1);
                 else
                     destination = true;
-                destination = ref Unsafe.Add(ref destination, 1);
+
+                index++;
 #if DEBUG
                 i++;
+                i_++;
 #endif
-            }
 
-            {
-                int offset = MathHelper.IndexesTo(ref start, ref voxel);
-                index += offset;
-                z += offset;
+                if (Toggle.IsToggled<TYield>() && timeSlicer.MustYield())
+                {
+                    int offset = MathHelper.IndexesTo(ref start, ref voxel);
+                    //index += offset;
+                    z += offset;
 #if DEBUG
-                Debug.Assert(i == index && z == iback);
+                    Debug.Assert(i == index);
 #endif
-            }
+                    return true;
+                }
 
+                voxel = ref Unsafe.Add(ref voxel, 1);
+                destination = ref Unsafe.Add(ref destination, 1);
+            }
             return false;
         }
 
