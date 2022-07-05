@@ -20,7 +20,6 @@ namespace Enderlook.Unity.Pathfinding.Generation
             ArraySlice<bool> destination,
             MeshInformation content,
             ArraySlice<VoxelInfo> voxels)
-
         {
             Debug.Assert(voxels.Length >= parameters.VoxelsCount);
 
