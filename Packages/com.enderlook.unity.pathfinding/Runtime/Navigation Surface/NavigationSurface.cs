@@ -166,7 +166,7 @@ namespace Enderlook.Unity.Pathfinding
 #endif
             )
         {
-            NavigationGenerationOptions options = NavigationGenerationOptions.Rent();
+            options = NavigationGenerationOptions.Rent();
 
             TimeSlicer timeSlicer = options.TimeSlicer;
 
