@@ -145,7 +145,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
              *  {
              *      Debug.Assert(index == parameters.GetIndex(x, y, z));
              *      voxels[index].Fill = true;
-             *      if (Togle.IsToggled<TInterlock>())
+             *      if (Toggle.IsToggled<TInterlock>())
              *          InterlockedOr(ref Unsafe.As<bool, int>(ref destinations[index]), 1);
              *      else
              *          destinations[index] = true;
