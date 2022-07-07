@@ -427,7 +427,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
             }
 
-            end = ref Unsafe.Add(ref start, unroll);
+            end = ref Unsafe.Add(ref end, unroll);
             while (Unsafe.IsAddressLessThan(ref voxel, ref end))
             {
                 if (!voxel.IsBackFace) break;
@@ -806,7 +806,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 }
             }
 
-            end = ref Unsafe.Add(ref start, unroll);
+            end = ref Unsafe.Add(ref end, unroll);
             while (Unsafe.IsAddressLessThan(ref voxel, ref end))
             {
                 if (!voxel.IsFrontFace) break;
@@ -1032,7 +1032,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
             private void Process(int index)
             {
                 VoxelizationParameters parameters = options.VoxelizationParameters;
-                ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(parameters.VoxelsCount + (sizeof(int) / sizeof(bool)), true);
+                ArraySlice<VoxelInfo> voxelsInfo = new ArraySlice<VoxelInfo>(parameters.VoxelsCount, true);
 
                 MeshInformation content = list[index];
                 ValueTask task = VoxelizeMesh<Toggle.No, Toggle.Yes>(

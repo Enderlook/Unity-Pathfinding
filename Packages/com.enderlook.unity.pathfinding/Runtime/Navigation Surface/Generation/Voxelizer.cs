@@ -134,7 +134,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 options.PushTask(informationsTypesCount, "Voxelizing");
                 {
                     int voxelsCount = options.VoxelizationParameters.VoxelsCount;
-                    voxels = new ArraySlice<bool>(voxelsCount, true);
+                    // (sizeof(int) / sizeof(bool)) used to avoid index out of range when accessing the last element of the array while is reinterpreted as int[] for interlocked usage.
+                    voxels = new ArraySlice<bool>(voxelsCount + (sizeof(int) / sizeof(bool)), true);
 
                     if (meshesCount > 0)
                     {
