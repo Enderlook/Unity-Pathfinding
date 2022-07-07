@@ -161,6 +161,8 @@ namespace Game
             }
         }
 
+        public void Close() => Application.Quit();
+
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
