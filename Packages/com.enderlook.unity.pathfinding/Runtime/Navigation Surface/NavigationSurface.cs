@@ -1,5 +1,4 @@
 ﻿using Enderlook.Collections.Spatial;
-using Enderlook.Pools;
 using Enderlook.Threading;
 using Enderlook.Unity.Pathfinding.Generation;
 using Enderlook.Unity.Pathfinding.Utils;
@@ -55,8 +54,8 @@ namespace Enderlook.Unity.Pathfinding
         private int navigationLock;
         private CompactOpenHeightField compactOpenHeightField;
         private KDTreeVector3<int> tree;
-#if UNITY_EDITOR
         private int[] spanToColumn;
+#if UNITY_EDITOR
         private bool hasNavigation;
         internal float Progress() => inProgress?.Progress ?? 0;
 #endif
@@ -74,7 +73,7 @@ namespace Enderlook.Unity.Pathfinding
         private static readonly Func<(NavigationSurface Instance, NavigationGenerationOptions Options), Task> buildNavigationFunc = async e =>
         {
             TimeSlicer timeSlicer = e.Options.TimeSlicer;
-            ValueTask task = e.Instance.BuildNavigationInner();
+            ValueTask task = e.Instance.BuildNavigationInner(e.Options);
             if (timeSlicer.ExecutionTimeSlice == 0)
                 timeSlicer.RunSynchronously();
             await task;
@@ -167,7 +166,7 @@ namespace Enderlook.Unity.Pathfinding
 #endif
             )
         {
-            NavigationGenerationOptions options = NavigationGenerationOptions.Rent();
+            options = NavigationGenerationOptions.Rent();
 
             TimeSlicer timeSlicer = options.TimeSlicer;
 
@@ -183,9 +182,9 @@ namespace Enderlook.Unity.Pathfinding
 
             if (timeSlicer.PreferMultithreading)
             {
-                Task<Task> task = Task.Factory.StartNew(buildNavigationFunc, (this, options,
+                Task<Task> task = Task.Factory.StartNew(buildNavigationFunc, (this, options
 #if UNITY_EDITOR
-                    isEditor
+                    , isEditor
 #endif
                 ));
 
@@ -193,9 +192,9 @@ namespace Enderlook.Unity.Pathfinding
             }
             else
             {
-                ValueTask task = BuildNavigationInner(options,
+                ValueTask task = BuildNavigationInner(options
 #if UNITY_EDITOR
-                    isEditor
+                    , isEditor
 #endif
                 );
 
@@ -213,9 +212,9 @@ namespace Enderlook.Unity.Pathfinding
             return timeSlicer.AsTask();
         }
 
-        private async ValueTask BuildNavigationInner(NavigationGenerationOptions options,
+        private async ValueTask BuildNavigationInner(NavigationGenerationOptions options
 #if UNITY_EDITOR
-            bool isEditor
+            , bool isEditor
 #endif
             )
         {
