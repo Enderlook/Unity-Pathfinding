@@ -621,7 +621,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #endif
             }
 
-            end:
+        end:
             {
                 int offset = MathHelper.IndexesTo(ref start, ref voxel);
                 index += offset;
@@ -766,7 +766,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #if DEBUG
                 Debug.Assert(f < parameters.Depth);
                 i++;
-                
+
                 f++;
 #endif
 
@@ -818,8 +818,8 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #endif
             }
 
-            end:
-            { 
+        end:
+            {
                 int offset = MathHelper.IndexesTo(ref start, ref voxel);
                 index += offset;
                 ifront += offset;
@@ -954,7 +954,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
 #endif
                 voxel = ref Unsafe.Add(ref voxel, 1);
                 if (!Toggle.IsToggled<TInterlock>())
-                 destination = ref Unsafe.Add(ref destination, 1);
+                    destination = ref Unsafe.Add(ref destination, 1);
                 else
                 {
                     // HACK: By reinterpreting the bool[] into int[] we can use interlocked operations to set the flags.

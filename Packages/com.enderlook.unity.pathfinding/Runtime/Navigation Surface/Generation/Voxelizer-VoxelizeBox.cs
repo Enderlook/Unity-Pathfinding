@@ -192,7 +192,7 @@ namespace Enderlook.Unity.Pathfinding.Generation
                 return true;
             }
         }
-                
+
         private sealed class VoxelizeBoxes_MultiThread
         {
             private readonly Action<int> action;
