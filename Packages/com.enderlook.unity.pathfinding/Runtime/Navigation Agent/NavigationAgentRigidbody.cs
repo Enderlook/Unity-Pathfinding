@@ -64,7 +64,7 @@ namespace Enderlook.Unity.Pathfinding
         }
 
         /// <summary>
-        /// Determines if the agent has control over the rigidbody's poition and velocity.
+        /// Determines if the agent has control over the rigidbody's position and velocity.
         /// </summary>
         public bool UpdateMovement { get; set; } = true;
 
