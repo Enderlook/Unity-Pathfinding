@@ -2,6 +2,7 @@
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -14,8 +15,8 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Rigidbody"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationAgentRigidbody : MonoBehaviour
     {
-        [SerializeField, Tooltip("Initial steering behaviours that determines the movement of this agent.")]
-        private SteeringBehaviour[] initialSteeringBehaviours;
+        [SerializeField, Tooltip("Steering behaviours that determines the movement of this agent.")]
+        private SteeringBehaviour[] steeringBehaviours;
 
         [Header("Movement Configuration")]
         [SerializeField, Min(0), Tooltip("Determines the maximum speed of the agent in m/s.")]
@@ -83,7 +84,7 @@ namespace Enderlook.Unity.Pathfinding
         public bool RotateEvenWhenBraking { get; set; }
 
         private new Rigidbody rigidbody;
-        private (ISteeringBehaviour Behaviour, float Strength)[] steeringBehaviours;
+        private (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours;
         private int steeringBehavioursCount;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -91,15 +92,17 @@ namespace Enderlook.Unity.Pathfinding
         {
             rigidbody = GetComponent<Rigidbody>();
 
-            SteeringBehaviour[] initialSteeringBehaviours = this.initialSteeringBehaviours;
-            int count = steeringBehavioursCount = initialSteeringBehaviours.Length;
-            (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours = new (ISteeringBehaviour Behaviour, float Strength)[count];
-            for (int i = 0; i < initialSteeringBehaviours.Length; i++)
+            SteeringBehaviour[] steeringBehaviours = this.steeringBehaviours;
+            int count = steeringBehavioursCount = steeringBehaviours.Length;
+            (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours = new (ISteeringBehaviour Behaviour, float Strength)[count];
+            for (int i = 0; i < steeringBehaviours.Length; i++)
             {
-                SteeringBehaviour steeringBehaviour = initialSteeringBehaviours[i];
+                SteeringBehaviour steeringBehaviour = steeringBehaviours[i];
                 array[i] = (steeringBehaviour.Behaviour, steeringBehaviour.Strength);
             }
-            this.initialSteeringBehaviours = null;
+#if !UNITY_EDITOR
+            this.steeringBehaviours = null;
+#endif
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
@@ -113,7 +116,7 @@ namespace Enderlook.Unity.Pathfinding
             if (!Brake || RotateEvenWhenBraking)
             {
                 int count = steeringBehavioursCount;
-                (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours;
+                (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
                 if (unchecked((uint)count) > (uint)array.Length)
                 {
                     Debug.Assert(false, "Index out of range.");
@@ -189,7 +192,7 @@ namespace Enderlook.Unity.Pathfinding
             if (steeringBehaviour == null) ThrowHelper.ThrowArgumentNullException_SteeringBehaviour();
 
             int count = steeringBehavioursCount;
-            (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours;
+            (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
             if (unchecked((uint)count) > (uint)array.Length)
             {
                 Debug.Assert(false, "Index out of range.");
@@ -230,19 +233,64 @@ namespace Enderlook.Unity.Pathfinding
         private void AddWithResize(ISteeringBehaviour steeringBehaviour, float strength)
         {
             int count = steeringBehavioursCount;
-            (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours;
+            (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
             Array.Resize(ref array, array.Length * 2);
-            steeringBehaviours = array;
+            allSteeringBehaviours = array;
             steeringBehavioursCount = count + 1;
             array[count] = (steeringBehaviour, strength);
         }
 
 #if UNITY_EDITOR
+        internal void ToInspector()
+        {
+            if (allSteeringBehaviours is null)
+                return;
+            SteeringBehaviour[] tmp = ArrayPool<SteeringBehaviour>.Shared.Rent(allSteeringBehaviours.Length);
+            int count = 0;
+            for (int i = 0; i < allSteeringBehaviours.Length; i++)
+            {
+                (ISteeringBehaviour Behaviour, float Strength) tuple = allSteeringBehaviours[i];
+                if (tuple.Behaviour is MonoBehaviour monoBehaviour && monoBehaviour != null)
+                    tmp[count++] = new SteeringBehaviour(monoBehaviour, tuple.Strength);
+            }
+            if (steeringBehaviours?.Length == count)
+                Array.Copy(tmp, steeringBehaviours, count);
+            else
+                steeringBehaviours = tmp.AsSpan(0, count).ToArray();
+        }
+
+        internal void FromInspector()
+        {
+            if (allSteeringBehaviours is null)
+                return;
+            (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
+            for (int i = 0; i < array.Length; i++)
+            {
+                var tuple = array[i];
+                if (!(tuple.Behaviour is MonoBehaviour))
+                    continue;
+                for (int j = 0; j < steeringBehaviours.Length; j++)
+                {
+                    var item = steeringBehaviours[j];
+                    if (tuple.Behaviour == item.Behaviour)
+                    {
+                        array[i].Strength = item.Strength;
+                        goto next;
+                    }
+                }
+                int count = --steeringBehavioursCount;
+                if (i < count)
+                    Array.Copy(array, i + 1, array, i, count - i);
+                array[count].Behaviour = null;
+                next:;
+            }
+        }
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDrawGizmosSelected()
         {
             Vector3 direction = Vector3.zero;
-            if (initialSteeringBehaviours is SteeringBehaviour[] behaviours_)
+            if (steeringBehaviours is SteeringBehaviour[] behaviours_)
             {
                 foreach (SteeringBehaviour behaviour in behaviours_)
                 {
@@ -253,7 +301,7 @@ namespace Enderlook.Unity.Pathfinding
             else
             {
                 int count = steeringBehavioursCount;
-                (ISteeringBehaviour Behaviour, float Strength)[] array = steeringBehaviours;
+                (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
                 if (unchecked((uint)count) > (uint)array.Length)
                 {
                     Debug.Assert(false, "Index out of range.");

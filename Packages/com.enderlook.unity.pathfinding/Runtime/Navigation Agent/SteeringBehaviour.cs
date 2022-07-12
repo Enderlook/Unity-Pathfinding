@@ -29,5 +29,12 @@ namespace Enderlook.Unity.Pathfinding
             get => strength;
             set => strength = value;
         }
+
+        public SteeringBehaviour(MonoBehaviour behaviour, float strength)
+        {
+            Debug.Assert(behaviour == null || behaviour is ISteeringBehaviour);
+            this.behaviour = behaviour;
+            this.strength = strength;
+        }
     }
 }
