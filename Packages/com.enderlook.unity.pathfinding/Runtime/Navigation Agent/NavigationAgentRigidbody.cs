@@ -246,7 +246,8 @@ namespace Enderlook.Unity.Pathfinding
             (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours = this.allSteeringBehaviours;
             if (allSteeringBehaviours is null)
                 return;
-            SteeringBehaviour[] tmp = ArrayPool<SteeringBehaviour>.Shared.Rent(allSteeringBehaviours.Length);
+            ArrayPool<SteeringBehaviour> pool = ArrayPool<SteeringBehaviour>.Shared;
+            SteeringBehaviour[] tmp = pool.Rent(allSteeringBehaviours.Length);
             int count = 0;
             for (int i = 0; i < allSteeringBehaviours.Length; i++)
             {
@@ -259,6 +260,8 @@ namespace Enderlook.Unity.Pathfinding
                 Array.Copy(tmp, steeringBehaviours, count);
             else
                 this.steeringBehaviours = tmp.AsSpan(0, count).ToArray();
+            Array.Clear(tmp, 0, count);
+            pool.Return(tmp);
         }
 
         internal void FromInspector()
