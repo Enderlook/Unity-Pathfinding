@@ -257,7 +257,7 @@ namespace Game
         {
             Brain = brainFactory.Create(this);
 
-            enemyAvoidance.Radius = escapeRadius;
+            enemyAvoidance.AvoidanceRadius = escapeRadius;
             enemyAvoidance.PredictionRadius = escapeRadius;
         }
 

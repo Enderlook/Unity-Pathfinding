@@ -42,7 +42,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   steeringBehaviours:
   - behaviour: {fileID: 4655179846268889483}
-    strength: 3
+    strength: 0.8
   - behaviour: {fileID: 4277329892453450029}
     strength: 1
   linealSpeed: 5
@@ -80,7 +80,8 @@ MonoBehaviour:
   layers:
     serializedVersion: 2
     m_Bits: 512
-  radius: 1.3
+  agentRadius: 0.3
+  avoidanceRadius: 1
   predictionTime: 1
   predictionRadius: 1
   predictionStrength: 1
@@ -102,7 +103,8 @@ MonoBehaviour:
   layers:
     serializedVersion: 2
     m_Bits: 0
-  radius: 0
+  agentRadius: 0.3
+  avoidanceRadius: 0
   predictionTime: 1
   predictionRadius: 0
   predictionStrength: 0.35
