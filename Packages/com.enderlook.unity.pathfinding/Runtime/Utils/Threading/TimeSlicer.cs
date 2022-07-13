@@ -400,7 +400,8 @@ namespace Enderlook.Unity.Pathfinding.Utils
         /// </summary>
         public void MarkAsCompleted()
         {
-            Debug.Assert(lifeCycle == LifeCycle.TaskSetted || lifeCycle == LifeCycle.CanNotContinue);
+            // task can be default if slicer run synchronously without yield.
+            Debug.Assert(lifeCycle == LifeCycle.TaskSetted || lifeCycle == LifeCycle.CanNotContinue || task == default);
             Debug.Assert(yieldContinuation is null);
 
             RawPooledList<TimeSlicer> children;

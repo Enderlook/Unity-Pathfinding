@@ -129,7 +129,10 @@ namespace Enderlook.Unity.Pathfinding
             TimeSlicer timeSlicer = path.Start();
             timeSlicer.SetParent((options ?? inProgress).TimeSlicer);
             timeSlicer.ExecutionTimeSlice = synchronous ? 0 : pathfindingExecutionTimeSlice;
-            timeSlicer.SetTask(Work());
+
+            ValueTask task = Work();
+            if (!path.IsCompleted)
+                timeSlicer.SetTask(task);
 
             if (synchronous)
             {
