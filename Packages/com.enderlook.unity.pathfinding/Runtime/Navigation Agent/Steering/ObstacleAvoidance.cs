@@ -169,10 +169,11 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
 #endif
 
-            int amount = Physics.OverlapSphereNonAlloc(currentPosition, overlapRadius, colliders, Layers);
+            LayerMask layers = this.layers;
+            int amount = Physics.OverlapSphereNonAlloc(currentPosition, overlapRadius, colliders, layers);
             if (amount == colliders.Length)
             {
-                colliders = Physics.OverlapSphere(currentPosition, overlapRadius, Layers);
+                colliders = Physics.OverlapSphere(currentPosition, overlapRadius, layers);
                 amount = colliders.Length;
                 Array.Resize(ref colliders, amount + 1);
             }
@@ -207,10 +208,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
 #endif
 
+            float directionCheckDistance = this.directionCheckDistance;
             if (directionCheckDistance > 0)
             {
-                float directionCheckDistance = DirectionCheckDistance;
-
 #if UNITY_EDITOR
                 if (Toggle.IsToggled<TGizmos>())
                 {
@@ -219,8 +219,8 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 }
 #endif
 
-                if (Physics.Raycast(currentPosition, result, out RaycastHit hitInfo, directionCheckDistance, Layers))
-                    return AvoidImminentCollision(hitInfo.distance, directionCheckDistance);
+                if (Physics.Raycast(currentPosition, result, out RaycastHit hitInfo, directionCheckDistance, layers))
+                    return AvoidImminentCollision(hitInfo.distance);
             }
 
             return result;
@@ -373,7 +373,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                 return total;
             }
 
-            Vector3 AvoidImminentCollision(float distance, float directionCheckDistance)
+            Vector3 AvoidImminentCollision(float distance)
             {
                 Vector3 normalizedResult = result.normalized;
                 Vector3 newResult = result;
@@ -392,7 +392,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     }
 #endif
 
-                    if (Physics.Raycast(currentPosition, direction, out RaycastHit hitInfo, directionCheckDistance, Layers))
+                    if (Physics.Raycast(currentPosition, direction, out RaycastHit hitInfo, directionCheckDistance, layers))
                     {
                         if (hitInfo.distance < distance)
                         {
@@ -417,7 +417,7 @@ namespace Enderlook.Unity.Pathfinding.Steerings
                     }
 #endif
 
-                    if (Physics.Raycast(currentPosition, direction, out hitInfo, directionCheckDistance, Layers))
+                    if (Physics.Raycast(currentPosition, direction, out hitInfo, directionCheckDistance, layers))
                     {
                         if (hitInfo.distance < distance)
                         {
