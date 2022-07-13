@@ -34,6 +34,20 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             }
         }
 
+        [SerializeField, Tooltip("Determines how direction must be normalized.")]
+        private DirectionNormalizationModes normalizationMode = DirectionNormalizationModes.WhenIsAboveOne;
+        public DirectionNormalizationModes NormalizationMode
+        {
+            get => normalizationMode;
+            set {
+                if (value != DirectionNormalizationModes.Never
+                    && value != DirectionNormalizationModes.WhenIsAboveOne
+                    && value != DirectionNormalizationModes.Always)
+                    ThrowHelper.ThrowArgumentException_ValueIsNotValidValueOfEnum();
+                normalizationMode = value;
+            }
+        }
+
         [Header("Collision Prediction")]
         [SerializeField, Min(0), Tooltip("Determines the prediction time used for moving obstacles to avoid their futures positions.")]
         private float predictionTime;
@@ -352,8 +366,16 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 
                 total /= count;
 
-                if (total.sqrMagnitude > 1)
-                    total = total.normalized;
+                switch (normalizationMode)
+                {
+                    case DirectionNormalizationModes.WhenIsAboveOne:
+                        if (total.sqrMagnitude > 1)
+                            total = total.normalized;
+                        break;
+                    case DirectionNormalizationModes.Always:
+                        total = total.normalized;
+                        break;
+                }
 
                 return total;
             }
@@ -433,5 +455,17 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 #if UNITY_EDITOR
         void ISteeringBehaviour.DrawGizmos() => GetDirection<Toggle.Yes>();
 #endif
+
+        public enum DirectionNormalizationModes
+        {
+            [Tooltip("Never normalize direction.")]
+            Never,
+
+            [Tooltip("Normalize direction when its magnitude when is above 1.")]
+            WhenIsAboveOne,
+
+            [Tooltip("Always normalize direction.")]
+            Always,
+        }
     }
 }

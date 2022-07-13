@@ -4,6 +4,9 @@ namespace Enderlook.Unity.Pathfinding.Utils
 {
     internal static class ThrowHelper
     {
+        public static void ThrowArgumentException_ValueIsNotValidValueOfEnum()
+            => throw new ArgumentException("Value is not valid value for the enum.", "value");
+
         public static void ThrowArgumentOutOfRangeException_ValueMustBeGreaterThanZero()
             => throw new ArgumentOutOfRangeException("value", "Must be positive.");
 
