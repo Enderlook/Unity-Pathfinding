@@ -51,11 +51,6 @@
             "url": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.async#com.enderlook.unity.async/v0.2.4"
         },
         {
-            "name": "com.enderlook.unity.toolset",
-            "hash": "6f50e66698a9bae8dc5aca5a7c576937f5718f9f",
-            "url": "https://github.com/Enderlook/Unity-Toolset.git?path=Packages/com.enderlook.unity.toolset#com.enderlook.unity.toolset/v0.5.3"
-        },
-        {
             "name": "com.enderlook.unity.utils.math",
             "hash": "deb2912770d197ad206aebf417c0d1332605a945",
             "url": "https://github.com/Enderlook/Unity-Extras.git?path=Packages/com.enderlook.unity.utils.math#com.enderlook.unity.utils.math/v0.1.0"
@@ -101,11 +96,6 @@
             "url": "https://github.com/Enderlook/Unity-Toolset.git?path=Packages/com.enderlook.unity.toolset.checking#com.enderlook.unity.toolset.checking/v0.1.1"
         },
         {
-            "name": "com.enderlook.unity.toolset.utils",
-            "hash": "5329ba3ed045f166809cfef90b6b5fc87dbbfbcf",
-            "url": "https://github.com/Enderlook/Unity-Toolset.git?path=Packages/com.enderlook.unity.toolset.utils#com.enderlook.unity.toolset.utils/v0.5.1"
-        },
-        {
             "name": "com.enderlook.collections.pooled",
             "hash": "7c363e786af68bccc8e42a8261cf649eb0a20dd2",
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled#com.enderlook.collections.pooled/v0.2.0"
@@ -124,6 +114,11 @@
             "name": "com.system.buffers",
             "hash": "842c2cae1b41589606841297c3cc49d09fc73648",
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.system.buffers#com.system.buffers/v4.5.1"
+        },
+        {
+            "name": "com.enderlook.state_machine",
+            "hash": "f3c4fa91880fea437d293eb20fc23c61dce0983a",
+            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.state_machine#com.enderlook.state_machine/v0.4.0"
         }
     ]
 }
