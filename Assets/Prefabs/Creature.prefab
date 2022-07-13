@@ -40,7 +40,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3cb59b1dfba2d1e46a8a14900039b256, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  initialSteeringBehaviours:
+  steeringBehaviours:
   - behaviour: {fileID: 4655179846268889483}
     strength: 3
   - behaviour: {fileID: 4277329892453450029}
