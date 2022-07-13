@@ -243,6 +243,7 @@ namespace Enderlook.Unity.Pathfinding
 #if UNITY_EDITOR
         internal void ToInspector()
         {
+            (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours = this.allSteeringBehaviours;
             if (allSteeringBehaviours is null)
                 return;
             SteeringBehaviour[] tmp = ArrayPool<SteeringBehaviour>.Shared.Rent(allSteeringBehaviours.Length);
@@ -253,20 +254,23 @@ namespace Enderlook.Unity.Pathfinding
                 if (tuple.Behaviour is MonoBehaviour monoBehaviour && monoBehaviour != null)
                     tmp[count++] = new SteeringBehaviour(monoBehaviour, tuple.Strength);
             }
+            SteeringBehaviour[] steeringBehaviours = this.steeringBehaviours;
             if (steeringBehaviours?.Length == count)
                 Array.Copy(tmp, steeringBehaviours, count);
             else
-                steeringBehaviours = tmp.AsSpan(0, count).ToArray();
+                this.steeringBehaviours = tmp.AsSpan(0, count).ToArray();
         }
 
         internal void FromInspector()
         {
+            (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours = this.allSteeringBehaviours;
             if (allSteeringBehaviours is null)
                 return;
-            (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
-            for (int i = 0; i < array.Length; i++)
+            SteeringBehaviour[] steeringBehaviours = this.steeringBehaviours;
+            int count = steeringBehavioursCount;
+            for (int i = 0; i < allSteeringBehaviours.Length; i++)
             {
-                var tuple = array[i];
+                var tuple = allSteeringBehaviours[i];
                 if (!(tuple.Behaviour is MonoBehaviour))
                     continue;
                 for (int j = 0; j < steeringBehaviours.Length; j++)
@@ -274,16 +278,17 @@ namespace Enderlook.Unity.Pathfinding
                     var item = steeringBehaviours[j];
                     if (tuple.Behaviour == item.Behaviour)
                     {
-                        array[i].Strength = item.Strength;
+                        allSteeringBehaviours[i].Strength = item.Strength;
                         goto next;
                     }
                 }
-                int count = --steeringBehavioursCount;
+                count--;
                 if (i < count)
-                    Array.Copy(array, i + 1, array, i, count - i);
-                array[count].Behaviour = null;
+                    Array.Copy(allSteeringBehaviours, i + 1, allSteeringBehaviours, i, count - i);
+                allSteeringBehaviours[count].Behaviour = null;
                 next:;
             }
+            steeringBehavioursCount = count;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
