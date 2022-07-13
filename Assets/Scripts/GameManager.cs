@@ -8,9 +8,6 @@ namespace Game
     [DefaultExecutionOrder(100)]
     public sealed class GameManager : MonoBehaviour
     {
-        [SerializeField, Tooltip("Determines the count of minions.")]
-        private InputField minionsCount;
-
         [SerializeField, Tooltip("Prefab of leader.")]
         private Leader leaderPrefab;
 
@@ -26,6 +23,9 @@ namespace Game
 
         [SerializeField, Layer, Tooltip("Layer of faction Alfa's bullets.")]
         private int alfaBulletLayer;
+
+        [SerializeField, Tooltip("Determines the count of minions in faction Alfa.")]
+        private InputField alfaCount;
 
         [SerializeField, DrawVectorRelativeToTransform(true), Tooltip("Spawn point of faction Alfa.")]
         private Vector3 alfaSpawn;
@@ -45,6 +45,9 @@ namespace Game
 
         [SerializeField, Layer, Tooltip("Layer of faction Beta's bullets.")]
         private int betaBulletLayer;
+
+        [SerializeField, Tooltip("Determines the count of minions in faction Beta.")]
+        private InputField betaCount;
 
         [SerializeField, DrawVectorRelativeToTransform(true), Tooltip("Spawn point of faction Beta.")]
         private Vector3 betaSpawn;
@@ -97,12 +100,13 @@ namespace Game
             }
             betaCreatures = null;
 
-            int count = string.IsNullOrEmpty(minionsCount.text) ? 0 : int.Parse(minionsCount.text);
+            int alfaCount_ = string.IsNullOrEmpty(alfaCount.text) ? 0 : int.Parse(alfaCount.text);
+            int betaCount_ = string.IsNullOrEmpty(betaCount.text) ? 0 : int.Parse(betaCount.text);
 
-            CreateArmy(ref alfaCreatures, alfaLayer, alfaSpawn, betaLayer, alfaPrimaryMaterial, alfaSecondaryMaterial, alfaBulletMaterial, alfaBulletLayer);
-            CreateArmy(ref betaCreatures, betaLayer, betaSpawn, alfaLayer, betaPrimaryMaterial, betaSecondaryMaterial, betaBulletMaterial, betaBulletLayer);
+            CreateArmy(ref alfaCreatures, alfaCount_, alfaLayer, alfaSpawn, betaLayer, alfaPrimaryMaterial, alfaSecondaryMaterial, alfaBulletMaterial, alfaBulletLayer);
+            CreateArmy(ref betaCreatures, betaCount_, betaLayer, betaSpawn, alfaLayer, betaPrimaryMaterial, betaSecondaryMaterial, betaBulletMaterial, betaBulletLayer);
 
-            void CreateArmy(ref Creature[] creatures, int layer, Vector3 spawnPoint, int enemyLayer, Material primary, Material secondary, Material bulletMaterial, int bulletLayer)
+            void CreateArmy(ref Creature[] creatures, int count, int layer, Vector3 spawnPoint, int enemyLayer, Material primary, Material secondary, Material bulletMaterial, int bulletLayer)
             {
                 Vector2 random = Random.insideUnitCircle * spawnRadius;
                 creatures = new Creature[1 + count];
