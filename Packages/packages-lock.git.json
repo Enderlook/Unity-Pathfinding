@@ -114,11 +114,6 @@
             "name": "com.system.buffers",
             "hash": "842c2cae1b41589606841297c3cc49d09fc73648",
             "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.system.buffers#com.system.buffers/v4.5.1"
-        },
-        {
-            "name": "com.enderlook.state_machine",
-            "hash": "f3c4fa91880fea437d293eb20fc23c61dce0983a",
-            "url": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.state_machine#com.enderlook.state_machine/v0.4.0"
         }
     ]
 }
