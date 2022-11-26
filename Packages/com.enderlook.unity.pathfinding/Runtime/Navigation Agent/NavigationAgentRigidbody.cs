@@ -273,12 +273,12 @@ namespace Enderlook.Unity.Pathfinding
             int count = steeringBehavioursCount;
             for (int i = 0; i < allSteeringBehaviours.Length; i++)
             {
-                var tuple = allSteeringBehaviours[i];
+                (ISteeringBehaviour Behaviour, float Strength) tuple = allSteeringBehaviours[i];
                 if (!(tuple.Behaviour is MonoBehaviour))
                     continue;
                 for (int j = 0; j < steeringBehaviours.Length; j++)
                 {
-                    var item = steeringBehaviours[j];
+                    SteeringBehaviour item = steeringBehaviours[j];
                     if (tuple.Behaviour == item.Behaviour)
                     {
                         allSteeringBehaviours[i].Strength = item.Strength;
