@@ -12,6 +12,9 @@ namespace Enderlook.Unity.Pathfinding
 {
     [AddComponentMenu("Enderlook/Pathfinding/Flocking Leader"), RequireComponent(typeof(Rigidbody)), DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class FlockingLeader : MonoBehaviour
+#if UNITY_EDITOR
+        , ISteeringBehaviourEditor
+#endif
     {
         private static int fixedUpdateCount;
 
@@ -168,5 +171,15 @@ namespace Enderlook.Unity.Pathfinding
             this.followers = RawPooledList<Rigidbody>.From(this.followers.UnderlyingArray, followersCount);
             this.toRemove.Clear();
         }
+
+
+#if UNITY_EDITOR
+        /// <inheritdoc cref="ISteeringBehaviourEditor.PrepareForGizmos"/>
+        void ISteeringBehaviourEditor.PrepareForGizmos()
+        {
+            if (Rigidbody == null)
+                Rigidbody = GetComponent<Rigidbody>();
+        }
+#endif
     }
 }

@@ -20,4 +20,17 @@ namespace Enderlook.Unity.Pathfinding.Steerings
         void DrawGizmos();
 #endif
     }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// Note: This interface is only valid in the editor.
+    /// </summary>
+    internal interface ISteeringBehaviourEditor
+    {
+        /// <summary>
+        /// Behaviour executed prior to <see cref="ISteeringBehaviour.DrawGizmos"/>.
+        /// </summary>
+        void PrepareForGizmos();
+    }
+#endif
 }

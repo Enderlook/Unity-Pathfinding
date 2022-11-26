@@ -302,6 +302,8 @@ namespace Enderlook.Unity.Pathfinding
             {
                 foreach (SteeringBehaviour behaviour in behaviours_)
                 {
+                    if (behaviour.Behaviour is ISteeringBehaviourEditor editor)
+                        editor.PrepareForGizmos();
                     direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;
                     behaviour.Behaviour.DrawGizmos();
                 }

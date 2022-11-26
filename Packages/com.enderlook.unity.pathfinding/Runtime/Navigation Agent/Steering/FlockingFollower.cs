@@ -8,6 +8,9 @@ namespace Enderlook.Unity.Pathfinding.Steerings
 {
     [AddComponentMenu("Enderlook/Pathfinding/Flocking Follower"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class FlockingFollower : MonoBehaviour, ISteeringBehaviour
+#if UNITY_EDITOR
+        , ISteeringBehaviourEditor
+#endif
     {
         [Header("Flocking")]
         [SerializeField, Tooltip("Determines which leader will it follow.\n" +
@@ -298,6 +301,15 @@ namespace Enderlook.Unity.Pathfinding.Steerings
             Vector3 direction = GetDirection();
             Gizmos.DrawLine(Rigidbody.position, Rigidbody.position + (direction * 3));
             Gizmos.color = Color.gray;
+        }
+
+        /// <inheritdoc cref="ISteeringBehaviourEditor.PrepareForGizmos"/>
+        void ISteeringBehaviourEditor.PrepareForGizmos()
+        {
+            if (flockingLeader != null)
+                ((ISteeringBehaviourEditor)flockingLeader).PrepareForGizmos();
+            if (Rigidbody == null)
+                Rigidbody = GetComponent<Rigidbody>();
         }
 #endif
     }
