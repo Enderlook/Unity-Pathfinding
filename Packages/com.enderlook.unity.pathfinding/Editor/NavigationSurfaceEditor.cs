@@ -1,7 +1,4 @@
-﻿using Enderlook.Unity.Threading;
-
-using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -40,35 +37,24 @@ namespace Enderlook.Unity.Pathfinding
                         progressBar.value = 0;
                         progressBar.style.display = DisplayStyle.Flex;
 
-                        ValueTask task = default;
-                        Action onSchedule = null;
-                        onSchedule = () =>
-                        {
-                            if (task.IsCompleted)
+                        Task task = Task.Run(async () => await navigationSurface.BuildNavigation(true));
+
+                        root.schedule
+                            .Execute(() =>
                             {
-                                build.SetEnabled(true);
-                                progressBar.value = 0;
-                                progressBar.style.display = DisplayStyle.None;
-                                if (task.IsFaulted)
-                                    Debug.LogException(task.AsTask().Exception);
-                                return;
-                            }
-
-                            UpdateBar();
-                            root.schedule.Execute(onSchedule);
-                        };
-
-                        Task.Run(async () =>
-                        {
-                            task = navigationSurface.BuildNavigation(true);
-                            UnityThread.RunNow(onSchedule);
-                            EditorApplication.CallbackFunction onUpdate = UpdateBar;
-                            EditorApplication.update += onUpdate;
-                            await task;
-                            EditorApplication.update -= onUpdate;
-                        });
-
-                        void UpdateBar() => progressBar.value = navigationSurface.Progress() * 100;
+                                if (task.IsCompleted)
+                                {
+                                    build.SetEnabled(true);
+                                    progressBar.value = 0;
+                                    progressBar.style.display = DisplayStyle.None;
+                                    if (task.IsFaulted)
+                                        Debug.LogException(task.Exception);
+                                    return;
+                                }
+                                progressBar.value = navigationSurface.Progress() * 100;
+                            })
+                            .Every(1000 / 60)
+                            .Until(() => task.IsCompleted);
                     };
                 }
                 root.Add(build);

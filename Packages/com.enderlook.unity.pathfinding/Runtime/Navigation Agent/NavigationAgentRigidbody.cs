@@ -2,7 +2,6 @@
 using Enderlook.Unity.Pathfinding.Utils;
 
 using System;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -15,33 +14,35 @@ namespace Enderlook.Unity.Pathfinding
     [AddComponentMenu("Enderlook/Pathfinding/Navigation Agent Rigidbody"), RequireComponent(typeof(Rigidbody)), DisallowMultipleComponent, DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
     public sealed class NavigationAgentRigidbody : MonoBehaviour
     {
-        [SerializeField, Tooltip("Steering behaviours that determines the movement of this agent.")]
-        private SteeringBehaviour[] steeringBehaviours;
+        // Keep names and comments in sync with NagiationAgentRigidbody.
+
+        [SerializeField, Tooltip("Initial steering behaviours that determines the movement of this agent.")]
+        private SteeringBehaviour[] initialSteeringBehaviours;
 
         [Header("Movement Configuration")]
-        [SerializeField, Min(0), Tooltip("Determines the maximum speed of the agent in m/s.")]
-        private float linealSpeed;
-        public float LinealSpeed {
-            get => linealSpeed;
+        [SerializeField, Min(0), Tooltip("Determines the maximum linear speed of the agent in m/s.")]
+        private float linearSpeed;
+        public float LinearSpeed {
+            get => linearSpeed;
             set
             {
                 if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
-                linealSpeed = value;
+                linearSpeed = value;
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the acceleration of the lineal speed in m/s^2.")]
-        private float linealAcceleration;
-        public float LinealAcceleration {
-            get => linealAcceleration;
+        [SerializeField, Min(0), Tooltip("Determines the acceleration of the linear speed in m/s^2.")]
+        private float linearAcceleration;
+        public float LinearAcceleration {
+            get => linearAcceleration;
             set
             {
                 if (value < 0) ThrowHelper.ThrowArgumentOutOfRangeException_ValueCannotBeNegative();
-                linealAcceleration = value;
+                linearAcceleration = value;
             }
         }
 
-        [SerializeField, Min(0), Tooltip("Determines the deacceleration of the lineal speed during braking in m/s^2.")]
+        [SerializeField, Min(0), Tooltip("Determines the deacceleration of the linear speed during braking in m/s^2.")]
         private float linearBrackingSpeed;
         public float LinearBrackingSpeed {
             get => linearBrackingSpeed;
@@ -84,21 +85,33 @@ namespace Enderlook.Unity.Pathfinding
         public bool RotateEvenWhenBraking { get; set; }
 
         private new Rigidbody rigidbody;
-        private (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours;
-        private int steeringBehavioursCount;
+        internal (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours = empty;
+        internal int steeringBehavioursCount;
+
+        private static readonly (ISteeringBehaviour Behaviour, float Strength)[] empty = new (ISteeringBehaviour Behaviour, float Strength)[0];
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void Awake()
         {
             rigidbody = GetComponent<Rigidbody>();
 
-            SteeringBehaviour[] steeringBehaviours = this.steeringBehaviours;
-            int count = steeringBehavioursCount = steeringBehaviours.Length;
-            (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours = new (ISteeringBehaviour Behaviour, float Strength)[count];
-            for (int i = 0; i < steeringBehaviours.Length; i++)
+            SteeringBehaviour[] steeringBehaviours = this.initialSteeringBehaviours;
+            int initialCount = steeringBehavioursCount;
+            int toAddCount = steeringBehaviours.Length;
+            if (toAddCount > 0)
             {
-                SteeringBehaviour steeringBehaviour = steeringBehaviours[i];
-                array[i] = (steeringBehaviour.Behaviour, steeringBehaviour.Strength);
+                int requiredCount = steeringBehavioursCount = initialCount + toAddCount;
+
+                // Prevent rare case in which SetSteeringBehaviour is executed before Awake.
+                (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
+                Array.Resize(ref array, requiredCount);
+                allSteeringBehaviours = array;
+
+                for (int i = 0; i < steeringBehaviours.Length; i++)
+                {
+                    SteeringBehaviour steeringBehaviour = steeringBehaviours[i];
+                    array[initialCount + i] = (steeringBehaviour.Behaviour, steeringBehaviour.Strength);
+                }
             }
 #if !UNITY_EDITOR
             this.steeringBehaviours = null;
@@ -126,6 +139,8 @@ namespace Enderlook.Unity.Pathfinding
                 for (int i = 0; i < count; i++)
                 {
                     (ISteeringBehaviour Behaviour, float Strength) behaviour = array[i];
+                    if (behaviour.Behaviour == null)
+                        continue;
                     direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;
                 }
 
@@ -137,11 +152,11 @@ namespace Enderlook.Unity.Pathfinding
 
             if (UpdateMovement)
             {
-                Vector3 targetVelocity = (Brake ? Vector3.zero : direction) * linealSpeed;
+                Vector3 targetVelocity = (Brake ? Vector3.zero : direction) * linearSpeed;
                 Vector3 currentVelocity = rigidbody.velocity;
                 float acceleration;
                 if (targetVelocity.sqrMagnitude > currentVelocity.sqrMagnitude)
-                    acceleration = linealAcceleration * Time.fixedDeltaTime;
+                    acceleration = linearAcceleration * Time.fixedDeltaTime;
                 else
                     acceleration = linearBrackingSpeed * Time.fixedDeltaTime;
                 rigidbody.velocity = Vector3.MoveTowards(currentVelocity, targetVelocity, acceleration);
@@ -234,74 +249,23 @@ namespace Enderlook.Unity.Pathfinding
         {
             int count = steeringBehavioursCount;
             (ISteeringBehaviour Behaviour, float Strength)[] array = allSteeringBehaviours;
-            Array.Resize(ref array, array.Length * 2);
+            Array.Resize(ref array, Math.Max(array.Length * 2, 4));
             allSteeringBehaviours = array;
             steeringBehavioursCount = count + 1;
             array[count] = (steeringBehaviour, strength);
         }
 
 #if UNITY_EDITOR
-        internal void ToInspector()
-        {
-            (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours = this.allSteeringBehaviours;
-            if (allSteeringBehaviours is null)
-                return;
-            ArrayPool<SteeringBehaviour> pool = ArrayPool<SteeringBehaviour>.Shared;
-            SteeringBehaviour[] tmp = pool.Rent(allSteeringBehaviours.Length);
-            int count = 0;
-            for (int i = 0; i < allSteeringBehaviours.Length; i++)
-            {
-                (ISteeringBehaviour Behaviour, float Strength) tuple = allSteeringBehaviours[i];
-                if (tuple.Behaviour is MonoBehaviour monoBehaviour && monoBehaviour != null)
-                    tmp[count++] = new SteeringBehaviour(monoBehaviour, tuple.Strength);
-            }
-            SteeringBehaviour[] steeringBehaviours = this.steeringBehaviours;
-            if (steeringBehaviours?.Length == count)
-                Array.Copy(tmp, steeringBehaviours, count);
-            else
-                this.steeringBehaviours = tmp.AsSpan(0, count).ToArray();
-            Array.Clear(tmp, 0, count);
-            pool.Return(tmp);
-        }
-
-        internal void FromInspector()
-        {
-            (ISteeringBehaviour Behaviour, float Strength)[] allSteeringBehaviours = this.allSteeringBehaviours;
-            if (allSteeringBehaviours is null)
-                return;
-            SteeringBehaviour[] steeringBehaviours = this.steeringBehaviours;
-            int count = steeringBehavioursCount;
-            for (int i = 0; i < allSteeringBehaviours.Length; i++)
-            {
-                (ISteeringBehaviour Behaviour, float Strength) tuple = allSteeringBehaviours[i];
-                if (!(tuple.Behaviour is MonoBehaviour))
-                    continue;
-                for (int j = 0; j < steeringBehaviours.Length; j++)
-                {
-                    SteeringBehaviour item = steeringBehaviours[j];
-                    if (tuple.Behaviour == item.Behaviour)
-                    {
-                        allSteeringBehaviours[i].Strength = item.Strength;
-                        goto next;
-                    }
-                }
-                count--;
-                if (i < count)
-                    Array.Copy(allSteeringBehaviours, i + 1, allSteeringBehaviours, i, count - i);
-                allSteeringBehaviours[count].Behaviour = null;
-                next:;
-            }
-            steeringBehavioursCount = count;
-        }
-
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Code Quality", "IDE0051:Remove unused private members", Justification = "Used by Unity.")]
         private void OnDrawGizmosSelected()
         {
             Vector3 direction = Vector3.zero;
-            if (steeringBehaviours is SteeringBehaviour[] behaviours_)
+            if (initialSteeringBehaviours is SteeringBehaviour[] behaviours_)
             {
                 foreach (SteeringBehaviour behaviour in behaviours_)
                 {
+                    if (behaviour.Behaviour == null)
+                        continue;
                     if (behaviour.Behaviour is ISteeringBehaviourEditor editor)
                         editor.PrepareForGizmos();
                     direction += behaviour.Behaviour.GetDirection() * behaviour.Strength;

@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 
 using UnityEngine;
 
+using UnityObject = UnityEngine.Object;
+
 namespace Enderlook.Unity.Pathfinding
 {
     [AddComponentMenu("Enderlook/Pathfinding/Flocking Leader"), RequireComponent(typeof(Rigidbody)), DefaultExecutionOrder(ExecutionOrder.NavigationAgent)]
@@ -18,8 +20,13 @@ namespace Enderlook.Unity.Pathfinding
     {
         private static int fixedUpdateCount;
 
+#if UNITY_EDITOR
+        internal RawPooledList<FlockingFollower> followers = RawPooledList<FlockingFollower>.Create();
+        private RawPooledList<FlockingFollower> toRemove = RawPooledList<FlockingFollower>.Create();
+#else
         private RawPooledList<Rigidbody> followers = RawPooledList<Rigidbody>.Create();
         private RawPooledList<Rigidbody> toRemove = RawPooledList<Rigidbody>.Create();
+#endif
 
         private Vector3[] followersPositions = ArrayPool<Vector3>.Shared.Rent(0);
 
@@ -55,7 +62,11 @@ namespace Enderlook.Unity.Pathfinding
 
         internal void AddFollower(FlockingFollower follower)
         {
+#if UNITY_EDITOR
+            followers.Add(follower);
+#else
             followers.Add(follower.Rigidbody);
+#endif
 
             if (followersPositions.Length >= followers.Count)
                 followersPositions[followers.Count - 1] = follower.Rigidbody.position;
@@ -69,17 +80,31 @@ namespace Enderlook.Unity.Pathfinding
             if (toRemove.Count > 0)
             {
                 Remove();
-                AddFollower(follower);
+
+                if (followersPositions.Length >= followers.Count)
+                {
+                    followersPositions[followers.Count - 1] = follower.Rigidbody.position;
+                    return;
+                }
             }
 
             // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
-            Vector3[] newFollowersPositions = new Vector3[followers.Capacity];
+            ArrayPool<Vector3> pool = ArrayPool<Vector3>.Shared;
+            Vector3[] newFollowersPositions = pool.Rent(followers.Capacity);
             Array.Copy(followersPositions, newFollowersPositions, followersPositions.Length);
+            pool.Return(followersPositions);
             followersPositions = newFollowersPositions;
             followersPositions[followers.Count - 1] = follower.Rigidbody.position;
         }
 
-        internal void RemoveFollower(FlockingFollower follower) => toRemove.Add(follower.Rigidbody);
+        internal void RemoveFollower(FlockingFollower follower)
+        {
+#if UNITY_EDITOR
+            toRemove.Add(follower);
+#else
+            toRemove.Add(follower.Rigidbody);
+#endif
+        }
 
         internal Span<EntityInfo> GetEntitiesInRange(Rigidbody rigibody, float range, LayerMask blockVisionLayers)
         {
@@ -90,24 +115,51 @@ namespace Enderlook.Unity.Pathfinding
 
             followersInRange.Clear();
             Vector3 currentPosition = rigibody.position;
+#if UNITY_EDITOR
+            Span<FlockingFollower> followers = this.followers.AsSpan();
+#else
             Span<Rigidbody> followers = this.followers.AsSpan();
+#endif
             for (int i = 0; i < followers.Length; i++)
-                GetEntitiesInRange_Check(followersPositions[i], followers[i].transform, range, currentPosition, blockVisionLayers);
+            {
+#if UNITY_EDITOR
+                FlockingFollower follower = followers[i];
+#else
+                Rigidbody follower = followers[i];
+#endif
+                GetEntitiesInRange_Check(followersPositions[i], follower.transform, range, currentPosition, blockVisionLayers
+#if UNITY_EDITOR
+                    , follower
+#endif
+                );
+            }
 
-            GetEntitiesInRange_Check(Rigidbody.position, transform, range, currentPosition, blockVisionLayers);
+            GetEntitiesInRange_Check(Rigidbody.position, transform, range, currentPosition, blockVisionLayers
+#if UNITY_EDITOR
+                , this
+#endif
+            );
 
             return followersInRange.AsSpan();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void GetEntitiesInRange_Check(Vector3 position, Transform transform, float range, Vector3 currentPosition, LayerMask blockVisionLayers)
+        private void GetEntitiesInRange_Check(Vector3 position, Transform transform, float range, Vector3 currentPosition, LayerMask blockVisionLayers
+#if UNITY_EDITOR
+                , UnityObject entity
+#endif
+            )
         {
             Vector3 rigidbodyMinusEntity = currentPosition - position;
             float distance = rigidbodyMinusEntity.magnitude;
             float distanceFactor = (range - distance) / range;
             Vector3 forwardFactor = transform.forward * distanceFactor;
             if (distance <= range && !Physics.Linecast(currentPosition, position, blockVisionLayers))
-                followersInRange.Add(new EntityInfo(position, forwardFactor, rigidbodyMinusEntity, distance, distanceFactor));
+                followersInRange.Add(new EntityInfo(position, forwardFactor, rigidbodyMinusEntity, distance, distanceFactor
+#if UNITY_EDITOR
+                , entity
+#endif
+                ));
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -118,7 +170,11 @@ namespace Enderlook.Unity.Pathfinding
 
             lastUpdate = fixedUpdateCount;
             Vector3[] array = followersPositions;
+#if UNITY_EDITOR
+            Span<FlockingFollower> followers = this.followers.AsSpan();
+#else
             Span<Rigidbody> followers = this.followers.AsSpan();
+#endif
             if (array.Length < followers.Length)
             {
                 // We resize the array with Capacity instead of Count in order to reduce reallocation amounts.
@@ -127,15 +183,25 @@ namespace Enderlook.Unity.Pathfinding
             }
 
             for (int i = 0; i < followers.Length; i++)
+            {
+#if UNITY_EDITOR
+                array[i] = followers[i].Rigidbody.position;
+#else
                 array[i] = followers[i].position;
+#endif
+            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void Remove()
+        internal void Remove()
         {
             // This reduces time complexity of multiple removes by batching them.
 
+#if UNITY_EDITOR
+            Span<FlockingFollower> toRemove = this.toRemove.AsSpan();
+#else
             Span<Rigidbody> toRemove = this.toRemove.AsSpan();
+#endif
             int toRemoveCount = toRemove.Length;
             if (toRemoveCount == 1)
             {
@@ -144,11 +210,19 @@ namespace Enderlook.Unity.Pathfinding
                 return;
             }
 
+#if UNITY_EDITOR
+            Span<FlockingFollower> followers = this.followers.AsSpan();
+#else
             Span<Rigidbody> followers = this.followers.AsSpan();
+#endif
             int followersCount = followers.Length;
             for (int i = 0; i < followersCount; i++)
             {
+#if UNITY_EDITOR
+                FlockingFollower element = followers[i];
+#else
                 Rigidbody element = followers[i];
+#endif
                 for (int k = 0; k < toRemoveCount; k++)
                 {
                     if (element == toRemove[k])
@@ -168,7 +242,11 @@ namespace Enderlook.Unity.Pathfinding
 
         double_break:
             followers.Slice(followersCount).Clear();
+#if UNITY_EDITOR
+            this.followers = RawPooledList<FlockingFollower>.From(this.followers.UnderlyingArray, followersCount);
+#else
             this.followers = RawPooledList<Rigidbody>.From(this.followers.UnderlyingArray, followersCount);
+#endif
             this.toRemove.Clear();
         }
 

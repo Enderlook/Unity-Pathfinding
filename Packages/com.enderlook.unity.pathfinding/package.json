@@ -1,6 +1,6 @@
 {
   "name": "com.enderlook.unity.pathfinding",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Enderlook Unity Pathfinding",
   "description": "A pathfinding implementation.",
   "unity": "2019.2",
