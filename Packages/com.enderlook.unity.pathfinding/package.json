@@ -8,9 +8,9 @@
     "pathfinding"
   ],
   "dependencies": {
-    "com.enderlook.collections": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections#com.enderlook.collections/v0.1.0",
-    "com.enderlook.collections.pooled": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled#com.enderlook.collections.pooled/v0.2.0",
-    "com.enderlook.collections.pooled.low_level": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled.low_level#com.enderlook.collections.pooled.low_level/v0.2.0",
+    "com.enderlook.collections.priority": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.priority#com.enderlook.collections.priority/v0.1.0",
+    "com.enderlook.collections.pooled": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled#com.enderlook.collections.pooled/v0.4.0",
+    "com.enderlook.collections.pooled.low_level": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.pooled.low_level#com.enderlook.collections.pooled.low_level/v0.3.0",
     "com.enderlook.collections.spatial": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.collections.spatial#com.enderlook.collections.spatial/v0.1.0",
     "com.enderlook.net_compatibility": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.net_compatibility#com.enderlook.net_compatibility/v0.6.2",
 	"com.enderlook.mathematics": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.enderlook.mathematics#com.enderlook.mathematics/v0.2.0",
@@ -19,7 +19,7 @@
     "com.enderlook.unity.threading": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.threading#com.enderlook.unity.threading/v0.7.6",
     "com.enderlook.unity.jobs": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.jobs#com.enderlook.unity.jobs/v0.1.4",
     "com.enderlook.unity.async": "https://github.com/Enderlook/Unity-Threading.git?path=Packages/com.enderlook.unity.async#com.enderlook.unity.async/v0.2.4",
-    "com.enderlook.unity.toolset": "https://github.com/Enderlook/Unity-Toolset.git?path=Packages/com.enderlook.unity.toolset#com.enderlook.unity.toolset/v0.5.4",
+    "com.enderlook.unity.toolset": "https://github.com/Enderlook/Unity-Toolset.git?path=Packages/com.enderlook.unity.toolset#com.enderlook.unity.toolset/v0.7.0",
     "com.enderlook.unity.utils.math": "https://github.com/Enderlook/Unity-Extras.git?path=Packages/com.enderlook.unity.utils.math#com.enderlook.unity.utils.math/v0.1.0",
     "com.enderlook.unity.utils": "https://github.com/Enderlook/Unity-Extras.git?path=Packages/com.enderlook.unity.utils#com.enderlook.unity.utils/v0.1.0",
     "com.system.threading.tasks.extensions": "https://github.com/Enderlook/Unity-Net-Packages.git?path=Packages/com.system.threading.tasks.extensions#com.system.threading.tasks.extensions/v0.1.0"

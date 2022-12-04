@@ -1,5 +1,6 @@
 ﻿using Enderlook.Collections;
 using Enderlook.Collections.LowLevel;
+using Enderlook.Collections.Priority;
 using Enderlook.Pools;
 using Enderlook.Unity.Pathfinding.Utils;
 using Enderlook.Unity.Threading;
