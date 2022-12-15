@@ -65,11 +65,17 @@ namespace Enderlook.Unity.Pathfinding
                             isCalculatingPath.value = target.IsCalculatingPath;
                             if (target.HasPath)
                             {
+                                nextPosition.style.display = DisplayStyle.Flex;
+                                destination.style.display = DisplayStyle.Flex;
                                 nextPosition.value = target.NextPosition;
                                 destination.value = target.Destination;
                             }
                             else
+                            {
+                                nextPosition.style.display = DisplayStyle.None;
+                                destination.style.display = DisplayStyle.None;
                                 nextPosition.value = destination.value = new Vector3(float.NaN, float.NaN, float.NaN);
+                            }
                         }
                     }).Every(1000 / 60);
                 }
