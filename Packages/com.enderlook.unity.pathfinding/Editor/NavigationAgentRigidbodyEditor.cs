@@ -66,7 +66,11 @@ namespace Enderlook.Unity.Pathfinding
                         ButtonData data = (ButtonData)remove.userData;
                         NavigationAgentRigidbody target = data.Target;
                         target.SetSteeringBehaviour(target.allSteeringBehaviours[data.Index].Behaviour, 0);
+#if UNITY_2021_2_OR_NEWER
+                        data.List.Rebuild();
+#else
                         data.List.Refresh();
+#endif
                     };
                 }
                 root.Add(remove);
@@ -226,7 +230,11 @@ namespace Enderlook.Unity.Pathfinding
                                             goto end;
                                     }
                                     target.SetSteeringBehaviour(behaviour, 1);
+#if UNITY_2021_2_OR_NEWER
+                            list.Rebuild();
+#else
                                     list.Refresh();
+#endif
                                 end:
                                     steeringBehavourToAdd.SetValueWithoutNotify(null);
                                 }

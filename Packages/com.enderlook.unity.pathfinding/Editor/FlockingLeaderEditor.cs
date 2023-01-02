@@ -58,7 +58,11 @@ namespace Enderlook.Unity.Pathfinding
                         if (isPlaying)
                         {
                             target.Remove();
+#if UNITY_2021_2_OR_NEWER
+                            list.Rebuild();
+#else
                             list.Refresh();
+#endif
                             list.style.height = Math.Min(target.followers.Count * 20, 100) + 5;
                         }
                     }).Every(1000 / 60);

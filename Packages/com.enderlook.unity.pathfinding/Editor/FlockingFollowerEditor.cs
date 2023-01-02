@@ -69,7 +69,11 @@ namespace Enderlook.Unity.Pathfinding
                                     continue;
                                 followers.Add(entity.Entity);
                             }
+#if UNITY_2021_2_OR_NEWER
+                            list.Rebuild();
+#else
                             list.Refresh();
+#endif
                             list.style.height = Math.Min(followers.Count * 20, 100) + 5;
                         }
                     }).Every(1000 / 60);
